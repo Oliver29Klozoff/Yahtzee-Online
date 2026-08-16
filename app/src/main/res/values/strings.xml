@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Yahtzee Online</string>
+    <string name="your_name">Your name</string>
+    <string name="create_room">Create Room</string>
+    <string name="join_room">Join Room</string>
+    <string name="room_code">Room code</string>
+    <string name="room_code_label">Room Code</string>
+    <string name="waiting_for_players">Waiting for players…</string>
+    <string name="start_game">Start Game</string>
+    <string name="roll_dice">Roll Dice</string>
+    <string name="rolls_left">Rolls left: %1$d</string>
+    <string name="waiting_for_turn">Waiting for %1$s…</string>
+    <string name="your_turn">Your turn!</string>
+    <string name="game_over">Game Over</string>
+    <string name="winner_is">Winner: %1$s</string>
+    <string name="players_label">Players</string>
+</resources>
