@@ -48,7 +48,7 @@ class Dice3DView @JvmOverloads constructor(
             val x = (i - 2) * 0.9f
             world.dice.add(DieBody(position = Vec3(x, 4f, 0f)))
             val visual = DieVisual(engine, materialLoader)
-            visual.planeNodes.forEach { addChildNode(it) }
+            addChildNode(visual.node)
             visuals.add(visual)
         }
 

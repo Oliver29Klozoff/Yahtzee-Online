@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.RectF
 
 /** Builds one square bitmap per die face value (1-6), each with a white rounded face and pips. */
 object DieTextureAtlas {
@@ -22,19 +21,10 @@ object DieTextureAtlas {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(250, 248, 240) }
-        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.rgb(200, 195, 180)
-            style = Paint.Style.STROKE
-            strokeWidth = size * 0.025f
-        }
-        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(25, 25, 25) }
+        canvas.drawColor(Color.rgb(255, 255, 255))
 
-        val rect = RectF(3f, 3f, size - 3f, size - 3f)
-        canvas.drawRoundRect(rect, size * 0.16f, size * 0.16f, facePaint)
-        canvas.drawRoundRect(rect, size * 0.16f, size * 0.16f, borderPaint)
-
-        val pipRadius = size * 0.09f
+        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(20, 20, 20) }
+        val pipRadius = size * 0.1f
         pipLayouts[value]?.forEach { (fx, fy) ->
             canvas.drawCircle(fx * size, fy * size, pipRadius, pipPaint)
         }
