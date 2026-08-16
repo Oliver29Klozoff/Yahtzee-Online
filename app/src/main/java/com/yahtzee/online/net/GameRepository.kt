@@ -94,8 +94,7 @@ class GameRepository {
         roomRef(code).child("held").setValue(updated)
     }
 
-    fun submitScore(code: String, state: GameState, category: Category) {
-        val playerId = localPlayerId
+    fun submitScore(code: String, state: GameState, category: Category, playerId: String) {
         val player = state.players[playerId] ?: return
         if (player.scores.containsKey(category.name)) return
 

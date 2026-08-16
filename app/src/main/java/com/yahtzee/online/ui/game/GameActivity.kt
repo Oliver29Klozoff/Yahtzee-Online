@@ -129,7 +129,7 @@ class GameActivity : AppCompatActivity() {
     private fun onScoreCategory(category: Category) {
         val state = lastState ?: return
         if (!state.isMyTurn(playerId) || state.rollsUsed == 0) return
-        repository.submitScore(roomCode, state, category)
+        repository.submitScore(roomCode, state, category, playerId)
     }
 
     private fun showGameOver(state: GameState) {
