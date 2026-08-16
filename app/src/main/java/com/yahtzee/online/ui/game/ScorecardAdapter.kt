@@ -11,8 +11,7 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.Scoring
 
 class ScorecardAdapter(
-    private val context: android.content.Context,
-    private val onCategoryClick: (Category) -> Unit
+    private val context: android.content.Context
 ) : BaseAdapter() {
 
     private val categories = Category.values().toList()
@@ -25,6 +24,12 @@ class ScorecardAdapter(
         this.playerId = playerId
         this.canScore = canScore
         notifyDataSetChanged()
+    }
+
+    fun isScorable(position: Int): Boolean {
+        val category = categories[position]
+        val player = state?.players?.get(playerId)
+        return canScore && player?.scores?.containsKey(category.name) != true
     }
 
     override fun getCount() = categories.size
@@ -45,19 +50,14 @@ class ScorecardAdapter(
 
         if (existingScore != null) {
             score.text = existingScore.toString()
-            view.isEnabled = false
             view.alpha = 0.6f
         } else if (currentState != null && canScore) {
             val preview = Scoring.score(category, currentState.dice)
             score.text = preview.toString()
             view.alpha = 1.0f
-            view.isEnabled = true
-            view.setOnClickListener { onCategoryClick(category) }
         } else {
             score.text = "-"
             view.alpha = 0.4f
-            view.isEnabled = false
-            view.setOnClickListener(null)
         }
 
         return view

@@ -1,0 +1,53 @@
+{
+  "rules": {
+    "games": {
+      "$roomCode": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['roomCode', 'hostId', 'status'])",
+
+        "roomCode": {
+          ".validate": "newData.val() === $roomCode"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'LOBBY' || newData.val() === 'PLAYING' || newData.val() === 'FINISHED')"
+        },
+        "dice": {
+          "$index": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+          }
+        },
+        "held": {
+          "$index": {
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "currentTurnIndex": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "rollsUsed": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+        },
+        "players": {
+          "$playerId": {
+            ".validate": "newData.hasChildren(['id', 'name'])",
+            "id": {
+              ".validate": "newData.val() === $playerId"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+            },
+            "scores": {
+              "$category": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+              }
+            },
+            "yahtzeeBonusCount": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -6,14 +6,13 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
-import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.net.GameRepository
 
@@ -31,6 +30,9 @@ class GameActivity : AppCompatActivity() {
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var lastState: GameState? = null
     private var gameOverShown = false
+    private var lastDice: List<Int>? = null
+    private var lastRollsUsed = 0
+    private lateinit var dice3DView: Dice3DView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,8 +41,16 @@ class GameActivity : AppCompatActivity() {
         roomCode = intent.getStringExtra(EXTRA_ROOM_CODE) ?: ""
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: ""
 
-        scorecardAdapter = ScorecardAdapter(this) { category -> onScoreCategory(category) }
-        findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
+        dice3DView = findViewById(R.id.dice3DView)
+
+        scorecardAdapter = ScorecardAdapter(this)
+        val scorecardList = findViewById<ListView>(R.id.scorecardList)
+        scorecardList.adapter = scorecardAdapter
+        scorecardList.setOnItemClickListener { _, _, position, _ ->
+            if (scorecardAdapter.isScorable(position)) {
+                onScoreCategory(scorecardAdapter.getItem(position))
+            }
+        }
 
         findViewById<Button>(R.id.rollButton).setOnClickListener {
             val state = lastState ?: return@setOnClickListener
@@ -80,19 +90,39 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun renderDice(state: GameState, myTurn: Boolean) {
-        val diceRow = findViewById<LinearLayout>(R.id.diceRow)
-        diceRow.removeAllViews()
+        val isNewRoll = state.rollsUsed != lastRollsUsed
+        if (isNewRoll) {
+            dice3DView.rollTo(state.dice, state.held)
+        }
+        lastDice = state.dice
+        lastRollsUsed = state.rollsUsed
+
+        renderHoldRow(state, myTurn)
+    }
+
+    private fun renderHoldRow(state: GameState, myTurn: Boolean) {
+        val holdRow = findViewById<LinearLayout>(R.id.holdRow)
+        holdRow.removeAllViews()
         state.dice.forEachIndexed { index, value ->
-            val dieView = layoutInflater.inflate(R.layout.item_die, diceRow, false)
-            val dieText = dieView.findViewById<TextView>(R.id.dieText)
-            dieText.text = value.toString()
-            dieText.isSelected = state.held.getOrNull(index) == true
-            dieText.setOnClickListener {
+            val chip = Button(this)
+            chip.text = value.toString()
+            chip.isSelected = state.held.getOrNull(index) == true
+            chip.setBackgroundColor(
+                if (chip.isSelected) resources.getColor(R.color.die_held, theme)
+                else resources.getColor(R.color.die_normal, theme)
+            )
+            chip.setTextColor(resources.getColor(R.color.text_dark, theme))
+            val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            params.marginStart = 8
+            params.marginEnd = 8
+            chip.layoutParams = params
+            chip.setOnClickListener {
                 if (myTurn && state.rollsUsed in 1 until MAX_ROLLS_PER_TURN) {
                     repository.toggleHold(roomCode, state.held, index)
                 }
             }
-            diceRow.addView(dieView)
+            chip.isEnabled = myTurn && state.rollsUsed in 1 until MAX_ROLLS_PER_TURN
+            holdRow.addView(chip)
         }
     }
 

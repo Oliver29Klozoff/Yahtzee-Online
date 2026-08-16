@@ -1,0 +1,46 @@
+[
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\mipmap-anydpi-v26\\ic_launcher.xml"
+    },
+    {
+        "merged": "com.yahtzee.online.app-debug-5:/layout_activity_game.xml.flat",
+        "source": "com.yahtzee.online.app-main-7:/layout/activity_game.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\drawable_die_pip.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\drawable\\die_pip.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\drawable_die_background.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\drawable\\die_background.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\layout_activity_game.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\layout\\activity_game.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\drawable_ic_launcher_foreground.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\drawable\\ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\layout_activity_main.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\layout_item_category.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\layout\\item_category.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\drawable_ic_launcher_background.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\drawable\\ic_launcher_background.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\layout_item_die.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\layout\\item_die.xml"
+    },
+    {
+        "merged": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-debug-5:\\layout_activity_lobby.xml.flat",
+        "source": "D:\\Gradle\\daemon\\9.4.1\\com.yahtzee.online.app-main-7:\\layout\\activity_lobby.xml"
+    }
+]

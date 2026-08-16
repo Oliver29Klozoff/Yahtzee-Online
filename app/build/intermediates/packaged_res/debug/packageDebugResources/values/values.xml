@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#F5F5F0</color>
+    <color name="brand_accent">#FFC107</color>
+    <color name="brand_primary">#2E7D32</color>
+    <color name="brand_primary_dark">#1B5E20</color>
+    <color name="die_held">#FFC107</color>
+    <color name="die_normal">#FFFFFF</color>
+    <color name="text_dark">#212121</color>
+    <string name="app_name">Yahtzee Online</string>
+    <string name="create_room">Create Room</string>
+    <string name="firebase_database_url" translatable="false">https://yahtzee-online-66a26-default-rtdb.firebaseio.com</string>
+    <string name="game_over">Game Over</string>
+    <string name="gcm_defaultSenderId" translatable="false">1063135473393</string>
+    <string name="google_api_key" translatable="false">AIzaSyAXEmuddkiY0tDmlZcfOS53SWUCYZQSDzY</string>
+    <string name="google_app_id" translatable="false">1:1063135473393:android:ba5ffcd8175f936e8cc350</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAXEmuddkiY0tDmlZcfOS53SWUCYZQSDzY</string>
+    <string name="google_storage_bucket" translatable="false">yahtzee-online-66a26.firebasestorage.app</string>
+    <string name="join_room">Join Room</string>
+    <string name="players_label">Players</string>
+    <string name="project_id" translatable="false">yahtzee-online-66a26</string>
+    <string name="roll_dice">Roll Dice</string>
+    <string name="rolls_left">Rolls left: %1$d</string>
+    <string name="room_code">Room code</string>
+    <string name="room_code_label">Room Code</string>
+    <string name="start_game">Start Game</string>
+    <string name="waiting_for_players">Waiting for players…</string>
+    <string name="waiting_for_turn">Waiting for %1$s…</string>
+    <string name="winner_is">Winner: %1$s</string>
+    <string name="your_name">Your name</string>
+    <string name="your_turn">Your turn!</string>
+    <style name="Theme.YahtzeeOnline" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorPrimaryDark">@color/brand_primary_dark</item>
+        <item name="colorAccent">@color/brand_accent</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:textColorPrimary">@color/text_dark</item>
+        <item name="android:textColor">@color/text_dark</item>
+    </style>
+</resources>

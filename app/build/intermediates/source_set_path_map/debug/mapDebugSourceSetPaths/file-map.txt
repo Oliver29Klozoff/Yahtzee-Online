@@ -1,0 +1,43 @@
+com.yahtzee.online.app-pngs-0 D:\Android studio apps\Yahtzee-Online\app\build\generated\res\pngs\debug
+com.yahtzee.online.app-res-1 D:\Android studio apps\Yahtzee-Online\app\build\generated\res\processDebugGoogleServices
+com.yahtzee.online.app-resValues-2 D:\Android studio apps\Yahtzee-Online\app\build\generated\res\resValues\debug
+com.yahtzee.online.app-packageDebugResources-3 D:\Android studio apps\Yahtzee-Online\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.yahtzee.online.app-packageDebugResources-4 D:\Android studio apps\Yahtzee-Online\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.yahtzee.online.app-debug-5 D:\Android studio apps\Yahtzee-Online\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.yahtzee.online.app-debug-6 D:\Android studio apps\Yahtzee-Online\app\src\debug\res
+com.yahtzee.online.app-main-7 D:\Android studio apps\Yahtzee-Online\app\src\main\res
+com.yahtzee.online.app-transition-1.5.0-8 D:\Gradle\caches\9.4.1\transforms\1e9b0bd331090ced32fa4ec88433bff3\transformed\transition-1.5.0\res
+com.yahtzee.online.app-savedstate-ktx-1.2.1-9 D:\Gradle\caches\9.4.1\transforms\2025a470a5c0a51924309db0e8e84e1e\transformed\savedstate-ktx-1.2.1\res
+com.yahtzee.online.app-lifecycle-process-2.8.6-10 D:\Gradle\caches\9.4.1\transforms\29687dd6acb214959589746cb1305a5b\transformed\lifecycle-process-2.8.6\res
+com.yahtzee.online.app-play-services-basement-18.3.0-11 D:\Gradle\caches\9.4.1\transforms\3766c13c2b7c73f432048b880bd7cbf2\transformed\play-services-basement-18.3.0\res
+com.yahtzee.online.app-lifecycle-runtime-release-12 D:\Gradle\caches\9.4.1\transforms\3f7087047ff9a7a2d39f660a39355567\transformed\lifecycle-runtime-release\res
+com.yahtzee.online.app-emoji2-views-helper-1.3.0-13 D:\Gradle\caches\9.4.1\transforms\46bcd67fedd708a31208fcf9f2279309\transformed\emoji2-views-helper-1.3.0\res
+com.yahtzee.online.app-lifecycle-viewmodel-ktx-2.8.6-14 D:\Gradle\caches\9.4.1\transforms\4cafc754906eecc00c053b9ba1abb125\transformed\lifecycle-viewmodel-ktx-2.8.6\res
+com.yahtzee.online.app-lifecycle-livedata-core-ktx-2.8.6-15 D:\Gradle\caches\9.4.1\transforms\505b0b98aff9b45f0a0fff0c21686bce\transformed\lifecycle-livedata-core-ktx-2.8.6\res
+com.yahtzee.online.app-core-1.13.1-16 D:\Gradle\caches\9.4.1\transforms\543aa0dc021c5dfe86c2a77b3d883036\transformed\core-1.13.1\res
+com.yahtzee.online.app-appcompat-resources-1.7.0-17 D:\Gradle\caches\9.4.1\transforms\5d99eee7fb9ec6774ab0e45cd5d0ffcd\transformed\appcompat-resources-1.7.0\res
+com.yahtzee.online.app-fragment-1.5.4-18 D:\Gradle\caches\9.4.1\transforms\688b8e7139746075d6d843a60686e7ec\transformed\fragment-1.5.4\res
+com.yahtzee.online.app-lifecycle-runtime-ktx-release-19 D:\Gradle\caches\9.4.1\transforms\6de2f0efa71870e497de06e6799abd2a\transformed\lifecycle-runtime-ktx-release\res
+com.yahtzee.online.app-core-ktx-1.13.1-20 D:\Gradle\caches\9.4.1\transforms\71eeee0a948e8274a782afe1ad29d000\transformed\core-ktx-1.13.1\res
+com.yahtzee.online.app-lifecycle-viewmodel-release-21 D:\Gradle\caches\9.4.1\transforms\76c185ec4b6fe9f7a6b7cdccd82e0161\transformed\lifecycle-viewmodel-release\res
+com.yahtzee.online.app-profileinstaller-1.3.1-22 D:\Gradle\caches\9.4.1\transforms\78a4cc1ed417840a48d3ee67205cf7e2\transformed\profileinstaller-1.3.1\res
+com.yahtzee.online.app-annotation-experimental-1.4.0-23 D:\Gradle\caches\9.4.1\transforms\7aacc1e395ec264f5f45c6f5311c7082\transformed\annotation-experimental-1.4.0\res
+com.yahtzee.online.app-cardview-1.0.0-24 D:\Gradle\caches\9.4.1\transforms\7ca3d1ac205805918667484fceee36bd\transformed\cardview-1.0.0\res
+com.yahtzee.online.app-coordinatorlayout-1.1.0-25 D:\Gradle\caches\9.4.1\transforms\7e6f861a72eabdecf52ba9fdd4284496\transformed\coordinatorlayout-1.1.0\res
+com.yahtzee.online.app-emoji2-1.3.0-26 D:\Gradle\caches\9.4.1\transforms\937fb690d1991653611fb855e0d3dd47\transformed\emoji2-1.3.0\res
+com.yahtzee.online.app-recyclerview-1.1.0-27 D:\Gradle\caches\9.4.1\transforms\aa76d39268508c8678d952c9d731bcce\transformed\recyclerview-1.1.0\res
+com.yahtzee.online.app-core-runtime-2.2.0-28 D:\Gradle\caches\9.4.1\transforms\b734833a06332bf64417b7066dfc219a\transformed\core-runtime-2.2.0\res
+com.yahtzee.online.app-lifecycle-livedata-core-2.8.6-29 D:\Gradle\caches\9.4.1\transforms\be679a5924e894ab403ef7c4dfc7a31f\transformed\lifecycle-livedata-core-2.8.6\res
+com.yahtzee.online.app-appcompat-1.7.0-30 D:\Gradle\caches\9.4.1\transforms\c615f07471ee4924b25125c043400a79\transformed\appcompat-1.7.0\res
+com.yahtzee.online.app-material-1.12.0-31 D:\Gradle\caches\9.4.1\transforms\cac1ef57869d144fca91556a6ad607d5\transformed\material-1.12.0\res
+com.yahtzee.online.app-play-services-base-18.1.0-32 D:\Gradle\caches\9.4.1\transforms\cd65b93731c4fd9d753ecc9eba7d89f9\transformed\play-services-base-18.1.0\res
+com.yahtzee.online.app-lifecycle-livedata-2.8.6-33 D:\Gradle\caches\9.4.1\transforms\cf9094f5b5f0352a7f954591807bd00c\transformed\lifecycle-livedata-2.8.6\res
+com.yahtzee.online.app-constraintlayout-2.1.4-34 D:\Gradle\caches\9.4.1\transforms\e44e24df76ff3bd488dfb5b5ce4a7dc1\transformed\constraintlayout-2.1.4\res
+com.yahtzee.online.app-activity-1.9.2-35 D:\Gradle\caches\9.4.1\transforms\e4fc79ea70f9d76478839521b8384d46\transformed\activity-1.9.2\res
+com.yahtzee.online.app-activity-ktx-1.9.2-36 D:\Gradle\caches\9.4.1\transforms\e65c035d472d3cd928dc494045e87ff9\transformed\activity-ktx-1.9.2\res
+com.yahtzee.online.app-savedstate-1.2.1-37 D:\Gradle\caches\9.4.1\transforms\e7a6b2806d0090157c205eb509b7d9a5\transformed\savedstate-1.2.1\res
+com.yahtzee.online.app-drawerlayout-1.1.1-38 D:\Gradle\caches\9.4.1\transforms\f7c681cef7f26259502d0b6f0230d302\transformed\drawerlayout-1.1.1\res
+com.yahtzee.online.app-lifecycle-viewmodel-savedstate-2.8.6-39 D:\Gradle\caches\9.4.1\transforms\f8c9f33c89639d2255e88a3d89e58535\transformed\lifecycle-viewmodel-savedstate-2.8.6\res
+com.yahtzee.online.app-viewpager2-1.0.0-40 D:\Gradle\caches\9.4.1\transforms\f9d5f16bf5a4dfd856ed9a4919ffe9f2\transformed\viewpager2-1.0.0\res
+com.yahtzee.online.app-firebase-common-21.0.0-41 D:\Gradle\caches\9.4.1\transforms\fbb968762750c9efa53557b2f3e122f6\transformed\firebase-common-21.0.0\res
+com.yahtzee.online.app-startup-runtime-1.1.1-42 D:\Gradle\caches\9.4.1\transforms\fee84a44d91ed16e13024192acdd8033\transformed\startup-runtime-1.1.1\res
