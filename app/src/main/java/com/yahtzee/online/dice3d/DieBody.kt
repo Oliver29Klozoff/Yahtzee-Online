@@ -16,6 +16,11 @@ class DieBody(
     var atRest = false
     private var restTimer = 0f
 
+    private var correctionFrom: Quat? = null
+    private var correctionTo: Quat? = null
+    private var correctionElapsed = 0f
+    private val correctionDuration = 0.28f
+
     companion object {
         const val HALF_SIZE = 0.5f
         const val COLLIDE_RADIUS = 0.62f
@@ -60,15 +65,16 @@ class DieBody(
         return best
     }
 
-    fun snapToUpright(targetValue: Int) {
-        val faceForValue = mapOf(
-            1 to Vec3(0f, 1f, 0f),
-            6 to Vec3(0f, -1f, 0f),
-            2 to Vec3(1f, 0f, 0f),
-            5 to Vec3(-1f, 0f, 0f),
-            3 to Vec3(0f, 0f, 1f),
-            4 to Vec3(0f, 0f, -1f)
-        )
+    private val faceForValue = mapOf(
+        1 to Vec3(0f, 1f, 0f),
+        6 to Vec3(0f, -1f, 0f),
+        2 to Vec3(1f, 0f, 0f),
+        5 to Vec3(-1f, 0f, 0f),
+        3 to Vec3(0f, 0f, 1f),
+        4 to Vec3(0f, 0f, -1f)
+    )
+
+    private fun uprightOrientationFor(targetValue: Int): Quat {
         val local = faceForValue[targetValue] ?: Vec3.UP
         val currentWorld = orientation.rotate(local).normalized()
         val target = Vec3.UP
@@ -76,8 +82,38 @@ class DieBody(
         val dot = currentWorld.dot(target).coerceIn(-1f, 1f)
         val angle = kotlin.math.acos(dot)
         val correction = if (axis.length() < 1e-4f) Quat.IDENTITY else Quat.fromAxisAngle(axis, angle)
-        orientation = (correction * orientation).normalized()
+        return (correction * orientation).normalized()
+    }
+
+    /** Instantly forces this die upright on [targetValue] (used for held dice, no roll happening). */
+    fun snapToUpright(targetValue: Int) {
+        orientation = uprightOrientationFor(targetValue)
         angularVelocity = Vec3.ZERO
+        correctionFrom = null
+        correctionTo = null
+    }
+
+    /** Smoothly rotates to [targetValue] over a short duration instead of jumping instantly. */
+    fun settleTo(targetValue: Int) {
+        correctionFrom = orientation
+        correctionTo = uprightOrientationFor(targetValue)
+        correctionElapsed = 0f
+        angularVelocity = Vec3.ZERO
+    }
+
+    /** Advances any in-progress smooth correction. Returns true while still animating. */
+    fun updateCorrection(dt: Float): Boolean {
+        val from = correctionFrom ?: return false
+        val to = correctionTo ?: return false
+        correctionElapsed += dt
+        val t = (correctionElapsed / correctionDuration).coerceIn(0f, 1f)
+        orientation = Quat.slerp(from, to, t)
+        if (t >= 1f) {
+            correctionFrom = null
+            correctionTo = null
+            return false
+        }
+        return true
     }
 
     fun markRestIfSettled(dt: Float): Boolean {

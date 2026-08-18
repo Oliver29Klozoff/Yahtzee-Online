@@ -47,15 +47,15 @@ class Dice3DView @JvmOverloads constructor(
                 die.atRest = true
                 return@forEachIndexed
             }
-            die.position = Vec3((i - 2) * 0.7f, 3.5f + random.nextFloat() * 0.6f, (random.nextFloat() - 0.5f) * 0.5f)
+            die.position = Vec3((i - 2) * 0.55f, 2.2f + random.nextFloat() * 0.4f, -1.3f + (random.nextFloat() - 0.5f) * 0.3f)
             die.throwWith(
                 direction = Vec3(
-                    (random.nextFloat() - 0.5f) * 0.6f,
-                    -1f,
-                    (random.nextFloat() - 0.5f) * 0.6f
+                    (random.nextFloat() - 0.5f) * 1.6f,
+                    -0.35f,
+                    1f
                 ),
-                speed = 5.5f + random.nextFloat() * 1.5f,
-                spin = 14f + random.nextFloat() * 6f,
+                speed = 6.5f + random.nextFloat() * 2f,
+                spin = 22f + random.nextFloat() * 10f,
                 random = random
             )
         }
@@ -78,7 +78,7 @@ class Dice3DView @JvmOverloads constructor(
     private fun notifySettled() {
         world.dice.forEachIndexed { i, die ->
             if (heldFlags.getOrNull(i) != true) {
-                die.snapToUpright(pendingTargets[i])
+                die.settleTo(pendingTargets[i])
             }
         }
         mainHandler.post {

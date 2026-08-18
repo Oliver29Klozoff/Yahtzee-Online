@@ -51,5 +51,35 @@ data class Quat(val x: Float, val y: Float, val z: Float, val w: Float) {
             val angle = omega.length() * dt
             return if (angle < 1e-6f) IDENTITY else fromAxisAngle(omega.normalized(), angle)
         }
+
+        /** Spherical linear interpolation from [a] to [b], t in [0,1]. */
+        fun slerp(a: Quat, b: Quat, t: Float): Quat {
+            var bx = b.x; var by = b.y; var bz = b.z; var bw = b.w
+            var dot = a.x * bx + a.y * by + a.z * bz + a.w * bw
+            if (dot < 0f) {
+                bx = -bx; by = -by; bz = -bz; bw = -bw
+                dot = -dot
+            }
+            if (dot > 0.9995f) {
+                return Quat(
+                    a.x + (bx - a.x) * t,
+                    a.y + (by - a.y) * t,
+                    a.z + (bz - a.z) * t,
+                    a.w + (bw - a.w) * t
+                ).normalized()
+            }
+            val theta0 = kotlin.math.acos(dot.coerceIn(-1f, 1f))
+            val theta = theta0 * t
+            val sinTheta0 = sin(theta0)
+            val sinTheta = sin(theta)
+            val s0 = cos(theta) - dot * sinTheta / sinTheta0
+            val s1 = sinTheta / sinTheta0
+            return Quat(
+                a.x * s0 + bx * s1,
+                a.y * s0 + by * s1,
+                a.z * s0 + bz * s1,
+                a.w * s0 + bw * s1
+            ).normalized()
+        }
     }
 }

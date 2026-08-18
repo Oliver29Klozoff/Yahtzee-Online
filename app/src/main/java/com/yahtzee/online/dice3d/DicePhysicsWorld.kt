@@ -15,10 +15,10 @@ class DicePhysicsWorld(
 
     companion object {
         private const val GRAVITY = -9.8f
-        private const val RESTITUTION = 0.35f
-        private const val FRICTION = 0.65f
-        private const val ANGULAR_DAMPING = 0.96f
-        private const val LINEAR_DAMPING = 0.995f
+        private const val RESTITUTION = 0.4f
+        private const val FRICTION = 0.78f
+        private const val ANGULAR_DAMPING = 0.985f
+        private const val LINEAR_DAMPING = 0.998f
     }
 
     fun step(dt: Float) {
