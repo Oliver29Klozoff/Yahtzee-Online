@@ -25,24 +25,15 @@ class Dice3DView @JvmOverloads constructor(
     private var settledNotified = true
 
     init {
-        cameraNode.position = Float3(0f, 5.2f, 5.6f)
+        cameraNode.position = Float3(0f, 6.4f, 8.2f)
         cameraNode.lookAt(Float3(0f, 0f, 0f), Float3(0f, 1f, 0f), Float3(0f, 0f, 0f))
 
         mainLightNode?.apply {
-            intensity = 130_000f
+            intensity = 150_000f
             lightDirection = Float3(-0.4f, -1f, -0.5f)
         }
 
-        val tableMaterial = materialLoader.createColorInstance(Color.rgb(13, 15, 19), 0f, 0.85f, 0.02f)
-        val table = PlaneNode(
-            engine = engine,
-            size = Float3(world.tableHalfWidth * 2f, 0f, world.tableHalfDepth * 2f),
-            center = Float3(0f, 0f, 0f),
-            normal = Float3(0f, 1f, 0f),
-            uvScale = dev.romainguy.kotlin.math.Float2(1f, 1f),
-            materialInstance = tableMaterial
-        )
-        addChildNode(table)
+        buildTable()
 
         repeat(5) { i ->
             val x = (i - 2) * 0.9f
@@ -53,6 +44,61 @@ class Dice3DView @JvmOverloads constructor(
         }
 
         onFrame = { frameTimeNanos -> stepAndRender(frameTimeNanos) }
+    }
+
+    private fun buildTable() {
+        val uv1 = dev.romainguy.kotlin.math.Float2(1f, 1f)
+        val feltMaterial = materialLoader.createColorInstance(Color.rgb(18, 22, 28), 0f, 0.85f, 0.02f)
+        val rimMaterial = materialLoader.createColorInstance(Color.rgb(0x3d, 0x7f, 0xff), 0f, 0.35f, 0.15f)
+
+        val w = world.tableHalfWidth
+        val d = world.tableHalfDepth
+        val rimHeight = 0.35f
+
+        val felt = PlaneNode(
+            engine = engine,
+            size = Float3(w * 2f, 0f, d * 2f),
+            center = Float3(0f, 0f, 0f),
+            normal = Float3(0f, 1f, 0f),
+            uvScale = uv1,
+            materialInstance = feltMaterial
+        )
+        addChildNode(felt)
+
+        // Vertical rim walls: a plane whose normal points sideways (toward the table center)
+        // rather than up, built directly at x/z=const facing inward.
+        fun sideWall(x: Float, length: Float, facingPositiveX: Boolean) {
+            val wall = PlaneNode(
+                engine = engine,
+                size = Float3(length, 0f, rimHeight),
+                center = Float3(0f, 0f, 0f),
+                normal = Float3(0f, 1f, 0f),
+                uvScale = uv1,
+                materialInstance = rimMaterial
+            )
+            wall.rotation = Float3(0f, 0f, if (facingPositiveX) 90f else -90f)
+            wall.position = Float3(x, rimHeight / 2f, 0f)
+            addChildNode(wall)
+        }
+
+        fun endWall(z: Float, length: Float, facingPositiveZ: Boolean) {
+            val wall = PlaneNode(
+                engine = engine,
+                size = Float3(length, 0f, rimHeight),
+                center = Float3(0f, 0f, 0f),
+                normal = Float3(0f, 1f, 0f),
+                uvScale = uv1,
+                materialInstance = rimMaterial
+            )
+            wall.rotation = Float3(if (facingPositiveZ) -90f else 90f, 0f, 0f)
+            wall.position = Float3(0f, rimHeight / 2f, z)
+            addChildNode(wall)
+        }
+
+        sideWall(-w, d * 2f, facingPositiveX = true)
+        sideWall(w, d * 2f, facingPositiveX = false)
+        endWall(-d, w * 2f, facingPositiveZ = true)
+        endWall(d, w * 2f, facingPositiveZ = false)
     }
 
     fun setOnSettledListener(listener: (List<Int>) -> Unit) {
