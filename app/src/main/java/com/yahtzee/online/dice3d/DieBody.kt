@@ -45,14 +45,20 @@ class DieBody(
      * axis and decelerating into the precomputed target orientation.
      */
     fun throwToward(targetValue: Int, direction: Vec3, speed: Float, random: Random = Random.Default) {
-        velocity = direction.normalized() * speed
+        val travelDir = direction.normalized()
+        velocity = travelDir * speed
         angularVelocity = Vec3.ZERO
 
-        val axis = Vec3(
-            random.nextFloat() - 0.5f,
-            random.nextFloat() * 0.6f + 0.4f,
-            random.nextFloat() - 0.5f
-        ).normalized()
+        // Roll around an axis perpendicular to the direction of travel (like a wheel), so the
+        // tumble visually reads as rolling forward instead of spinning in place. Mix in a small
+        // random tilt so it's not a perfectly clean, robotic roll.
+        val rollAxis = Vec3.UP.cross(travelDir).normalized()
+        val wobble = Vec3(
+            (random.nextFloat() - 0.5f) * 0.35f,
+            (random.nextFloat() - 0.5f) * 0.35f,
+            (random.nextFloat() - 0.5f) * 0.35f
+        )
+        val axis = (rollAxis + wobble).normalized()
 
         val extraTurns = 6 + random.nextInt(4)
         val totalAngle = extraTurns * 2f * Math.PI.toFloat()
