@@ -54,7 +54,7 @@ class DieBody(
             random.nextFloat() - 0.5f
         ).normalized()
 
-        val extraTurns = 3 + random.nextInt(3)
+        val extraTurns = 6 + random.nextInt(4)
         val totalAngle = extraTurns * 2f * Math.PI.toFloat()
 
         val finalUpright = faceForValue[targetValue.coerceIn(1, 6)] ?: Vec3.UP
@@ -67,7 +67,7 @@ class DieBody(
         atRest = false
         restTimer = 0f
         rigElapsed = 0f
-        rigDuration = 0.85f + random.nextFloat() * 0.35f
+        rigDuration = 1.1f + random.nextFloat() * 0.3f
     }
 
     private var rigStartOrientation: Quat? = null
@@ -78,13 +78,28 @@ class DieBody(
     /** True while a [throwToward] rig is actively driving rotation on its fixed timeline. */
     fun isRigged(): Boolean = rigStartOrientation != null
 
-    /** Advances the rigged spin by [dt] on an ease-out curve. Returns true while still spinning. */
+    /**
+     * Advances the rigged spin by [dt]. Stays near-constant speed (real tumbling dice keep
+     * spinning fast until friction/impacts kill their angular momentum) and only decelerates
+     * sharply in the final stretch, so it reads as an actual roll instead of a slow glide.
+     */
     fun updateRig(dt: Float): Boolean {
         val from = rigStartOrientation ?: return false
         val to = rigTargetOrientation ?: return false
         rigElapsed += dt
         val rawT = (rigElapsed / rigDuration).coerceIn(0f, 1f)
-        val easedT = 1f - (1f - rawT) * (1f - rawT) * (1f - rawT)
+
+        val decelStart = 0.72f
+        val easedT = if (rawT < decelStart) {
+            // Constant-speed tumbling for most of the throw.
+            rawT
+        } else {
+            // Ease out sharply only in the final stretch, like friction grabbing the die.
+            val localT = (rawT - decelStart) / (1f - decelStart)
+            val eased = 1f - (1f - localT) * (1f - localT)
+            decelStart + eased * (1f - decelStart)
+        }
+
         orientation = Quat.slerp(from, to, easedT)
         if (rawT >= 1f) {
             rigStartOrientation = null
