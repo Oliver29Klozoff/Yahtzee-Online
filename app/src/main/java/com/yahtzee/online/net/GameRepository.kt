@@ -74,9 +74,9 @@ class GameRepository {
     fun startGame(code: String) {
         val ref = roomRef(code)
         ref.child("status").setValue(GameState.STATUS_PLAYING)
-        ref.child("dice").setValue(roller.rollAll())
+        ref.child("dice").setValue(List(5) { 1 })
         ref.child("held").setValue(List(5) { false })
-        ref.child("rollsUsed").setValue(1)
+        ref.child("rollsUsed").setValue(0)
     }
 
     fun rollDice(code: String, currentDice: List<Int>, held: List<Boolean>, rollsUsed: Int) {
