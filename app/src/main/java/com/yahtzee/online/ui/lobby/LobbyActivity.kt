@@ -59,7 +59,7 @@ class LobbyActivity : AppCompatActivity() {
 
     private fun renderPlayers(state: GameState) {
         val names = state.playerOrder.mapNotNull { state.players[it]?.name }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, names)
+        val adapter = ArrayAdapter(this, R.layout.item_player, names)
         findViewById<ListView>(R.id.playersList).adapter = adapter
     }
 

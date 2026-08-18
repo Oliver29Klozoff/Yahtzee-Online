@@ -66,13 +66,18 @@ object RoundedCubeMesh {
             submeshes.add(Submesh(vertexStart, indexStart, indices.size - indexStart, value))
         }
 
+        val bevelIndexStart = indices.size
+        val bevelVertexStart = vertices.size
         addBevels(vertices, indices)
+        submeshes.add(Submesh(bevelVertexStart, bevelIndexStart, indices.size - bevelIndexStart, BEVEL_SUBMESH_VALUE))
 
         return Built(vertices, indices, submeshes)
     }
 
+    const val BEVEL_SUBMESH_VALUE = 0
+
     private fun addBevels(vertices: MutableList<Geometry.Vertex>, indices: MutableList<Int>) {
-        val white = Float4(1f, 1f, 1f, 1f)
+        val bevelColor = Float4(0.31f, 0.53f, 0.92f, 1f)
         val inset = HALF - BEVEL
 
         val axes = listOf(
@@ -84,7 +89,7 @@ object RoundedCubeMesh {
         for (signA in intArrayOf(-1, 1)) {
             for (signB in intArrayOf(-1, 1)) {
                 for ((primary, axisB, axisC) in axes) {
-                    addEdgeStrip(vertices, indices, primary, axisB * signA.toFloat(), axisC * signB.toFloat(), inset, white)
+                    addEdgeStrip(vertices, indices, primary, axisB * signA.toFloat(), axisC * signB.toFloat(), inset, bevelColor)
                 }
             }
         }

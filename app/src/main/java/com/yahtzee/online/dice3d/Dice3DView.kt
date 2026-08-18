@@ -33,7 +33,7 @@ class Dice3DView @JvmOverloads constructor(
             lightDirection = Float3(-0.4f, -1f, -0.5f)
         }
 
-        val tableMaterial = materialLoader.createColorInstance(Color.rgb(24, 82, 40), 0f, 0.9f, 0.02f)
+        val tableMaterial = materialLoader.createColorInstance(Color.rgb(13, 15, 19), 0f, 0.85f, 0.02f)
         val table = PlaneNode(
             engine = engine,
             size = Float3(world.tableHalfWidth * 2f, 0f, world.tableHalfDepth * 2f),

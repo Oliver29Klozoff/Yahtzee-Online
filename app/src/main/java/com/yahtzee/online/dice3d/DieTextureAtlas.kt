@@ -5,7 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 
-/** Builds one square bitmap per die face value (1-6), each with a white rounded face and pips. */
+/** Builds one square bitmap per die face value (1-6): a blue gradient face with white pips. */
 object DieTextureAtlas {
 
     private val pipLayouts: Map<Int, List<Pair<Float, Float>>> = mapOf(
@@ -21,9 +21,15 @@ object DieTextureAtlas {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        canvas.drawColor(Color.rgb(255, 255, 255))
+        val faceShader = android.graphics.LinearGradient(
+            0f, 0f, size.toFloat(), size.toFloat(),
+            Color.rgb(0x4f, 0x8b, 0xff), Color.rgb(0x2f, 0x66, 0xd9),
+            android.graphics.Shader.TileMode.CLAMP
+        )
+        val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = faceShader }
+        canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), facePaint)
 
-        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(20, 20, 20) }
+        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(255, 255, 255) }
         val pipRadius = size * 0.1f
         pipLayouts[value]?.forEach { (fx, fy) ->
             canvas.drawCircle(fx * size, fy * size, pipRadius, pipPaint)

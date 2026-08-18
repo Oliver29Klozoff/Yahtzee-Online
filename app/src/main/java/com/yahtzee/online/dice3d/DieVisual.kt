@@ -22,9 +22,13 @@ class DieVisual(engine: Engine, materialLoader: MaterialLoader) {
         val built = RoundedCubeMesh.build()
 
         val materials = built.submeshes.map { submesh ->
-            val bitmap = DieTextureAtlas.buildFace(submesh.faceValue)
-            val texture = ImageTexture.Builder().bitmap(bitmap).build(engine)
-            materialLoader.createTextureInstance(texture, false, 0f, 0.22f, 0.08f) as MaterialInstance
+            if (submesh.faceValue == RoundedCubeMesh.BEVEL_SUBMESH_VALUE) {
+                materialLoader.createColorInstance(android.graphics.Color.rgb(0x4f, 0x8b, 0xff), 0f, 0.22f, 0.08f)
+            } else {
+                val bitmap = DieTextureAtlas.buildFace(submesh.faceValue)
+                val texture = ImageTexture.Builder().bitmap(bitmap).build(engine)
+                materialLoader.createTextureInstance(texture, false, 0f, 0.22f, 0.08f) as MaterialInstance
+            }
         }
         val offsets = built.submeshes.map { it.indexStart until (it.indexStart + it.indexCount) }
 
