@@ -25,10 +25,11 @@ class Dice3DView @JvmOverloads constructor(
     private var settledNotified = true
 
     init {
-        cameraNode.position = Float3(0f, 10.5f, 12.5f)
+        cameraManipulator = null
+        cameraNode.position = Float3(0f, 6.6f, 8.6f)
         cameraNode.lookAt(Float3(0f, 0f, 0f), Float3(0f, 1f, 0f), Float3(0f, 0f, 0f))
         cameraNode.setProjection(
-            fovInDegrees = 55.0,
+            fovInDegrees = 50.0,
             near = 0.1f,
             far = 50f,
             direction = com.google.android.filament.Camera.Fov.VERTICAL
