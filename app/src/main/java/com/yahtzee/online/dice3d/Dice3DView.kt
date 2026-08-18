@@ -55,11 +55,11 @@ class Dice3DView @JvmOverloads constructor(
             die.throwToward(
                 targetValue = targetValues[i],
                 direction = Vec3(
-                    (random.nextFloat() - 0.5f) * 1.6f,
+                    (random.nextFloat() - 0.5f) * 1f,
                     -0.35f,
                     1f
                 ),
-                speed = 6.5f + random.nextFloat() * 2f,
+                speed = 5.5f + random.nextFloat() * 1.5f,
                 random = random
             )
         }

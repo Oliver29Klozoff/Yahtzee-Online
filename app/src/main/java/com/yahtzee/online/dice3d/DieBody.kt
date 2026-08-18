@@ -54,13 +54,13 @@ class DieBody(
         // random tilt so it's not a perfectly clean, robotic roll.
         val rollAxis = Vec3.UP.cross(travelDir).normalized()
         val wobble = Vec3(
-            (random.nextFloat() - 0.5f) * 0.35f,
-            (random.nextFloat() - 0.5f) * 0.35f,
-            (random.nextFloat() - 0.5f) * 0.35f
+            (random.nextFloat() - 0.5f) * 0.15f,
+            (random.nextFloat() - 0.5f) * 0.15f,
+            (random.nextFloat() - 0.5f) * 0.15f
         )
         val axis = (rollAxis + wobble).normalized()
 
-        val extraTurns = 6 + random.nextInt(4)
+        val extraTurns = 3 + random.nextInt(2)
         val totalAngle = extraTurns * 2f * Math.PI.toFloat()
 
         val finalUpright = faceForValue[targetValue.coerceIn(1, 6)] ?: Vec3.UP
@@ -101,14 +101,10 @@ class DieBody(
         rigElapsed += dt
         val rawT = (rigElapsed / rigDuration).coerceIn(0f, 1f)
 
-        val decelStart = 0.72f
-        val easedT = if (rawT < decelStart) {
-            rawT
-        } else {
-            val localT = (rawT - decelStart) / (1f - decelStart)
-            val eased = 1f - (1f - localT) * (1f - localT)
-            decelStart + eased * (1f - decelStart)
-        }
+        // Smooth, continuous ease-out across the whole throw (quadratic) instead of a flat
+        // speed followed by a late hard brake — reads as a die naturally losing momentum to
+        // friction the whole time it's tumbling, rather than "fast then sudden stop."
+        val easedT = 1f - (1f - rawT) * (1f - rawT)
 
         val remainingAngle = rigTotalAngle * (1f - easedT)
         orientation = (Quat.fromAxisAngle(rigAxis, -remainingAngle) * to).normalized()
