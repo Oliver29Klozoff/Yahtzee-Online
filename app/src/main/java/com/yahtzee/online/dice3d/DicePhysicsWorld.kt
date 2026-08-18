@@ -1,22 +1,24 @@
 package com.yahtzee.online.dice3d
 
+import kotlin.math.abs
+
 /**
  * Simple fixed-step rigid body simulation for N dice on a bounded table.
  * Not a general-purpose physics engine: tuned specifically for dice-in-a-tray feel.
  */
 class DicePhysicsWorld(
-    val tableHalfWidth: Float = 3.2f,
-    val tableHalfDepth: Float = 2.2f,
+    val tableHalfWidth: Float = 2.2f,
+    val tableHalfDepth: Float = 1.6f,
     val groundY: Float = 0f
 ) {
     val dice = mutableListOf<DieBody>()
 
     companion object {
-        private const val GRAVITY = -14f
-        private const val RESTITUTION = 0.32f
-        private const val FRICTION = 0.6f
-        private const val ANGULAR_DAMPING = 0.94f
-        private const val LINEAR_DAMPING = 0.992f
+        private const val GRAVITY = -9.8f
+        private const val RESTITUTION = 0.35f
+        private const val FRICTION = 0.65f
+        private const val ANGULAR_DAMPING = 0.96f
+        private const val LINEAR_DAMPING = 0.995f
     }
 
     fun step(dt: Float) {
@@ -110,4 +112,14 @@ class DicePhysicsWorld(
     }
 
     fun allAtRest(): Boolean = dice.isNotEmpty() && dice.all { it.atRest }
+
+    fun clampToBounds() {
+        for (die in dice) {
+            val x = die.position.x.coerceIn(-tableHalfWidth + DieBody.HALF_SIZE, tableHalfWidth - DieBody.HALF_SIZE)
+            val z = die.position.z.coerceIn(-tableHalfDepth + DieBody.HALF_SIZE, tableHalfDepth - DieBody.HALF_SIZE)
+            if (abs(x - die.position.x) > 1e-4f || abs(z - die.position.z) > 1e-4f) {
+                die.position = Vec3(x, die.position.y, z)
+            }
+        }
+    }
 }

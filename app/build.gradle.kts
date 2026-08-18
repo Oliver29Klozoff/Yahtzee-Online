@@ -45,8 +45,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.core:core-splashscreen:1.0.1")
 
-    implementation("io.github.sceneview:sceneview:2.3.0")
-
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-database-ktx")
 

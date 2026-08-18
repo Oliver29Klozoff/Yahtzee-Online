@@ -3,9 +3,9 @@ package com.yahtzee.online.dice3d
 import kotlin.random.Random
 
 /**
- * A single die's physical state. Uses a sphere collision proxy for die-die and die-wall
- * collision (cheap, visually fine once dice settle). Face-up is read from `orientation`
- * once at rest.
+ * A single die's physical state. Uses a sphere collision proxy (radius = half the
+ * cube's diagonal-ish extent) for die-die and die-wall collision, which is cheap and
+ * visually fine once dice settle. Face-up is read from `orientation` once at rest.
  */
 class DieBody(
     var position: Vec3,
@@ -19,15 +19,7 @@ class DieBody(
     companion object {
         const val HALF_SIZE = 0.5f
         const val COLLIDE_RADIUS = 0.62f
-
-        private val FACE_NORMALS = mapOf(
-            1 to Vec3(0f, 1f, 0f),
-            6 to Vec3(0f, -1f, 0f),
-            2 to Vec3(1f, 0f, 0f),
-            5 to Vec3(-1f, 0f, 0f),
-            3 to Vec3(0f, 0f, 1f),
-            4 to Vec3(0f, 0f, -1f)
-        )
+        const val MASS = 1f
     }
 
     fun throwWith(direction: Vec3, speed: Float, spin: Float, random: Random = Random.Default) {
@@ -45,10 +37,19 @@ class DieBody(
         restTimer = 0f
     }
 
+    /** World-space normal of each local face, indexed by die pip value 1..6. */
     fun faceValueUp(): Int {
+        val localFaces = mapOf(
+            1 to Vec3(0f, 1f, 0f),
+            6 to Vec3(0f, -1f, 0f),
+            2 to Vec3(1f, 0f, 0f),
+            5 to Vec3(-1f, 0f, 0f),
+            3 to Vec3(0f, 0f, 1f),
+            4 to Vec3(0f, 0f, -1f)
+        )
         var best = 1
         var bestDot = -2f
-        for ((value, normal) in FACE_NORMALS) {
+        for ((value, normal) in localFaces) {
             val worldNormal = orientation.rotate(normal)
             val d = worldNormal.dot(Vec3.UP)
             if (d > bestDot) {
@@ -60,7 +61,15 @@ class DieBody(
     }
 
     fun snapToUpright(targetValue: Int) {
-        val local = FACE_NORMALS[targetValue] ?: Vec3.UP
+        val faceForValue = mapOf(
+            1 to Vec3(0f, 1f, 0f),
+            6 to Vec3(0f, -1f, 0f),
+            2 to Vec3(1f, 0f, 0f),
+            5 to Vec3(-1f, 0f, 0f),
+            3 to Vec3(0f, 0f, 1f),
+            4 to Vec3(0f, 0f, -1f)
+        )
+        val local = faceForValue[targetValue] ?: Vec3.UP
         val currentWorld = orientation.rotate(local).normalized()
         val target = Vec3.UP
         val axis = currentWorld.cross(target)

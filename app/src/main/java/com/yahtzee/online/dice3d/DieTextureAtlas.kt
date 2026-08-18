@@ -4,8 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 
-/** Builds one square bitmap per die face value (1-6): a blue gradient face with white pips. */
 object DieTextureAtlas {
 
     private val pipLayouts: Map<Int, List<Pair<Float, Float>>> = mapOf(
@@ -17,22 +17,32 @@ object DieTextureAtlas {
         6 to listOf(0.28f to 0.22f, 0.72f to 0.22f, 0.28f to 0.5f, 0.72f to 0.5f, 0.28f to 0.78f, 0.72f to 0.78f)
     )
 
-    fun buildFace(value: Int, size: Int = 256): Bitmap {
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    fun build(cellSize: Int = 256): Bitmap {
+        val width = cellSize * 6
+        val height = cellSize
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val faceShader = android.graphics.LinearGradient(
-            0f, 0f, size.toFloat(), size.toFloat(),
-            Color.rgb(0x4f, 0x8b, 0xff), Color.rgb(0x2f, 0x66, 0xd9),
-            android.graphics.Shader.TileMode.CLAMP
-        )
-        val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = faceShader }
-        canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), facePaint)
+        val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(0x3d, 0x7f, 0xff) }
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(0x2f, 0x66, 0xd9)
+            style = Paint.Style.STROKE
+            strokeWidth = cellSize * 0.03f
+        }
+        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
 
-        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(255, 255, 255) }
-        val pipRadius = size * 0.1f
-        pipLayouts[value]?.forEach { (fx, fy) ->
-            canvas.drawCircle(fx * size, fy * size, pipRadius, pipPaint)
+        for (value in 1..6) {
+            val left = (value - 1) * cellSize
+            val rect = RectF(left + 4f, 4f, left + cellSize - 4f, cellSize - 4f)
+            canvas.drawRoundRect(rect, cellSize * 0.12f, cellSize * 0.12f, facePaint)
+            canvas.drawRoundRect(rect, cellSize * 0.12f, cellSize * 0.12f, borderPaint)
+
+            val pipRadius = cellSize * 0.09f
+            pipLayouts[value]?.forEach { (fx, fy) ->
+                val cx = left + fx * cellSize
+                val cy = fy * cellSize
+                canvas.drawCircle(cx, cy, pipRadius, pipPaint)
+            }
         }
 
         return bitmap
