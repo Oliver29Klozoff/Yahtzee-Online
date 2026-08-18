@@ -39,9 +39,13 @@ class DicePhysicsWorld(
         die.velocity = die.velocity * LINEAR_DAMPING
         die.position = die.position + die.velocity * dt
 
-        die.angularVelocity = die.angularVelocity * ANGULAR_DAMPING
-        val spin = Quat.fromAngularVelocity(die.angularVelocity, dt)
-        die.orientation = (spin * die.orientation).normalized()
+        if (die.isRigged()) {
+            die.updateRig(dt)
+        } else {
+            die.angularVelocity = die.angularVelocity * ANGULAR_DAMPING
+            val spin = Quat.fromAngularVelocity(die.angularVelocity, dt)
+            die.orientation = (spin * die.orientation).normalized()
+        }
     }
 
     private fun resolveGroundCollision(die: DieBody) {

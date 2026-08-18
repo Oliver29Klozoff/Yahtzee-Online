@@ -72,7 +72,6 @@ class DiceRenderer(
         lastFrameNanos = now
 
         world.step(dt)
-        for (die in world.dice) die.updateCorrection(dt)
 
         val allSettled = world.allAtRest()
         if (allSettled && !settledNotified) {

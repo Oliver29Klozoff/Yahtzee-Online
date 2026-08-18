@@ -36,7 +36,11 @@ class Dice3DView @JvmOverloads constructor(
         onSettledCallback = listener
     }
 
-    /** Kicks off a physical throw; once dice stop moving they're snapped to [targetValues]. */
+    /**
+     * Kicks off a physical throw already rigged to land exactly on [targetValues] — no
+     * post-landing correction needed, since each die's rotation is computed up front to
+     * arrive precisely on its target face.
+     */
     fun rollTo(targetValues: List<Int>, held: List<Boolean>) {
         pendingTargets = targetValues
         heldFlags = held
@@ -48,39 +52,20 @@ class Dice3DView @JvmOverloads constructor(
                 return@forEachIndexed
             }
             die.position = Vec3((i - 2) * 0.55f, 2.2f + random.nextFloat() * 0.4f, -1.3f + (random.nextFloat() - 0.5f) * 0.3f)
-            die.throwWith(
+            die.throwToward(
+                targetValue = targetValues[i],
                 direction = Vec3(
                     (random.nextFloat() - 0.5f) * 1.6f,
                     -0.35f,
                     1f
                 ),
                 speed = 6.5f + random.nextFloat() * 2f,
-                spin = 22f + random.nextFloat() * 10f,
                 random = random
             )
         }
     }
 
-    /**
-     * Updates the values dice will settle on without restarting the in-progress throw.
-     * Used to switch a locally-started "guess" roll onto the server-confirmed result
-     * once it arrives, so the roll animation starts instantly on tap instead of waiting
-     * on the network round-trip.
-     */
-    fun retarget(targetValues: List<Int>, held: List<Boolean>) {
-        pendingTargets = targetValues
-        heldFlags = held
-        if (world.allAtRest()) {
-            notifySettled()
-        }
-    }
-
     private fun notifySettled() {
-        world.dice.forEachIndexed { i, die ->
-            if (heldFlags.getOrNull(i) != true) {
-                die.settleTo(pendingTargets[i])
-            }
-        }
         mainHandler.post {
             onSettledCallback?.invoke(pendingTargets)
         }

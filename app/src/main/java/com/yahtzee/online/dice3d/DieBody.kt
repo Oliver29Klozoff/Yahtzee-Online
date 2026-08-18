@@ -16,11 +16,6 @@ class DieBody(
     var atRest = false
     private var restTimer = 0f
 
-    private var correctionFrom: Quat? = null
-    private var correctionTo: Quat? = null
-    private var correctionElapsed = 0f
-    private val correctionDuration = 0.28f
-
     companion object {
         const val HALF_SIZE = 0.5f
         const val COLLIDE_RADIUS = 0.62f
@@ -40,6 +35,75 @@ class DieBody(
         )
         atRest = false
         restTimer = 0f
+    }
+
+    /**
+     * Rigs a throw so the die's rotation is guaranteed to land exactly on [targetValue],
+     * instead of landing on a random face and being corrected afterward. Rotation for a
+     * rigged throw is driven entirely by [updateRig] on a fixed timeline (not by the
+     * angular-velocity/damping integrator), tumbling several whole turns around a random
+     * axis and decelerating into the precomputed target orientation.
+     */
+    fun throwToward(targetValue: Int, direction: Vec3, speed: Float, random: Random = Random.Default) {
+        velocity = direction.normalized() * speed
+        angularVelocity = Vec3.ZERO
+
+        val axis = Vec3(
+            random.nextFloat() - 0.5f,
+            random.nextFloat() * 0.6f + 0.4f,
+            random.nextFloat() - 0.5f
+        ).normalized()
+
+        val extraTurns = 3 + random.nextInt(3)
+        val totalAngle = extraTurns * 2f * Math.PI.toFloat()
+
+        val finalUpright = faceForValue[targetValue.coerceIn(1, 6)] ?: Vec3.UP
+        val targetOrientation = orientationFacingUp(finalUpright)
+        val unwind = Quat.fromAxisAngle(axis, -totalAngle)
+        rigStartOrientation = (targetOrientation * unwind).normalized()
+        rigTargetOrientation = targetOrientation
+        orientation = rigStartOrientation!!
+
+        atRest = false
+        restTimer = 0f
+        rigElapsed = 0f
+        rigDuration = 0.85f + random.nextFloat() * 0.35f
+    }
+
+    private var rigStartOrientation: Quat? = null
+    private var rigTargetOrientation: Quat? = null
+    private var rigElapsed: Float = 0f
+    private var rigDuration: Float = 1f
+
+    /** True while a [throwToward] rig is actively driving rotation on its fixed timeline. */
+    fun isRigged(): Boolean = rigStartOrientation != null
+
+    /** Advances the rigged spin by [dt] on an ease-out curve. Returns true while still spinning. */
+    fun updateRig(dt: Float): Boolean {
+        val from = rigStartOrientation ?: return false
+        val to = rigTargetOrientation ?: return false
+        rigElapsed += dt
+        val rawT = (rigElapsed / rigDuration).coerceIn(0f, 1f)
+        val easedT = 1f - (1f - rawT) * (1f - rawT) * (1f - rawT)
+        orientation = Quat.slerp(from, to, easedT)
+        if (rawT >= 1f) {
+            rigStartOrientation = null
+            rigTargetOrientation = null
+            return false
+        }
+        return true
+    }
+
+    private fun orientationFacingUp(localFaceNormal: Vec3): Quat {
+        val target = Vec3.UP
+        val axis = localFaceNormal.cross(target)
+        val dot = localFaceNormal.dot(target).coerceIn(-1f, 1f)
+        val angle = kotlin.math.acos(dot)
+        return if (axis.length() < 1e-4f) {
+            if (dot > 0f) Quat.IDENTITY else Quat.fromAxisAngle(Vec3(1f, 0f, 0f), Math.PI.toFloat())
+        } else {
+            Quat.fromAxisAngle(axis, angle)
+        }
     }
 
     /** World-space normal of each local face, indexed by die pip value 1..6. */
@@ -89,34 +153,14 @@ class DieBody(
     fun snapToUpright(targetValue: Int) {
         orientation = uprightOrientationFor(targetValue)
         angularVelocity = Vec3.ZERO
-        correctionFrom = null
-        correctionTo = null
-    }
-
-    /** Smoothly rotates to [targetValue] over a short duration instead of jumping instantly. */
-    fun settleTo(targetValue: Int) {
-        correctionFrom = orientation
-        correctionTo = uprightOrientationFor(targetValue)
-        correctionElapsed = 0f
-        angularVelocity = Vec3.ZERO
-    }
-
-    /** Advances any in-progress smooth correction. Returns true while still animating. */
-    fun updateCorrection(dt: Float): Boolean {
-        val from = correctionFrom ?: return false
-        val to = correctionTo ?: return false
-        correctionElapsed += dt
-        val t = (correctionElapsed / correctionDuration).coerceIn(0f, 1f)
-        orientation = Quat.slerp(from, to, t)
-        if (t >= 1f) {
-            correctionFrom = null
-            correctionTo = null
-            return false
-        }
-        return true
     }
 
     fun markRestIfSettled(dt: Float): Boolean {
+        if (isRigged()) {
+            restTimer = 0f
+            atRest = false
+            return false
+        }
         val slow = velocity.length() < 0.05f && angularVelocity.length() < 0.15f
         if (slow) {
             restTimer += dt

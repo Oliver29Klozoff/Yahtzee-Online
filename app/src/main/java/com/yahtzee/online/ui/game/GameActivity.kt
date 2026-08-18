@@ -32,7 +32,6 @@ class GameActivity : AppCompatActivity() {
     private var gameOverShown = false
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = 0
-    private var awaitingRollConfirm = false
     private lateinit var dice3DView: Dice3DView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,11 +55,6 @@ class GameActivity : AppCompatActivity() {
         findViewById<Button>(R.id.rollButton).setOnClickListener {
             val state = lastState ?: return@setOnClickListener
             if (!state.isMyTurn(playerId) || state.rollsUsed >= MAX_ROLLS_PER_TURN) return@setOnClickListener
-
-            awaitingRollConfirm = true
-            val guess = state.dice.mapIndexed { i, v -> if (state.held.getOrNull(i) == true) v else (1..6).random() }
-            dice3DView.rollTo(guess, state.held)
-
             repository.rollDice(roomCode, state.dice, state.held, state.rollsUsed)
         }
 
@@ -98,12 +92,7 @@ class GameActivity : AppCompatActivity() {
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
-            if (awaitingRollConfirm) {
-                awaitingRollConfirm = false
-                dice3DView.retarget(state.dice, state.held)
-            } else {
-                dice3DView.rollTo(state.dice, state.held)
-            }
+            dice3DView.rollTo(state.dice, state.held)
         }
         lastDice = state.dice
         lastRollsUsed = state.rollsUsed
