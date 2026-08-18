@@ -110,9 +110,9 @@ class GameRepository {
 
         val nextIndex = (state.currentTurnIndex + 1) % state.playerOrder.size
         ref.child("currentTurnIndex").setValue(nextIndex)
-        ref.child("dice").setValue(roller.rollAll())
+        ref.child("dice").setValue(List(5) { 1 })
         ref.child("held").setValue(List(5) { false })
-        ref.child("rollsUsed").setValue(1)
+        ref.child("rollsUsed").setValue(0)
 
         val allDone = state.players.values.all {
             val scores = if (it.id == playerId) it.scores + (category.name to points) else it.scores

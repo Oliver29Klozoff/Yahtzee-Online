@@ -90,7 +90,7 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun renderDice(state: GameState, myTurn: Boolean) {
-        val isNewRoll = state.rollsUsed != lastRollsUsed
+        val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
             dice3DView.rollTo(state.dice, state.held)
         }
