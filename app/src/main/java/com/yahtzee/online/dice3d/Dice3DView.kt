@@ -24,16 +24,12 @@ class Dice3DView @JvmOverloads constructor(
     private var lastFrameNanos = 0L
     private var settledNotified = true
 
+    private var camHeight = 10.5f
+    private var camDist = 12.5f
+    private var camFovDegrees = 55.0
+
     init {
-        cameraManipulator = null
-        cameraNode.position = Float3(0f, 6.6f, 8.6f)
-        cameraNode.lookAt(Float3(0f, 0f, 0f), Float3(0f, 1f, 0f), Float3(0f, 0f, 0f))
-        cameraNode.setProjection(
-            fovInDegrees = 50.0,
-            near = 0.1f,
-            far = 50f,
-            direction = com.google.android.filament.Camera.Fov.VERTICAL
-        )
+        applyCameraSettings()
 
         mainLightNode?.apply {
             intensity = 150_000f
@@ -108,6 +104,38 @@ class Dice3DView @JvmOverloads constructor(
         endWall(d, w * 2f, facingPositiveZ = false)
     }
 
+    private fun applyCameraSettings() {
+        cameraNode.setProjection(
+            fovInDegrees = camFovDegrees,
+            near = 0.1f,
+            far = 50f,
+            direction = com.google.android.filament.Camera.Fov.VERTICAL
+        )
+        cameraNode.position = Float3(0f, camHeight, camDist)
+        cameraNode.lookAt(Float3(0f, 0f, 0f), Float3(0f, 1f, 0f), Float3(0f, 0f, 0f))
+    }
+
+    /** Debug helper: adjust camera height live to compare angles. */
+    fun setCameraHeight(height: Float) {
+        camHeight = height.coerceIn(1f, 20f)
+    }
+
+    fun getCameraHeight(): Float = camHeight
+
+    /** Debug helper: adjust camera distance (pan/zoom back-forth) live. */
+    fun setCameraDist(distance: Float) {
+        camDist = distance.coerceIn(2f, 25f)
+    }
+
+    fun getCameraDist(): Float = camDist
+
+    /** Debug helper: adjust field of view live. */
+    fun setCameraFov(fovDegrees: Double) {
+        camFovDegrees = fovDegrees.coerceIn(20.0, 90.0)
+    }
+
+    fun getCameraFov(): Double = camFovDegrees
+
     fun setOnSettledListener(listener: (List<Int>) -> Unit) {
         onSettledCallback = listener
     }
@@ -141,6 +169,7 @@ class Dice3DView @JvmOverloads constructor(
         val dt = if (lastFrameNanos == 0L) 1f / 60f else ((frameTimeNanos - lastFrameNanos) / 1_000_000_000f).coerceAtMost(1f / 30f)
         lastFrameNanos = frameTimeNanos
 
+        applyCameraSettings()
         world.step(dt)
 
         world.dice.forEachIndexed { i, die ->

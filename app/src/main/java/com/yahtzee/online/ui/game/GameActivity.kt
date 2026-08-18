@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ListView
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -42,6 +43,7 @@ class GameActivity : AppCompatActivity() {
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: ""
 
         dice3DView = findViewById(R.id.dice3DView)
+        setUpCameraDebugControls()
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)
@@ -124,6 +126,54 @@ class GameActivity : AppCompatActivity() {
             chip.isEnabled = myTurn && state.rollsUsed in 1 until MAX_ROLLS_PER_TURN
             holdRow.addView(chip)
         }
+    }
+
+    private fun setUpCameraDebugControls() {
+        val heightLabel = findViewById<TextView>(R.id.camHeightLabel)
+        val distanceLabel = findViewById<TextView>(R.id.camDistLabel)
+        val fovLabel = findViewById<TextView>(R.id.camFovLabel)
+
+        val heightSeek = findViewById<SeekBar>(R.id.camHeightSeekBar)
+        val distanceSeek = findViewById<SeekBar>(R.id.camDistSeekBar)
+        val fovSeek = findViewById<SeekBar>(R.id.camFovSeekBar)
+
+        fun refreshLabels() {
+            heightLabel.text = "Camera height: %.1f".format(dice3DView.getCameraHeight())
+            distanceLabel.text = "Camera distance: %.1f".format(dice3DView.getCameraDist())
+            fovLabel.text = "Field of view: %.0f°".format(dice3DView.getCameraFov())
+        }
+
+        heightSeek.progress = (dice3DView.getCameraHeight() * 10).toInt()
+        distanceSeek.progress = (dice3DView.getCameraDist() * 10).toInt()
+        fovSeek.progress = (dice3DView.getCameraFov() - 20.0).toInt()
+        refreshLabels()
+
+        heightSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                dice3DView.setCameraHeight(progress / 10f)
+                refreshLabels()
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        distanceSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                dice3DView.setCameraDist(progress / 10f)
+                refreshLabels()
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        fovSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                dice3DView.setCameraFov(progress + 20.0)
+                refreshLabels()
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
     }
 
     private fun onScoreCategory(category: Category) {

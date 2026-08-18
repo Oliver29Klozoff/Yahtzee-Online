@@ -18,8 +18,45 @@
     <com.yahtzee.online.dice3d.Dice3DView
         android:id="@+id/dice3DView"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
-        android:layout_marginBottom="12dp" />
+        android:layout_height="240dp"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/camHeightLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_dark"
+        android:textSize="12sp" />
+    <SeekBar
+        android:id="@+id/camHeightSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="200" />
+
+    <TextView
+        android:id="@+id/camDistLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_dark"
+        android:textSize="12sp" />
+    <SeekBar
+        android:id="@+id/camDistSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="250" />
+
+    <TextView
+        android:id="@+id/camFovLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_dark"
+        android:textSize="12sp" />
+    <SeekBar
+        android:id="@+id/camFovSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="70"
+        android:layout_marginBottom="8dp" />
 
     <LinearLayout
         android:id="@+id/holdRow"
