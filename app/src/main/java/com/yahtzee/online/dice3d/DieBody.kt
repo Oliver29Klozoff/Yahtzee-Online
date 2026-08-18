@@ -64,52 +64,59 @@ class DieBody(
         val totalAngle = extraTurns * 2f * Math.PI.toFloat()
 
         val finalUpright = faceForValue[targetValue.coerceIn(1, 6)] ?: Vec3.UP
-        val targetOrientation = orientationFacingUp(finalUpright)
-        val unwind = Quat.fromAxisAngle(axis, -totalAngle)
-        rigStartOrientation = (targetOrientation * unwind).normalized()
-        rigTargetOrientation = targetOrientation
-        orientation = rigStartOrientation!!
+        rigTargetOrientation = orientationFacingUp(finalUpright)
+        rigAxis = axis
+        rigTotalAngle = totalAngle
+        // Start orientation: target rotated backward by the full spin, computed via
+        // axis+angle directly (NOT via a quaternion round trip, which can't represent
+        // multiple full turns — two quaternions differing by whole 360s are numerically
+        // identical, so slerping between them produces no visible spin at all).
+        orientation = (Quat.fromAxisAngle(axis, -totalAngle) * rigTargetOrientation!!).normalized()
 
         atRest = false
         restTimer = 0f
         rigElapsed = 0f
         rigDuration = 1.1f + random.nextFloat() * 0.3f
+        rigActive = true
     }
 
-    private var rigStartOrientation: Quat? = null
     private var rigTargetOrientation: Quat? = null
+    private var rigAxis: Vec3 = Vec3.UP
+    private var rigTotalAngle: Float = 0f
     private var rigElapsed: Float = 0f
     private var rigDuration: Float = 1f
+    private var rigActive: Boolean = false
 
     /** True while a [throwToward] rig is actively driving rotation on its fixed timeline. */
-    fun isRigged(): Boolean = rigStartOrientation != null
+    fun isRigged(): Boolean = rigActive
 
     /**
-     * Advances the rigged spin by [dt]. Stays near-constant speed (real tumbling dice keep
-     * spinning fast until friction/impacts kill their angular momentum) and only decelerates
-     * sharply in the final stretch, so it reads as an actual roll instead of a slow glide.
+     * Advances the rigged spin by [dt] directly via axis+angle (tracking how much of the
+     * total spin has unwound so far), rather than slerping between two quaternion endpoints
+     * — slerp has no notion of "spin N times then arrive," since a quaternion only encodes
+     * a net rotation with no memory of how many full turns produced it.
      */
     fun updateRig(dt: Float): Boolean {
-        val from = rigStartOrientation ?: return false
         val to = rigTargetOrientation ?: return false
         rigElapsed += dt
         val rawT = (rigElapsed / rigDuration).coerceIn(0f, 1f)
 
         val decelStart = 0.72f
         val easedT = if (rawT < decelStart) {
-            // Constant-speed tumbling for most of the throw.
             rawT
         } else {
-            // Ease out sharply only in the final stretch, like friction grabbing the die.
             val localT = (rawT - decelStart) / (1f - decelStart)
             val eased = 1f - (1f - localT) * (1f - localT)
             decelStart + eased * (1f - decelStart)
         }
 
-        orientation = Quat.slerp(from, to, easedT)
+        val remainingAngle = rigTotalAngle * (1f - easedT)
+        orientation = (Quat.fromAxisAngle(rigAxis, -remainingAngle) * to).normalized()
+
         if (rawT >= 1f) {
-            rigStartOrientation = null
+            orientation = to
             rigTargetOrientation = null
+            rigActive = false
             return false
         }
         return true
