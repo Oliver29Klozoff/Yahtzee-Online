@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ListView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
@@ -98,22 +99,43 @@ class GameActivity : ImmersiveActivity() {
     private fun updateTimerDisplay() {
         val state = lastState ?: return
         val timerText = findViewById<TextView>(R.id.turnTimerText)
+        val timerBar = findViewById<ProgressBar>(R.id.turnTimerBar)
         if (state.status != GameState.STATUS_PLAYING || state.turnDeadline == 0L) {
             timerText.visibility = View.GONE
+            timerBar.visibility = View.GONE
             return
         }
 
-        val remainingMillis = state.turnDeadline - System.currentTimeMillis()
-        val remainingSeconds = (remainingMillis / 1000f).coerceAtLeast(0f)
+        val remainingMillis = (state.turnDeadline - System.currentTimeMillis()).coerceAtLeast(0L)
+        val remainingSeconds = remainingMillis / 1000f
+
+        // Colour ramps with urgency, so the timer is readable at a glance without having to
+        // parse the number.
+        val colorRes = when {
+            remainingSeconds <= 5f -> R.color.timer_urgent
+            remainingSeconds <= 10f -> R.color.timer_warn
+            else -> R.color.timer_ok
+        }
+        val color = resources.getColor(colorRes, theme)
 
         timerText.visibility = View.VISIBLE
         timerText.text = getString(R.string.turn_timer, remainingSeconds.toInt() + 1)
-        timerText.setTextColor(
-            resources.getColor(
-                if (remainingSeconds <= 10f) R.color.score_badge_available_text else R.color.text_muted,
-                theme
-            )
-        )
+        timerText.setTextColor(color)
+        timerText.background = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 9f * resources.displayMetrics.density
+            setColor(resources.getColor(R.color.surface, theme))
+            setStroke((1.5f * resources.displayMetrics.density).toInt(), color)
+        }
+
+        // The bar drains smoothly rather than stepping once a second: the tick runs every
+        // 250ms and the range is in milliseconds, so the movement stays continuous.
+        timerBar.visibility = View.VISIBLE
+        timerBar.max = GameState.TURN_TIME_MILLIS.toInt()
+        timerBar.progress = remainingMillis.toInt()
+        timerBar.progressTintList = android.content.res.ColorStateList.valueOf(color)
+        timerBar.progressBackgroundTintList =
+            android.content.res.ColorStateList.valueOf(resources.getColor(R.color.timer_track, theme))
 
         if (remainingMillis <= 0L && state.isMyTurn(playerId)) {
             if (!autoPlayTriggered) {

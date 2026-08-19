@@ -16,4 +16,9 @@
     <color name="score_badge_filled_bg">#1A1D23</color>
     <color name="score_badge_filled_text">#565D68</color>
     <color name="category_filled_text">#454B54</color>
+
+    <color name="timer_ok">#4A90FF</color>
+    <color name="timer_warn">#F5A524</color>
+    <color name="timer_urgent">#F0414F</color>
+    <color name="timer_track">#1C2028</color>
 </resources>

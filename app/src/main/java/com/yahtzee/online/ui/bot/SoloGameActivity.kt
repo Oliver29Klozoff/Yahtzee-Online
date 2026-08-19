@@ -53,6 +53,7 @@ class SoloGameActivity : ImmersiveActivity() {
 
         // Solo games have no turn timer / no timer UI needed.
         findViewById<View>(R.id.turnTimerText).visibility = View.GONE
+        findViewById<View>(R.id.turnTimerBar).visibility = View.GONE
 
         dice3DView = findViewById(R.id.dice3DView)
 
