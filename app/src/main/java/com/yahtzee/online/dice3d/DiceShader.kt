@@ -19,9 +19,17 @@ private const val VERTEX_SHADER = """
     }
 """
 
-// Glassy look: base diffuse lighting + a tight Blinn-Phong specular highlight (view-dependent,
-// so it slides across the face as the die tumbles, unlike flat plastic shading) + a fresnel-style
-// rim brightening at grazing angles, which reads as light catching a glossy/glass edge.
+// Glass look, built entirely from per-fragment math (no extra render passes, so cost stays
+// identical to a flat-shaded material — safe for continuous 60fps mobile rendering):
+//   1. Base diffuse lighting, lifted at the low end so the glass never looks flat black.
+//   2. A tight, bright Blinn-Phong specular highlight (view-dependent, slides across the face
+//      as the die tumbles) tuned hot and narrow for a polished-acrylic hotspot.
+//   3. A second, wider/softer specular lobe layered underneath the tight one — real glass and
+//      polished acrylic show a soft halo around the hard highlight, not just one hard dot.
+//   4. A blue-tinted fresnel rim that brightens sharply at grazing angles, giving the edges of
+//      the die a glowing outline as it turns — the strongest single cue for "glass" vs "plastic".
+//   5. A faint inner-glow term driven by the texture's own luminance, faking light scattering
+//      inside a translucent block rather than only reflecting off an opaque surface.
 private const val FRAGMENT_SHADER = """
     precision mediump float;
     varying vec2 vTexCoord;
@@ -37,16 +45,26 @@ private const val FRAGMENT_SHADER = """
         vec3 toCamera = normalize(uCameraPos - vWorldPos);
 
         float diffuse = max(dot(normal, toLight), 0.0);
-        float baseLighting = 0.45 + 0.45 * diffuse;
+        float baseLighting = 0.5 + 0.42 * diffuse;
 
         vec3 halfVec = normalize(toLight + toCamera);
         float specAngle = max(dot(normal, halfVec), 0.0);
-        float specular = pow(specAngle, 60.0) * 0.9;
+        float tightSpecular = pow(specAngle, 110.0) * 1.15;
+        float softSpecular = pow(specAngle, 18.0) * 0.28;
 
-        float fresnel = pow(1.0 - max(dot(normal, toCamera), 0.0), 3.0);
-        float rim = fresnel * 0.35;
+        float ndotv = max(dot(normal, toCamera), 0.0);
+        float fresnel = pow(1.0 - ndotv, 2.6);
+        vec3 rimColor = vec3(0.55, 0.72, 1.0);
+        float rim = fresnel * 0.55;
 
-        vec3 shaded = texColor.rgb * baseLighting + vec3(1.0) * specular + vec3(0.75, 0.85, 1.0) * rim;
+        float luminance = dot(texColor.rgb, vec3(0.299, 0.587, 0.114));
+        float innerGlow = luminance * 0.12;
+
+        vec3 shaded = texColor.rgb * baseLighting
+            + texColor.rgb * innerGlow
+            + vec3(1.0) * (tightSpecular + softSpecular)
+            + rimColor * rim;
+
         gl_FragColor = vec4(shaded, texColor.a);
     }
 """

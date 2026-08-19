@@ -4,8 +4,17 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RadialGradient
 import android.graphics.RectF
+import android.graphics.Shader
 
+/**
+ * Builds a horizontal 6-cell texture atlas (one 256x256 cell per die face 1-6), used by
+ * [DiceShader] as the per-fragment albedo. Each cell is a translucent cobalt-blue "glass"
+ * face — a radial gradient lightening toward the center (simulating light passing through
+ * the material) with no border/stroke, plus bright white pips that carry a soft dark inset
+ * ring so they read as recessed into the glass rather than painted on top of it.
+ */
 object DieTextureAtlas {
 
     private val pipLayouts: Map<Int, List<Pair<Float, Float>>> = mapOf(
@@ -17,31 +26,59 @@ object DieTextureAtlas {
         6 to listOf(0.28f to 0.22f, 0.72f to 0.22f, 0.28f to 0.5f, 0.72f to 0.5f, 0.28f to 0.78f, 0.72f to 0.78f)
     )
 
+    private const val BASE_COLOR = 0xFF3D7FFF.toInt()
+    private const val LIGHT_CORE_COLOR = 0xFF7FADFF.toInt()
+    private const val DEEP_EDGE_COLOR = 0xFF1D4FB8.toInt()
+
     fun build(cellSize: Int = 256): Bitmap {
         val width = cellSize * 6
         val height = cellSize
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(0x3d, 0x7f, 0xff) }
-        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.rgb(0x2f, 0x66, 0xd9)
+        val pipCorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        val pipRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(70, 10, 20, 40)
             style = Paint.Style.STROKE
-            strokeWidth = cellSize * 0.03f
         }
-        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
 
         for (value in 1..6) {
             val left = (value - 1) * cellSize
-            val rect = RectF(left + 4f, 4f, left + cellSize - 4f, cellSize - 4f)
-            canvas.drawRoundRect(rect, cellSize * 0.12f, cellSize * 0.12f, facePaint)
-            canvas.drawRoundRect(rect, cellSize * 0.12f, cellSize * 0.12f, borderPaint)
+            val cx = left + cellSize / 2f
+            val cy = cellSize / 2f
+            val radius = cellSize * 0.75f
 
-            val pipRadius = cellSize * 0.09f
+            // Glassy face: bright frosted core lightening toward center, deepening toward the
+            // rounded edges — this reads as light traveling through a translucent block rather
+            // than a flat opaque color fill.
+            val faceShader = RadialGradient(
+                cx, cy, radius,
+                intArrayOf(LIGHT_CORE_COLOR, BASE_COLOR, DEEP_EDGE_COLOR),
+                floatArrayOf(0f, 0.55f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = faceShader }
+
+            val rect = RectF(left + 4f, 4f, left + cellSize - 4f, cellSize - 4f)
+            canvas.drawRoundRect(rect, cellSize * 0.16f, cellSize * 0.16f, facePaint)
+
+            // Soft top-left glossy sheen band, like light raking across polished acrylic.
+            val sheenShader = RadialGradient(
+                left + cellSize * 0.28f, cellSize * 0.22f, cellSize * 0.55f,
+                intArrayOf(Color.argb(90, 255, 255, 255), Color.argb(0, 255, 255, 255)),
+                floatArrayOf(0f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = sheenShader }
+            canvas.drawRoundRect(rect, cellSize * 0.16f, cellSize * 0.16f, sheenPaint)
+
+            val pipRadius = cellSize * 0.095f
+            pipRingPaint.strokeWidth = cellSize * 0.02f
             pipLayouts[value]?.forEach { (fx, fy) ->
-                val cx = left + fx * cellSize
-                val cy = fy * cellSize
-                canvas.drawCircle(cx, cy, pipRadius, pipPaint)
+                val px = left + fx * cellSize
+                val py = fy * cellSize
+                canvas.drawCircle(px, py, pipRadius + pipRingPaint.strokeWidth, pipRingPaint)
+                canvas.drawCircle(px, py, pipRadius, pipCorePaint)
             }
         }
 
