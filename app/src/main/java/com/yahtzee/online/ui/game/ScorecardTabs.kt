@@ -5,9 +5,8 @@ import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.yahtzee.online.R
-import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.GameState
-import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.grandTotalAllCards
 
 /**
  * The row of per-player tabs sitting above the scorecard, so a player can switch which
@@ -33,10 +32,7 @@ object ScorecardTabs {
 
         state.playerOrder.forEach { id ->
             val player = state.players[id] ?: return@forEach
-            val byCategory = player.scores
-                .mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
-                .toMap()
-            val total = Scoring.grandTotal(byCategory, player.yahtzeeBonusCount)
+            val total = player.grandTotalAllCards(state.cardCount)
 
             val isViewing = id == viewingPlayerId
             val isTheirTurn = id == state.currentPlayerId

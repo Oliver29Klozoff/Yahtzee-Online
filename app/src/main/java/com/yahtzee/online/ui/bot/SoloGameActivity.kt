@@ -16,6 +16,7 @@ import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -122,12 +123,7 @@ class SoloGameActivity : ImmersiveActivity() {
         val canScore = myTurn && state.rollsUsed > 0 && viewing == engine.humanPlayerId
         scorecardAdapter.update(state, viewing, canScore)
 
-        val player = state.players[viewing]
-        val byCategory = player?.scores
-            ?.mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
-            ?.toMap()
-            ?: emptyMap()
-        val total = Scoring.grandTotal(byCategory, player?.yahtzeeBonusCount ?: 0)
+        val total = state.players[viewing]?.grandTotalAllCards(state.cardCount) ?: 0
         findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)
 
         if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
@@ -196,13 +192,10 @@ class SoloGameActivity : ImmersiveActivity() {
     private fun showGameOver(state: GameState) {
         // Solo results count too — the board ranks people, not game modes.
         state.players[engine.humanPlayerId]?.let { me ->
-            val byCategory = me.scores
-                .mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
-                .toMap()
             LeaderboardRepository().submitScore(
                 playerId = PlayerProfile.getId(this),
                 name = PlayerProfile.getName(this).ifEmpty { me.name },
-                score = Scoring.grandTotal(byCategory, me.yahtzeeBonusCount)
+                score = me.grandTotalAllCards(state.cardCount)
             )
         }
         val winnerName = state.players[state.winnerId]?.name ?: "?"

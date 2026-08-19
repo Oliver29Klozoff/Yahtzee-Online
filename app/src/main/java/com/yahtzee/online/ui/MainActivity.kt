@@ -13,6 +13,7 @@ import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardEntry
@@ -84,11 +85,21 @@ class MainActivity : ImmersiveActivity() {
         }
 
         createButton.setOnClickListener {
-            createButton.isEnabled = false
-            repository.createRoom(playerName(), DicePreferences.getColor(this)) { code ->
-                createButton.isEnabled = true
-                openLobby(code)
-            }
+            // The host picks the format up front, so everyone who joins the room plays it.
+            val labels = GameState.CARD_OPTIONS.map { count ->
+                if (count == 1) getString(R.string.one_card) else getString(R.string.n_cards, count)
+            }.toTypedArray()
+            AlertDialog.Builder(this)
+                .setTitle(R.string.choose_card_count)
+                .setItems(labels) { _, which ->
+                    val cardCount = GameState.CARD_OPTIONS[which]
+                    createButton.isEnabled = false
+                    repository.createRoom(playerName(), DicePreferences.getColor(this), cardCount) { code ->
+                        createButton.isEnabled = true
+                        openLobby(code)
+                    }
+                }
+                .show()
         }
 
         joinButton.setOnClickListener {

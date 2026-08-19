@@ -3,6 +3,7 @@ package com.yahtzee.online.ui.game
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -19,6 +20,8 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -36,6 +39,10 @@ class GameActivity : ImmersiveActivity() {
     private var listener: ValueEventListener? = null
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var viewingPlayerId: String? = null
+
+    /** Which scorecard the player is looking at and will score into. Always 0 unless the room
+     *  was created with more than one card. */
+    private var selectedCard: Int = 0
     private var lastTurnPlayerId: String? = null
     private var lastState: GameState? = null
     private var gameOverShown = false
@@ -163,16 +170,68 @@ class GameActivity : ImmersiveActivity() {
             render(state)
         }
 
-        val canScore = myTurn && state.rollsUsed > 0 && viewing == playerId
-        scorecardAdapter.update(state, viewing, canScore)
+        renderCardTabs(state, viewing)
 
-        val player = state.players[viewing]
-        val byCategory = player?.scores
-            ?.mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
-            ?.toMap()
-            ?: emptyMap()
-        val total = Scoring.grandTotal(byCategory, player?.yahtzeeBonusCount ?: 0)
+        val canScore = myTurn && state.rollsUsed > 0 && viewing == playerId
+        scorecardAdapter.update(state, viewing, canScore, selectedCard)
+
+        // The header shows the player's total across every card, so it stays a comparable
+        // figure regardless of which card is currently open.
+        val total = state.players[viewing]?.grandTotalAllCards(state.cardCount) ?: 0
         findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)
+    }
+
+    /**
+     * Card selector, shown only in multi-card rooms. Each tab reports how many of its 13
+     * categories the viewed player has filled, which is the information you need when deciding
+     * where a roll should go. Tabs are for choosing a card to view and score into, so they are
+     * not reset by turn changes the way the player tabs are.
+     */
+    private fun renderCardTabs(state: GameState, viewedPlayerId: String) {
+        val scroll = findViewById<View>(R.id.cardTabsScroll)
+        if (state.cardCount <= 1) {
+            scroll.visibility = View.GONE
+            selectedCard = 0
+            return
+        }
+        scroll.visibility = View.VISIBLE
+        selectedCard = selectedCard.coerceIn(0, state.cardCount - 1)
+
+        val row = findViewById<LinearLayout>(R.id.cardTabsRow)
+        row.removeAllViews()
+        val density = resources.displayMetrics.density
+        val viewed = state.players[viewedPlayerId]
+
+        for (card in 0 until state.cardCount) {
+            val filled = viewed?.scoresForCard(card)?.size ?: 0
+            val isSelected = card == selectedCard
+            val tab = TextView(this).apply {
+                text = getString(R.string.card_tab, card + 1, filled, Category.values().size)
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setPadding(
+                    (12 * density).toInt(), (7 * density).toInt(),
+                    (12 * density).toInt(), (7 * density).toInt()
+                )
+                setTextColor(
+                    if (isSelected) resources.getColor(R.color.background, theme)
+                    else resources.getColor(R.color.text_muted, theme)
+                )
+                setBackgroundColor(
+                    if (isSelected) resources.getColor(R.color.brand_primary, theme)
+                    else resources.getColor(R.color.surface, theme)
+                )
+                setOnClickListener {
+                    selectedCard = card
+                    lastState?.let { render(it) }
+                }
+            }
+            tab.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.marginEnd = (8 * density).toInt() }
+            row.addView(tab)
+        }
     }
 
     private fun renderDice(state: GameState, myTurn: Boolean) {
@@ -218,7 +277,7 @@ class GameActivity : ImmersiveActivity() {
     private fun onScoreCategory(category: Category) {
         val state = lastState ?: return
         if (!state.isMyTurn(playerId) || state.rollsUsed == 0) return
-        repository.submitScore(roomCode, state, category, playerId)
+        repository.submitScore(roomCode, state, category, playerId, selectedCard)
     }
 
     private fun showGameOver(state: GameState) {

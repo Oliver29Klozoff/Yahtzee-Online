@@ -6,7 +6,10 @@ import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Player
+import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
 
 /**
@@ -16,6 +19,14 @@ import java.util.UUID
  * play themselves out automatically.
  */
 class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
+
+    private companion object {
+        /**
+         * Solo games are always single-card, but they share the score-key format with online
+         * rooms so the same scorecard UI reads both without special-casing.
+         */
+        const val SOLO_CARD = 0
+    }
 
     val humanPlayerId: String = UUID.randomUUID().toString()
     private val botIds: List<String> = List(botCount) { UUID.randomUUID().toString() }
@@ -79,15 +90,15 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
     fun submitScore(category: Category) {
         val playerId = state.currentPlayerId ?: return
         val player = state.players[playerId] ?: return
-        if (player.scores.containsKey(category.name)) return
+        if (player.scores.containsKey(ScoreKey.of(SOLO_CARD, category))) return
 
         val points = Scoring.score(category, state.dice)
-        val alreadyHadYahtzee = player.scores[Category.YAHTZEE.name] == 50
+        val alreadyHadYahtzee = player.scores[ScoreKey.of(SOLO_CARD, Category.YAHTZEE)] == 50
         val bonusEarned = category != Category.YAHTZEE &&
             state.dice.groupBy { it }.values.any { it.size == 5 } && alreadyHadYahtzee
 
         val updatedPlayer = player.copy(
-            scores = player.scores + (category.name to points),
+            scores = player.scores + (ScoreKey.of(SOLO_CARD, category) to points),
             yahtzeeBonusCount = player.yahtzeeBonusCount + if (bonusEarned) 1 else 0
         )
         val updatedPlayers = state.players + (playerId to updatedPlayer)
@@ -96,12 +107,7 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
         val nextIndex = (state.currentTurnIndex + 1) % state.playerOrder.size
 
         state = if (allDone) {
-            val winner = updatedPlayers.values.maxByOrNull { p ->
-                val byCategory = p.scores.mapNotNull { (name, value) ->
-                    runCatching { Category.valueOf(name) to value }.getOrNull()
-                }.toMap()
-                Scoring.grandTotal(byCategory, p.yahtzeeBonusCount)
-            }
+            val winner = updatedPlayers.values.maxByOrNull { it.grandTotalAllCards(cardCount = 1) }
             state.copy(
                 players = updatedPlayers,
                 status = GameState.STATUS_FINISHED,
@@ -128,7 +134,7 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
         val playerId = state.currentPlayerId ?: return true
         if (playerId !in botIds) return true
         val player = state.players[playerId] ?: return true
-        val openCategories = Category.values().filter { !player.scores.containsKey(it.name) }.toSet()
+        val openCategories = Category.values().filter { !player.scores.containsKey(ScoreKey.of(SOLO_CARD, it)) }.toSet()
         if (state.rollsUsed == 0) return false
         if (state.rollsUsed >= MAX_ROLLS_PER_TURN) return true
         val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
@@ -146,7 +152,7 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
         val playerId = state.currentPlayerId ?: return
         if (playerId !in botIds) return
         val player = state.players[playerId] ?: return
-        val openCategories = Category.values().filter { !player.scores.containsKey(it.name) }.toSet()
+        val openCategories = Category.values().filter { !player.scores.containsKey(ScoreKey.of(SOLO_CARD, it)) }.toSet()
 
         if (state.rollsUsed == 0) {
             state = state.copy(held = List(5) { false })
@@ -163,10 +169,10 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
         val playerId = state.currentPlayerId ?: return
         if (playerId !in botIds) return
         val player = state.players[playerId] ?: return
-        val openCategories = Category.values().filter { !player.scores.containsKey(it.name) }.toSet()
+        val openCategories = Category.values().filter { !player.scores.containsKey(ScoreKey.of(SOLO_CARD, it)) }.toSet()
         if (openCategories.isEmpty()) return
 
-        val upperTotal = Category.UPPER.sumOf { player.scores[it.name] ?: 0 }
+        val upperTotal = Category.UPPER.sumOf { player.scoresForCard(SOLO_CARD)[it] ?: 0 }
         val chosen = BotStrategy.chooseCategory(state.dice, openCategories, upperTotal)
         submitScore(chosen)
     }

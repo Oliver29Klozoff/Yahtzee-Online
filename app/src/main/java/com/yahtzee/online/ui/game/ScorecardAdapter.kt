@@ -10,7 +10,9 @@ import android.widget.TextView
 import com.yahtzee.online.R
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.scoresForCard
 
 private sealed class Row {
     data class Header(val title: String) : Row()
@@ -34,18 +36,26 @@ class ScorecardAdapter(
     private var playerId: String = ""
     private var canScore = false
 
-    fun update(state: GameState, playerId: String, canScore: Boolean) {
+    /** Which scorecard is being shown; always 0 in single-card rooms. */
+    private var cardIndex: Int = 0
+
+    fun update(state: GameState, playerId: String, canScore: Boolean, cardIndex: Int = 0) {
         this.state = state
         this.playerId = playerId
         this.canScore = canScore
+        this.cardIndex = cardIndex
         notifyDataSetChanged()
     }
 
     fun isScorable(position: Int): Boolean {
         val row = rows[position] as? Row.CategoryRow ?: return false
         val player = state?.players?.get(playerId)
-        return canScore && player?.scores?.containsKey(row.category.name) != true
+        return canScore && player?.scores?.containsKey(ScoreKey.of(cardIndex, row.category)) != true
     }
+
+    /** This player's filled categories on the card currently displayed. */
+    private fun cardScores(): Map<Category, Int> =
+        state?.players?.get(playerId)?.scoresForCard(cardIndex) ?: emptyMap()
 
     /** Category represented at [position], or null for header/bonus rows. */
     fun categoryAt(position: Int): Category? = (rows[position] as? Row.CategoryRow)?.category
@@ -78,7 +88,8 @@ class ScorecardAdapter(
         val subtotalView = view.findViewById<TextView>(R.id.sectionSubtotal)
         val player = state?.players?.get(playerId)
         if (row.title == "Upper Section" && player != null) {
-            val upperTotal = Category.UPPER.sumOf { player.scores[it.name] ?: 0 }
+            val scores = cardScores()
+            val upperTotal = Category.UPPER.sumOf { scores[it] ?: 0 }
             subtotalView.text = "Subtotal $upperTotal"
             subtotalView.visibility = View.VISIBLE
         } else {
@@ -92,8 +103,8 @@ class ScorecardAdapter(
         val label = view.findViewById<TextView>(R.id.bonusLabel)
         val value = view.findViewById<TextView>(R.id.bonusValue)
 
-        val player = state?.players?.get(playerId)
-        val upperTotal = Category.UPPER.sumOf { player?.scores?.get(it.name) ?: 0 }
+        val scores = cardScores()
+        val upperTotal = Category.UPPER.sumOf { scores[it] ?: 0 }
         val bonusEarned = upperTotal >= 63
 
         label.text = "Bonus if 63+ (get 35 pts)"
@@ -117,8 +128,7 @@ class ScorecardAdapter(
         hint.text = category.hint
 
         val currentState = state
-        val player = currentState?.players?.get(playerId)
-        val existingScore = player?.scores?.get(category.name)
+        val existingScore = cardScores()[category]
 
         fun badge(radiusDp: Float, colorRes: Int) = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE

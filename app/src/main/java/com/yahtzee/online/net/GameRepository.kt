@@ -8,7 +8,9 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DiceRoller
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.Player
+import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.grandTotalAllCards
 import java.util.UUID
 import kotlin.random.Random
 
@@ -20,7 +22,7 @@ class GameRepository {
 
     private fun roomRef(code: String) = db.getReference("games").child(code)
 
-    fun createRoom(hostName: String, diceColor: Int, onResult: (String) -> Unit) {
+    fun createRoom(hostName: String, diceColor: Int, cardCount: Int = 1, onResult: (String) -> Unit) {
         val code = generateRoomCode()
         val ref = roomRef(code)
         val host = Player(
@@ -34,7 +36,8 @@ class GameRepository {
             hostId = localPlayerId,
             status = GameState.STATUS_LOBBY,
             playerOrder = listOf(localPlayerId),
-            players = mapOf(localPlayerId to host)
+            players = mapOf(localPlayerId to host),
+            cardCount = cardCount
         )
         ref.setValue(state.toMap()).addOnSuccessListener { onResult(code) }
     }
@@ -144,14 +147,25 @@ class GameRepository {
         roomRef(code).child("held").setValue(updated)
     }
 
-    fun submitScore(code: String, state: GameState, category: Category, playerId: String) {
+    fun submitScore(
+        code: String,
+        state: GameState,
+        category: Category,
+        playerId: String,
+        cardIndex: Int = 0
+    ) {
         val player = state.players[playerId] ?: return
-        if (player.scores.containsKey(category.name)) return
+        val key = ScoreKey.of(cardIndex, category)
+        if (player.scores.containsKey(key)) return
 
         val points = Scoring.score(category, state.dice)
         val ref = roomRef(code)
-        val alreadyHadYahtzee = player.scores[Category.YAHTZEE.name] == 50
-        ref.child("players").child(playerId).child("scores").child(category.name).setValue(points)
+        // A Yahtzee bonus is earned only if a Yahtzee has already been scored as one somewhere;
+        // with several cards in play that can be on any of them.
+        val alreadyHadYahtzee = (0 until state.cardCount.coerceAtLeast(1)).any { card ->
+            player.scores[ScoreKey.of(card, Category.YAHTZEE)] == 50
+        }
+        ref.child("players").child(playerId).child("scores").child(key).setValue(points)
 
         if (category != Category.YAHTZEE && state.dice.groupBy { it }.values.any { it.size == 5 } && alreadyHadYahtzee) {
             ref.child("players").child(playerId).child("yahtzeeBonusCount")
@@ -168,14 +182,13 @@ class GameRepository {
         ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
 
         val allDone = state.players.values.all {
-            val scores = if (it.id == playerId) it.scores + (category.name to points) else it.scores
-            scores.size == Category.values().size
+            val scores = if (it.id == playerId) it.scores + (key to points) else it.scores
+            scores.size == state.totalSlots
         }
         if (allDone) {
             val winner = state.players.values.maxByOrNull {
-                val rawScores = if (it.id == playerId) it.scores + (category.name to points) else it.scores
-                val byCategory = rawScores.mapKeys { entry -> Category.valueOf(entry.key) }
-                Scoring.grandTotal(byCategory, it.yahtzeeBonusCount)
+                val withLatest = if (it.id == playerId) it.copy(scores = it.scores + (key to points)) else it
+                withLatest.grandTotalAllCards(state.cardCount)
             }
             ref.child("status").setValue(GameState.STATUS_FINISHED)
             ref.child("winnerId").setValue(winner?.id ?: "")
@@ -194,9 +207,13 @@ class GameRepository {
             return
         }
         val player = state.players[playerId] ?: return
-        val openCategories = Category.values().filter { !player.scores.containsKey(it.name) }
-        val best = openCategories.maxByOrNull { Scoring.score(it, state.dice) } ?: return
-        submitScore(code, state, best, playerId)
+        // Best open slot across every card, so multi-card rooms auto-play sensibly too.
+        val best = (0 until state.cardCount.coerceAtLeast(1))
+            .flatMap { card -> Category.values().map { card to it } }
+            .filter { (card, category) -> !player.scores.containsKey(ScoreKey.of(card, category)) }
+            .maxByOrNull { (_, category) -> Scoring.score(category, state.dice) }
+            ?: return
+        submitScore(code, state, best.second, playerId, best.first)
     }
 
     private fun generateRoomCode(): String {
@@ -218,7 +235,8 @@ private fun GameState.toMap(): Map<String, Any?> = mapOf(
     "winnerId" to winnerId,
     "turnDeadline" to turnDeadline,
     "openingRolls" to openingRolls,
-    "openingRollTied" to openingRollTied
+    "openingRollTied" to openingRollTied,
+    "cardCount" to cardCount
 )
 
 private fun Player.toMap(): Map<String, Any?> = mapOf(
@@ -226,7 +244,10 @@ private fun Player.toMap(): Map<String, Any?> = mapOf(
     "name" to name,
     "joinedAt" to joinedAt,
     "scores" to scores,
-    "yahtzeeBonusCount" to yahtzeeBonusCount
+    "yahtzeeBonusCount" to yahtzeeBonusCount,
+    // Was missing, which silently dropped the HOST's dice colour: joining writes the Player
+    // object directly and so carried it, but room creation goes through this map.
+    "diceColor" to diceColor
 )
 
 private fun DataSnapshot.toGameState(): GameState? {
@@ -245,7 +266,8 @@ private fun DataSnapshot.toGameState(): GameState? {
             key to value
         }.toMap()
         val bonus = playerSnap.child("yahtzeeBonusCount").getValue(Int::class.java) ?: 0
-        id to Player(id, name, joinedAt, scores, bonus)
+        val diceColor = playerSnap.child("diceColor").getValue(Int::class.java) ?: 0
+        id to Player(id, name, joinedAt, scores, bonus, diceColor)
     }.toMap()
     val currentTurnIndex = child("currentTurnIndex").getValue(Int::class.java) ?: 0
     val rollsUsed = child("rollsUsed").getValue(Int::class.java) ?: 0
@@ -261,10 +283,11 @@ private fun DataSnapshot.toGameState(): GameState? {
         key to value
     }.toMap()
     val openingRollTied = child("openingRollTied").children.mapNotNull { it.getValue(String::class.java) }
+    val cardCount = child("cardCount").getValue(Int::class.java) ?: 1
 
     return GameState(
         roomCode, hostId, status, playerOrder, players,
         currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline,
-        openingRolls, openingRollTied
+        openingRolls, openingRollTied, cardCount
     )
 }

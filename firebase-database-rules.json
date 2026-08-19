@@ -46,6 +46,9 @@
         "turnDeadline": {
           ".validate": "newData.isNumber() && newData.val() >= 0"
         },
+        "cardCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+        },
         "dice": {
           "$index": {
             ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
