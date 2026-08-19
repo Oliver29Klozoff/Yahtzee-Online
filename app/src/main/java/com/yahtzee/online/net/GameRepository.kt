@@ -4,13 +4,16 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.yahtzee.online.bot.BotStrategy
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DiceRoller
+import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.Player
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
 import kotlin.random.Random
 
@@ -214,16 +217,44 @@ class GameRepository {
      */
     fun autoPlayTurn(code: String, state: GameState, playerId: String) {
         if (!state.isMyTurn(playerId)) return
-        if (state.rollsUsed < 3) {
-            rollDice(code, state.dice, state.held, state.rollsUsed)
-            return
-        }
         val player = state.players[playerId] ?: return
-        // Best open slot across every card, so multi-card rooms auto-play sensibly too.
-        val best = (0 until state.cardCount.coerceAtLeast(1))
-            .flatMap { card -> Category.values().map { card to it } }
-            .filter { (card, category) -> !player.scores.containsKey(ScoreKey.of(card, category)) }
-            .maxByOrNull { (_, category) -> Scoring.score(category, state.dice) }
+        val cards = state.cardCount.coerceAtLeast(1)
+
+        val openByCard = (0 until cards)
+            .associateWith { card ->
+                Category.values().filter { !player.scores.containsKey(ScoreKey.of(card, it)) }.toSet()
+            }
+            .filterValues { it.isNotEmpty() }
+        if (openByCard.isEmpty()) return
+
+        // Use the remaining rolls before settling, keeping whatever best serves a still-open
+        // category. This reuses the bot's own strategy rather than a naive reroll, so an
+        // abandoned turn still plays a sensible hand instead of scoring the first thing rolled.
+        if (state.rollsUsed < MAX_ROLLS_PER_TURN) {
+            if (state.rollsUsed == 0) {
+                rollDice(code, state.dice, List(5) { false }, 0)
+                return
+            }
+            val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
+            val holds = BotStrategy.chooseHolds(state.dice, openByCard.values.flatten().toSet(), rollsLeft)
+            if (holds.size < 5) {
+                val heldFlags = List(5) { it in holds }
+                roomRef(code).child("held").setValue(heldFlags)
+                rollDice(code, state.dice, heldFlags, state.rollsUsed)
+                return
+            }
+            // Holding all five means the strategy is content; fall through and score.
+        }
+
+        // Score the best slot available, judged per card by the same category logic the bots use
+        // so high-value boxes are not burned on a poor roll.
+        val best = openByCard.entries
+            .map { (card, open) ->
+                val upperTotal = Category.UPPER.sumOf { player.scoresForCard(card)[it] ?: 0 }
+                val category = BotStrategy.chooseCategory(state.dice, open, upperTotal)
+                Triple(card, category, Scoring.score(category, state.dice))
+            }
+            .maxByOrNull { it.third }
             ?: return
         submitScore(code, state, best.second, playerId, best.first)
     }

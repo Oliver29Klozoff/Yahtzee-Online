@@ -32,6 +32,9 @@ class GameActivity : ImmersiveActivity() {
     companion object {
         const val EXTRA_ROOM_CODE = "room_code"
         const val EXTRA_PLAYER_ID = "player_id"
+
+        /** Gap between automatic actions, long enough for the dice to finish landing. */
+        private const val AUTO_ACTION_INTERVAL_MS = 1500L
     }
 
     private val repository = GameRepository()
@@ -51,7 +54,8 @@ class GameActivity : ImmersiveActivity() {
     private var lastRollsUsed = 0
     private lateinit var dice3DView: Dice3DView
     private val timerHandler = Handler(Looper.getMainLooper())
-    private var autoPlayTriggered = false
+    /** Earliest time the next automatic roll/score may fire, pacing an abandoned turn. */
+    private var nextAutoActionAt = 0L
     private val timerTick = object : Runnable {
         override fun run() {
             updateTimerDisplay()
@@ -137,13 +141,19 @@ class GameActivity : ImmersiveActivity() {
         timerBar.progressBackgroundTintList =
             android.content.res.ColorStateList.valueOf(resources.getColor(R.color.timer_track, theme))
 
+        // Auto-play steps repeatedly until the turn actually ends, rather than firing once.
+        // Rolling does not extend the deadline, so a single-shot trigger left the turn stalled
+        // forever whenever the clock ran out with rolls still in hand: it rolled once, the
+        // deadline stayed in the past, and nothing ever scored. Spacing the steps out gives the
+        // dice time to land so the roll is still watchable.
         if (remainingMillis <= 0L && state.isMyTurn(playerId)) {
-            if (!autoPlayTriggered) {
-                autoPlayTriggered = true
+            val now = System.currentTimeMillis()
+            if (now >= nextAutoActionAt) {
+                nextAutoActionAt = now + AUTO_ACTION_INTERVAL_MS
                 repository.autoPlayTurn(roomCode, state, playerId)
             }
         } else {
-            autoPlayTriggered = false
+            nextAutoActionAt = 0L
         }
     }
 
