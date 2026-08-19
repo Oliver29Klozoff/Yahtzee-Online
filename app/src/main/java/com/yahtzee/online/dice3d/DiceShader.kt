@@ -55,11 +55,15 @@ private const val FRAGMENT_SHADER = """
     uniform float uDim;
 
     /**
-     * Opacity looking straight through a face; grazing angles ramp toward fully opaque. Tuned
-     * low so the far faces — and their pips — stay clearly legible through the body, which is
-     * the single most obvious "this is glass" cue in the reference artwork.
+     * Opacity looking straight through a face; grazing angles ramp toward fully opaque.
+     *
+     * Held fairly high on purpose. The table behind the dice is black, and alpha blending
+     * against black is multiplicative — at 0.42 a die rendered at under half brightness and
+     * went murky rather than clear. The reference dice are transparent AND brilliantly
+     * saturated, which low alpha over a dark background cannot produce; the see-through
+     * quality comes from the interior pass showing far faces, not from thinning the body out.
      */
-    const float BODY_ALPHA = 0.42;
+    const float BODY_ALPHA = 0.74;
 
     void main() {
         vec4 texColor = texture2D(uTexture, vTexCoord);

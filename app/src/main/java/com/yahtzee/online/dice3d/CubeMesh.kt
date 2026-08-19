@@ -170,8 +170,11 @@ class CubeMesh {
         const val ATLAS_ROWS = 2
         const val CELL_PX = 512
 
-        private const val BEVEL_FRACTION = 0.16f
-        private const val ARC_STEPS = 3
+        /** Edge radius as a fraction of the half-size — the rounded "casino die" corner. */
+        private const val BEVEL_FRACTION = 0.26f
+
+        /** Segments across each bevel arc; more means a smoother curve at the silhouette. */
+        private const val ARC_STEPS = 4
         private const val QUARTER_TURN = (PI / 4).toFloat()
     }
 }
