@@ -59,6 +59,15 @@
         android:id="@+id/playVsBotsButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/play_vs_bots" />
+        android:text="@string/play_vs_bots"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/settingsButton"
+        style="?android:attr/borderlessButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/settings"
+        android:textColor="@color/text_muted" />
 
 </LinearLayout>

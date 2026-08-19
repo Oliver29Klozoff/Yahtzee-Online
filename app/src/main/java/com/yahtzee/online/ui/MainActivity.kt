@@ -12,6 +12,7 @@ import com.yahtzee.online.R
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.lobby.LobbyActivity
+import com.yahtzee.online.update.UpdateChecker
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,6 +28,13 @@ class MainActivity : AppCompatActivity() {
         val createButton = findViewById<Button>(R.id.createRoomButton)
         val joinButton = findViewById<Button>(R.id.joinRoomButton)
         val playVsBotsButton = findViewById<Button>(R.id.playVsBotsButton)
+        val settingsButton = findViewById<Button>(R.id.settingsButton)
+
+        settingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        UpdateChecker(this).cleanupStaleApk()
 
         playVsBotsButton.setOnClickListener {
             val name = nameInput.text.toString().trim().ifEmpty { "You" }

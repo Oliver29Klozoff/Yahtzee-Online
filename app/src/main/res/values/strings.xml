@@ -23,4 +23,7 @@
     <string name="roll_off_title">Rolling to see who goes first…</string>
     <string name="roll_off_tied">Tied! Roll again.</string>
     <string name="you_rolled">You rolled %1$d</string>
+    <string name="settings">Settings</string>
+    <string name="version_label">Version %1$s</string>
+    <string name="check_for_updates">Check for Updates</string>
 </resources>
