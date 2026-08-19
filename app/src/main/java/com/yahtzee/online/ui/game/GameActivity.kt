@@ -49,7 +49,7 @@ class GameActivity : AppCompatActivity() {
         scorecardList.adapter = scorecardAdapter
         scorecardList.setOnItemClickListener { _, _, position, _ ->
             if (scorecardAdapter.isScorable(position)) {
-                onScoreCategory(scorecardAdapter.getItem(position))
+                scorecardAdapter.categoryAt(position)?.let { onScoreCategory(it) }
             }
         }
 
