@@ -19,10 +19,13 @@ data class GameState(
     val dice: List<Int> = listOf(1, 1, 1, 1, 1),
     val held: List<Boolean> = listOf(false, false, false, false, false),
     val winnerId: String = "",
-    val turnDeadline: Long = 0L
+    val turnDeadline: Long = 0L,
+    val openingRolls: Map<String, Int> = emptyMap(),
+    val openingRollTied: List<String> = emptyList()
 ) {
     companion object {
         const val STATUS_LOBBY = "LOBBY"
+        const val STATUS_ROLL_OFF = "ROLL_OFF"
         const val STATUS_PLAYING = "PLAYING"
         const val STATUS_FINISHED = "FINISHED"
         const val TURN_TIME_MILLIS = 30_000L

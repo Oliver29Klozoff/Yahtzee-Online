@@ -53,4 +53,21 @@
         android:text="@string/start_game"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/rollOffStatusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textColor="@color/text_dark"
+        android:textSize="15sp"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/rollForFirstButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/roll_for_first"
+        android:visibility="gone" />
+
 </LinearLayout>

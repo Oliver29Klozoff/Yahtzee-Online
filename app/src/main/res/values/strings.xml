@@ -17,4 +17,10 @@
     <string name="scorecard_label">Scorecard</string>
     <string name="total_score">Total %1$d</string>
     <string name="turn_timer">%1$ds</string>
+    <string name="play_vs_bots">Play vs Bots</string>
+    <string name="choose_bot_count">How many bots?</string>
+    <string name="roll_for_first">Roll to Go First</string>
+    <string name="roll_off_title">Rolling to see who goes first…</string>
+    <string name="roll_off_tied">Tied! Roll again.</string>
+    <string name="you_rolled">You rolled %1$d</string>
 </resources>

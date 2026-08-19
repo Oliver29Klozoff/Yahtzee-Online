@@ -115,6 +115,7 @@ class DiceRenderer(
         GLES20.glUniformMatrix4fv(diceShader.uMVPMatrix, 1, false, mvpMatrix, 0)
         GLES20.glUniformMatrix4fv(diceShader.uModelMatrix, 1, false, modelMatrix, 0)
         GLES20.glUniform3f(diceShader.uLightDir, -0.4f, -1f, -0.3f)
+        GLES20.glUniform3f(diceShader.uCameraPos, 0f, 4.6f, 4.2f)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)

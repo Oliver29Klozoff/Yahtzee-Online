@@ -1,0 +1,160 @@
+package com.yahtzee.online.ui.bot
+
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import com.yahtzee.online.R
+import com.yahtzee.online.bot.LocalGameEngine
+import com.yahtzee.online.dice3d.Dice3DView
+import com.yahtzee.online.game.Category
+import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
+import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.ui.game.ScorecardAdapter
+
+class SoloGameActivity : AppCompatActivity() {
+
+    companion object {
+        const val EXTRA_PLAYER_NAME = "player_name"
+        const val EXTRA_BOT_COUNT = "bot_count"
+    }
+
+    private lateinit var engine: LocalGameEngine
+    private lateinit var dice3DView: Dice3DView
+    private lateinit var scorecardAdapter: ScorecardAdapter
+    private val botHandler = Handler(Looper.getMainLooper())
+    private var lastRollsUsed = 0
+    private var gameOverShown = false
+    private var botTurnScheduled = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_game)
+
+        val name = intent.getStringExtra(EXTRA_PLAYER_NAME) ?: "You"
+        val botCount = intent.getIntExtra(EXTRA_BOT_COUNT, 1).coerceIn(1, 4)
+        engine = LocalGameEngine(name, botCount)
+
+        // Solo games have no turn timer / no timer UI needed.
+        findViewById<View>(R.id.turnTimerText).visibility = View.GONE
+
+        dice3DView = findViewById(R.id.dice3DView)
+
+        scorecardAdapter = ScorecardAdapter(this)
+        val scorecardList = findViewById<ListView>(R.id.scorecardList)
+        scorecardList.adapter = scorecardAdapter
+        scorecardList.setOnItemClickListener { _, _, position, _ ->
+            if (scorecardAdapter.isScorable(position)) {
+                scorecardAdapter.categoryAt(position)?.let { engine.submitScore(it) }
+            }
+        }
+
+        findViewById<Button>(R.id.rollButton).setOnClickListener {
+            val state = engine.state
+            if (engine.isBotTurn() || state.rollsUsed >= MAX_ROLLS_PER_TURN) return@setOnClickListener
+            engine.rollDice()
+        }
+
+        engine.setOnChangeListener { render(engine.state) }
+        render(engine.state)
+    }
+
+    private fun render(state: GameState) {
+        val myTurn = !engine.isBotTurn()
+        val currentPlayerName = state.players[state.currentPlayerId]?.name ?: ""
+
+        findViewById<TextView>(R.id.turnStatusText).text =
+            if (myTurn) getString(R.string.your_turn) else getString(R.string.waiting_for_turn, currentPlayerName)
+
+        findViewById<TextView>(R.id.rollsLeftText).text =
+            getString(R.string.rolls_left, MAX_ROLLS_PER_TURN - state.rollsUsed)
+
+        val rollButton = findViewById<Button>(R.id.rollButton)
+        rollButton.isEnabled = myTurn && state.rollsUsed < MAX_ROLLS_PER_TURN
+        rollButton.visibility = if (myTurn) View.VISIBLE else View.GONE
+
+        renderDice(state)
+        renderHoldRow(state, myTurn)
+
+        val canScore = myTurn && state.rollsUsed > 0
+        scorecardAdapter.update(state, engine.humanPlayerId, canScore)
+
+        val player = state.players[engine.humanPlayerId]
+        val byCategory = player?.scores
+            ?.mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
+            ?.toMap()
+            ?: emptyMap()
+        val total = Scoring.grandTotal(byCategory, player?.yahtzeeBonusCount ?: 0)
+        findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)
+
+        if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
+            gameOverShown = true
+            showGameOver(state)
+        } else if (engine.isBotTurn() && !botTurnScheduled && state.status == GameState.STATUS_PLAYING) {
+            botTurnScheduled = true
+            botHandler.postDelayed({
+                botTurnScheduled = false
+                engine.playBotTurn()
+            }, 900)
+        }
+    }
+
+    private fun renderDice(state: GameState) {
+        val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
+        if (isNewRoll) {
+            dice3DView.rollTo(state.dice, state.held)
+        }
+        lastRollsUsed = state.rollsUsed
+    }
+
+    private fun renderHoldRow(state: GameState, myTurn: Boolean) {
+        val holdRow = findViewById<LinearLayout>(R.id.holdRow)
+        holdRow.removeAllViews()
+        state.dice.forEachIndexed { index, value ->
+            val chip = Button(this)
+            chip.text = value.toString()
+            chip.isSelected = state.held.getOrNull(index) == true
+            chip.setBackgroundColor(
+                if (chip.isSelected) resources.getColor(R.color.die_held, theme)
+                else resources.getColor(R.color.die_normal, theme)
+            )
+            chip.setTextColor(
+                if (chip.isSelected) resources.getColor(R.color.background, theme)
+                else resources.getColor(R.color.text_dark, theme)
+            )
+            val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            params.marginStart = 8
+            params.marginEnd = 8
+            chip.layoutParams = params
+            chip.setOnClickListener {
+                if (myTurn && state.rollsUsed in 1 until MAX_ROLLS_PER_TURN) {
+                    engine.toggleHold(index)
+                }
+            }
+            chip.isEnabled = myTurn && state.rollsUsed in 1 until MAX_ROLLS_PER_TURN
+            holdRow.addView(chip)
+        }
+    }
+
+    private fun showGameOver(state: GameState) {
+        val winnerName = state.players[state.winnerId]?.name ?: "?"
+        AlertDialog.Builder(this)
+            .setTitle(R.string.game_over)
+            .setMessage(getString(R.string.winner_is, winnerName))
+            .setPositiveButton("OK") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        botHandler.removeCallbacksAndMessages(null)
+    }
+}

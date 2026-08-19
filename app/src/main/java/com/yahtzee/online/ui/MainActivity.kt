@@ -5,10 +5,12 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.yahtzee.online.R
 import com.yahtzee.online.net.GameRepository
+import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.lobby.LobbyActivity
 
 class MainActivity : AppCompatActivity() {
@@ -24,6 +26,22 @@ class MainActivity : AppCompatActivity() {
         val roomCodeInput = findViewById<EditText>(R.id.roomCodeInput)
         val createButton = findViewById<Button>(R.id.createRoomButton)
         val joinButton = findViewById<Button>(R.id.joinRoomButton)
+        val playVsBotsButton = findViewById<Button>(R.id.playVsBotsButton)
+
+        playVsBotsButton.setOnClickListener {
+            val name = nameInput.text.toString().trim().ifEmpty { "You" }
+            val botOptions = arrayOf("1 bot", "2 bots", "3 bots", "4 bots")
+            AlertDialog.Builder(this)
+                .setTitle(R.string.choose_bot_count)
+                .setItems(botOptions) { _, which ->
+                    val botCount = which + 1
+                    val intent = Intent(this, SoloGameActivity::class.java)
+                    intent.putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, name)
+                    intent.putExtra(SoloGameActivity.EXTRA_BOT_COUNT, botCount)
+                    startActivity(intent)
+                }
+                .show()
+        }
 
         createButton.setOnClickListener {
             val name = nameInput.text.toString().trim()

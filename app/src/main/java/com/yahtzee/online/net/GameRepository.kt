@@ -73,11 +73,50 @@ class GameRepository {
 
     fun startGame(code: String) {
         val ref = roomRef(code)
+        ref.child("status").setValue(GameState.STATUS_ROLL_OFF)
+        ref.child("openingRolls").setValue(null)
+        ref.child("openingRollTied").setValue(null)
+    }
+
+    /** Rolls one die for [playerId] during the pre-game roll-off to decide turn order. */
+    fun rollForFirst(code: String, state: GameState, playerId: String) {
+        val eligible = if (state.openingRollTied.isNotEmpty()) state.openingRollTied else state.playerOrder
+        if (playerId !in eligible) return
+        if (state.openingRolls.containsKey(playerId)) return
+
+        val ref = roomRef(code)
+        val value = Random.nextInt(1, 7)
+        ref.child("openingRolls").child(playerId).setValue(value)
+
+        val updatedRolls = state.openingRolls + (playerId to value)
+        if (eligible.all { updatedRolls.containsKey(it) }) {
+            resolveRollOff(code, state, updatedRolls, eligible)
+        }
+    }
+
+    private fun resolveRollOff(code: String, state: GameState, rolls: Map<String, Int>, eligible: List<String>) {
+        val ref = roomRef(code)
+        val highest = eligible.maxOf { rolls[it] ?: 0 }
+        val winners = eligible.filter { rolls[it] == highest }
+
+        if (winners.size > 1) {
+            // Tie: reset and let only the tied players roll again.
+            ref.child("openingRollTied").setValue(winners)
+            ref.child("openingRolls").setValue(null)
+            return
+        }
+
+        val firstPlayerId = winners.first()
+        val reordered = listOf(firstPlayerId) + state.playerOrder.filter { it != firstPlayerId }
+        ref.child("playerOrder").setValue(reordered)
+        ref.child("currentTurnIndex").setValue(0)
         ref.child("status").setValue(GameState.STATUS_PLAYING)
         ref.child("dice").setValue(List(5) { 1 })
         ref.child("held").setValue(List(5) { false })
         ref.child("rollsUsed").setValue(0)
         ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
+        ref.child("openingRolls").setValue(null)
+        ref.child("openingRollTied").setValue(null)
     }
 
     fun rollDice(code: String, currentDice: List<Int>, held: List<Boolean>, rollsUsed: Int) {
@@ -167,7 +206,9 @@ private fun GameState.toMap(): Map<String, Any?> = mapOf(
     "dice" to dice,
     "held" to held,
     "winnerId" to winnerId,
-    "turnDeadline" to turnDeadline
+    "turnDeadline" to turnDeadline,
+    "openingRolls" to openingRolls,
+    "openingRollTied" to openingRollTied
 )
 
 private fun Player.toMap(): Map<String, Any?> = mapOf(
@@ -204,9 +245,16 @@ private fun DataSnapshot.toGameState(): GameState? {
         .ifEmpty { List(5) { false } }
     val winnerId = child("winnerId").getValue(String::class.java) ?: ""
     val turnDeadline = child("turnDeadline").getValue(Long::class.java) ?: 0L
+    val openingRolls = child("openingRolls").children.mapNotNull { rollSnap ->
+        val key = rollSnap.key ?: return@mapNotNull null
+        val value = rollSnap.getValue(Int::class.java) ?: return@mapNotNull null
+        key to value
+    }.toMap()
+    val openingRollTied = child("openingRollTied").children.mapNotNull { it.getValue(String::class.java) }
 
     return GameState(
         roomCode, hostId, status, playerOrder, players,
-        currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline
+        currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline,
+        openingRolls, openingRollTied
     )
 }

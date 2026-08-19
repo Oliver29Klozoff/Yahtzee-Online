@@ -45,6 +45,20 @@
         android:id="@+id/joinRoomButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/join_room" />
+        android:text="@string/join_room"
+        android:layout_marginBottom="16dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/row_border"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/playVsBotsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/play_vs_bots" />
 
 </LinearLayout>

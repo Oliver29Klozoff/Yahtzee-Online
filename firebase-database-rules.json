@@ -10,7 +10,20 @@
           ".validate": "newData.val() === $roomCode"
         },
         "status": {
-          ".validate": "newData.isString() && (newData.val() === 'LOBBY' || newData.val() === 'PLAYING' || newData.val() === 'FINISHED')"
+          ".validate": "newData.isString() && (newData.val() === 'LOBBY' || newData.val() === 'ROLL_OFF' || newData.val() === 'PLAYING' || newData.val() === 'FINISHED')"
+        },
+        "openingRolls": {
+          "$playerId": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+          }
+        },
+        "openingRollTied": {
+          "$index": {
+            ".validate": "newData.isString()"
+          }
+        },
+        "turnDeadline": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
         },
         "dice": {
           "$index": {
