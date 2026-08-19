@@ -28,8 +28,8 @@ object DieTextureAtlas {
     )
 
     private const val BASE_COLOR = 0xFF3D7FFF.toInt()
-    private const val DEEP_CORE_COLOR = 0xFF1A3F99.toInt()
-    private const val EDGE_LIGHT_COLOR = 0xFF6D9FFF.toInt()
+    private const val DEEP_CORE_COLOR = 0xFF14306E.toInt()
+    private const val EDGE_LIGHT_COLOR = 0xFF5788E8.toInt()
 
     fun build(cellSize: Int = 256): Bitmap {
         val width = cellSize * 6
@@ -38,9 +38,11 @@ object DieTextureAtlas {
         val canvas = Canvas(bitmap)
 
         val pipCorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        // Solid, near-black cavity ring (not a translucent stroke) so the pip reads as a
+        // genuine recess in the shader's luminance-driven cavity mask, not a faint outline.
         val pipRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(70, 10, 20, 40)
-            style = Paint.Style.STROKE
+            color = Color.rgb(6, 10, 22)
+            style = Paint.Style.FILL
         }
 
         for (value in 1..6) {
@@ -51,11 +53,13 @@ object DieTextureAtlas {
 
             // Thick-glass fill: saturated deep-blue core holding through most of the face,
             // brightening only in a narrow band right at the rounded edge — light escaping
-            // where the material is thinnest, not a glossy highlight painted on top.
+            // where the material is thinnest, not a glossy highlight painted on top. Both
+            // stops stay solidly blue (no pale/gray edge) so side faces read as colored glass
+            // rather than washing out toward white.
             val faceShader = RadialGradient(
                 cx, cy, radius,
                 intArrayOf(DEEP_CORE_COLOR, BASE_COLOR, EDGE_LIGHT_COLOR),
-                floatArrayOf(0f, 0.72f, 1f),
+                floatArrayOf(0f, 0.7f, 1f),
                 Shader.TileMode.CLAMP
             )
             val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = faceShader }
@@ -63,23 +67,12 @@ object DieTextureAtlas {
             val rect = RectF(left + 4f, 4f, left + cellSize - 4f, cellSize - 4f)
             canvas.drawRoundRect(rect, cellSize * 0.16f, cellSize * 0.16f, facePaint)
 
-            // Faint top-left sheen — the shader now carries most of the specular/gloss work,
-            // so this is kept subtle to avoid stacking into a double-glossy plastic look.
-            val sheenShader = RadialGradient(
-                left + cellSize * 0.28f, cellSize * 0.22f, cellSize * 0.5f,
-                intArrayOf(Color.argb(40, 255, 255, 255), Color.argb(0, 255, 255, 255)),
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP
-            )
-            val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = sheenShader }
-            canvas.drawRoundRect(rect, cellSize * 0.16f, cellSize * 0.16f, sheenPaint)
-
-            val pipRadius = cellSize * 0.095f
-            pipRingPaint.strokeWidth = cellSize * 0.02f
+            val pipRadius = cellSize * 0.09f
+            val ringRadius = pipRadius * 1.55f
             pipLayouts[value]?.forEach { (fx, fy) ->
                 val px = left + fx * cellSize
                 val py = fy * cellSize
-                canvas.drawCircle(px, py, pipRadius + pipRingPaint.strokeWidth, pipRingPaint)
+                canvas.drawCircle(px, py, ringRadius, pipRingPaint)
                 canvas.drawCircle(px, py, pipRadius, pipCorePaint)
             }
         }
