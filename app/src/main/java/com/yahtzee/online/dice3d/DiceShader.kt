@@ -1,6 +1,7 @@
 package com.yahtzee.online.dice3d
 
 import android.opengl.GLES20
+import android.util.Log
 
 private const val VERTEX_SHADER = """
     uniform mat4 uMVPMatrix;
@@ -19,29 +20,29 @@ private const val VERTEX_SHADER = """
     }
 """
 
-// Thick cobalt-glass look, built entirely from per-fragment math (no extra render passes,
-// so cost stays identical to a flat-shaded material — safe for continuous 60fps mobile
-// rendering). Earlier tuning still read as lit plastic because brightness and saturation were
-// coupled: scaling the whole RGB color by a diffuse term darkens AND grays it at once, and
-// additive white highlights on top of that is exactly the "shiny plastic sphere" signature.
-// This version keeps hue/saturation controlled independently of the lighting response:
-//   1. Base hue never grays out — side faces in shadow stay a deep, saturated blue (mixed
-//      toward a dark-but-still-blue core), never toward a neutral gray or black.
-//   2. Interior/core darkening for optical depth is applied as a hue-preserving mix toward
-//      that dark-blue core, strongest away from lit edges — this is what makes the block read
-//      as "thick" rather than a thin painted shell.
-//   3. Two specular bands: the primary Blinn-Phong hotspot near the light, AND a dimmer,
-//      wider "secondary reflected band" on the geometrically opposite side of the face
-//      (mirrored half-vector) — real glass/acrylic bounces light back on both the near and
-//      far side of a curved-looking surface, one hard plastic highlight does not.
-//   4. Fake internal caustic streaks: a few thin, angled sine bands modulated by the surface
-//      normal, brightening in stripes that shift as the die rotates — a cheap stand-in for
-//      light refracting/scattering inside a glass block, not a flat glow.
-//   5. Fresnel is restricted to a narrow, sharp band right at the silhouette edge (high power)
-//      instead of a broad soft glow across the whole face, so it doesn't read as neon.
-//   6. Pips carry a dark cavity ring baked into the texture (see DieTextureAtlas) and are
-//      additionally darkened by a faint occlusion term here so they read as recessed rather
-//      than floating on the surface.
+// Illuminated glass material, tuned against the app's cover artwork: saturated transparent
+// body, brilliant edges, darker interior depth, and light visibly travelling through the block.
+// All per-fragment math with no extra render passes, so cost stays that of a flat-shaded
+// material and continuous 60fps rendering remains safe.
+//
+// Every tint derives from uDiceColor rather than being hardcoded, so the material works at any
+// hue for the user-selectable dice colour.
+//
+//   1. Glass-vs-pip separation by SATURATION. Luminance fails because the texture's edge band
+//      is near-white, so the brightest glass would be mistaken for pips and skip lighting
+//      exactly where the material should look most alive. Blue-dominance would work only for
+//      blue dice. Saturation holds at every hue: the body is saturated, the pearl pips neutral.
+//   2. Absorption-driven interior depth, deepest looking straight into a face, kept moderate so
+//      the glass reads luminous rather than muddy.
+//   3. Hue-preserving lift toward the key light — brighten toward a desaturated tint of the
+//      same hue, never toward grey, so shadowed faces stay saturated.
+//   4. Two specular lobes plus a bounce opposite the key light. Thick glass returns light on
+//      both sides; a single hard highlight is the signature of plastic.
+//   5. A procedural studio environment reflection sampled from the reflection vector, giving
+//      the surface something to mirror as it tumbles instead of one static lamp.
+//   6. Edge ignition: a bright fresnel halo along the silhouette where the rounded bevel
+//      gathers light — now backed by real bevel geometry in CubeMesh.
+//   7. Transmission: light carried through the material, strongest where the block is thinnest.
 private const val FRAGMENT_SHADER = """
     precision mediump float;
     varying vec2 vTexCoord;
@@ -50,66 +51,59 @@ private const val FRAGMENT_SHADER = """
     uniform sampler2D uTexture;
     uniform vec3 uLightDir;
     uniform vec3 uCameraPos;
+    uniform vec3 uDiceColor;
+    uniform float uDim;
     void main() {
         vec4 texColor = texture2D(uTexture, vTexCoord);
         vec3 normal = normalize(vWorldNormal);
         vec3 toLight = normalize(-uLightDir);
         vec3 toCamera = normalize(uCameraPos - vWorldPos);
 
-        float luminance = dot(texColor.rgb, vec3(0.299, 0.587, 0.114));
-        float pipMask = smoothstep(0.5, 0.78, luminance);
-        float cavityMask = smoothstep(0.02, 0.16, luminance) - pipMask;
-
         float diffuse = max(dot(normal, toLight), 0.0);
         float ndotv = max(dot(normal, toCamera), 0.0);
 
-        // Deep, still-saturated core the glass darkens toward for depth — never neutral gray,
-        // always a darker, denser version of the same cobalt hue.
-        vec3 deepCore = vec3(0.03, 0.09, 0.30);
-        float depth = clamp(0.62 - 0.5 * ndotv - 0.16 * diffuse, 0.08, 0.6);
-        vec3 glassColor = mix(texColor.rgb, deepCore, depth);
+        float maxC = max(max(texColor.r, texColor.g), texColor.b);
+        float minC = min(min(texColor.r, texColor.g), texColor.b);
+        float saturation = (maxC - minC) / max(maxC, 0.001);
+        float glassness = clamp(saturation * 1.7, 0.0, 1.0);
 
-        // Hue-preserving brightness response: brighten to a lighter version of the SAME hue
-        // near the key light, rather than scaling the color toward gray/black.
-        vec3 litBlue = vec3(0.42, 0.58, 1.0);
-        glassColor = mix(glassColor, litBlue, diffuse * 0.22);
-        glassColor *= (0.72 + 0.28 * diffuse);
+        vec3 deepCore = uDiceColor * 0.30;
+        float depth = clamp(0.42 - 0.30 * ndotv - 0.10 * diffuse, 0.0, 0.42) * glassness;
+        vec3 color = mix(texColor.rgb, deepCore, depth);
+
+        vec3 litTint = mix(uDiceColor, vec3(1.0), 0.45);
+        color = mix(color, litTint, diffuse * 0.30 * glassness);
+        color *= (0.80 + 0.26 * diffuse);
 
         vec3 halfVec = normalize(toLight + toCamera);
         float specAngle = max(dot(normal, halfVec), 0.0);
-        float tightSpecular = pow(specAngle, 150.0) * 0.8;
-        float softSpecular = pow(specAngle, 24.0) * 0.12;
+        float tightSpec = pow(specAngle, 120.0) * 1.10;
+        float sheen = pow(specAngle, 20.0) * 0.22;
 
-        // Secondary reflected-light band: mirror the light across the normal's tangent plane
-        // to place a dimmer, wider highlight on the opposite side of the face from the main
-        // hotspot — the two-highlight look of a curved, thick glass/acrylic surface.
         vec3 oppositeLight = reflect(toLight, normal);
-        float oppAngle = max(dot(-oppositeLight, toCamera), 0.0);
-        float secondaryBand = pow(oppAngle, 10.0) * 0.14;
+        float secondary = pow(max(dot(-oppositeLight, toCamera), 0.0), 12.0) * 0.16;
 
-        // Fake internal caustic streaks: thin diagonal bands driven by world position and the
-        // normal, so they slide across the face as the die tumbles instead of sitting static.
-        float streak = sin((vWorldPos.x + vWorldPos.y) * 9.0 + normal.z * 6.0);
-        float caustic = smoothstep(0.85, 1.0, streak) * (0.5 + 0.5 * diffuse) * 0.10;
+        // Procedural studio environment: a broad overhead softbox with a weaker bounce from
+        // below-front, sampled through the reflection vector so it slides as the die rotates.
+        vec3 refl = reflect(-toCamera, normal);
+        float softbox = smoothstep(0.30, 0.95, refl.y);
+        float bounce = smoothstep(0.15, 0.85, -refl.y) * 0.30;
+        float env = (softbox * 0.42 + bounce) * glassness;
 
-        // Fresnel narrowed to a sharp silhouette band, not a broad soft rim glow.
-        float fresnel = pow(1.0 - ndotv, 5.0);
-        vec3 rimColor = vec3(0.55, 0.72, 1.0);
-        float rim = fresnel * 0.4;
+        float fresnel = pow(1.0 - ndotv, 3.2);
+        vec3 edgeColor = mix(uDiceColor, vec3(1.0), 0.62);
+        float edge = fresnel * 0.85 * glassness;
 
-        vec3 shaded = glassColor
-            + vec3(1.0) * tightSpecular
-            + vec3(0.8, 0.88, 1.0) * (softSpecular + secondaryBand)
-            + vec3(0.6, 0.78, 1.0) * caustic
-            + rimColor * rim;
+        float transmission = pow(1.0 - ndotv, 1.6) * 0.30 * glassness;
 
-        // Recessed pips: dark cavity ring darkens the glass around each pip; the pip disc
-        // itself sits at a slightly dimmed white so it reads as inset rather than glowing.
-        shaded = mix(shaded, shaded * 0.45, cavityMask);
-        vec3 pipColor = vec3(0.92, 0.94, 0.98) * (0.85 + 0.15 * diffuse);
-        shaded = mix(shaded, pipColor, pipMask);
+        vec3 shaded = color
+            + uDiceColor * transmission
+            + edgeColor * edge
+            + edgeColor * env
+            + vec3(1.0) * tightSpec
+            + mix(uDiceColor, vec3(1.0), 0.7) * (sheen + secondary);
 
-        gl_FragColor = vec4(shaded, texColor.a);
+        gl_FragColor = vec4(shaded * uDim, texColor.a);
     }
 """
 
@@ -123,6 +117,8 @@ class DiceShader {
     val uTexture: Int
     val uLightDir: Int
     val uCameraPos: Int
+    val uDiceColor: Int
+    val uDim: Int
 
     init {
         val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER)
@@ -131,6 +127,13 @@ class DiceShader {
             GLES20.glAttachShader(it, vertexShader)
             GLES20.glAttachShader(it, fragmentShader)
             GLES20.glLinkProgram(it)
+            val linked = IntArray(1)
+            GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, linked, 0)
+            if (linked[0] == 0) {
+                Log.e(TAG, "Dice program link failed: ${GLES20.glGetProgramInfoLog(it)}")
+            } else {
+                Log.i(TAG, "Dice shader program linked OK")
+            }
         }
         aPosition = GLES20.glGetAttribLocation(program, "aPosition")
         aTexCoord = GLES20.glGetAttribLocation(program, "aTexCoord")
@@ -140,12 +143,28 @@ class DiceShader {
         uTexture = GLES20.glGetUniformLocation(program, "uTexture")
         uLightDir = GLES20.glGetUniformLocation(program, "uLightDir")
         uCameraPos = GLES20.glGetUniformLocation(program, "uCameraPos")
+        uDiceColor = GLES20.glGetUniformLocation(program, "uDiceColor")
+        uDim = GLES20.glGetUniformLocation(program, "uDim")
     }
 
+    /**
+     * Compiles one stage, reporting failures instead of swallowing them — a GLSL error
+     * otherwise surfaces only as silently black or garbled dice with nothing in the log.
+     */
     private fun compileShader(type: Int, source: String): Int {
         return GLES20.glCreateShader(type).also {
             GLES20.glShaderSource(it, source)
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                val stage = if (type == GLES20.GL_VERTEX_SHADER) "vertex" else "fragment"
+                Log.e(TAG, "Dice $stage shader failed: ${GLES20.glGetShaderInfoLog(it)}")
+            }
         }
+    }
+
+    private companion object {
+        const val TAG = "DiceShader"
     }
 }

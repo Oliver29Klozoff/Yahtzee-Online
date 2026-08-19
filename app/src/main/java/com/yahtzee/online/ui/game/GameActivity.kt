@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
+import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
@@ -55,6 +56,7 @@ class GameActivity : ImmersiveActivity() {
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: ""
 
         dice3DView = findViewById(R.id.dice3DView)
+        dice3DView.setDiceColor(DicePreferences.getColor(this))
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)

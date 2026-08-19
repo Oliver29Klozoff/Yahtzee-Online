@@ -37,6 +37,14 @@ class Dice3DView @JvmOverloads constructor(
     }
 
     /**
+     * Recolours the dice. The renderer regenerates its texture atlas on the GL thread the next
+     * frame, so this is safe to call from the UI thread at any point.
+     */
+    fun setDiceColor(color: Int) {
+        renderer.diceColor = color
+    }
+
+    /**
      * Kicks off a physical throw already rigged to land exactly on [targetValues] — no
      * post-landing correction needed, since each die's rotation is computed up front to
      * arrive precisely on its target face.

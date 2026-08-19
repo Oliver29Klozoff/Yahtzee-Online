@@ -1,5 +1,6 @@
 package com.yahtzee.online.dice3d
 
+import android.graphics.Color
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.opengl.GLUtils
@@ -14,8 +15,10 @@ class DiceRenderer(
 
     private lateinit var cubeMesh: CubeMesh
     private lateinit var tableMesh: TableMesh
+    private lateinit var glowQuad: GlowQuad
     private lateinit var diceShader: DiceShader
     private lateinit var tableShader: TableShader
+    private lateinit var glowShader: GlowShader
     private var textureId = 0
 
     private val projectionMatrix = FloatArray(16)
@@ -27,6 +30,23 @@ class DiceRenderer(
     private var lastFrameNanos = 0L
     private var settledNotified = true
 
+    /**
+     * Player-selected dice colour. Written from the UI thread, consumed on the GL thread, which
+     * is why the texture is not rebuilt here — [onDrawFrame] picks up the flag and regenerates
+     * on the GL thread where a texture upload is legal.
+     */
+    @Volatile
+    var diceColor: Int = DieTextureAtlas.DEFAULT_COLOR
+        set(value) {
+            if (field != value) {
+                field = value
+                textureDirty = true
+            }
+        }
+
+    @Volatile
+    private var textureDirty = false
+
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
@@ -34,9 +54,12 @@ class DiceRenderer(
 
         cubeMesh = CubeMesh()
         tableMesh = TableMesh(world.tableHalfWidth, world.tableHalfDepth)
+        glowQuad = GlowQuad()
         diceShader = DiceShader()
         tableShader = TableShader()
-        textureId = loadTexture()
+        glowShader = GlowShader()
+        textureId = createTexture()
+        uploadAtlas()
 
         Matrix.setLookAtM(
             viewMatrix, 0,
@@ -46,18 +69,22 @@ class DiceRenderer(
         )
     }
 
-    private fun loadTexture(): Int {
-        val textureHandle = IntArray(1)
-        GLES20.glGenTextures(1, textureHandle, 0)
-        val bitmap = DieTextureAtlas.build()
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle[0])
+    private fun createTexture(): Int {
+        val handle = IntArray(1)
+        GLES20.glGenTextures(1, handle, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, handle[0])
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        return handle[0]
+    }
+
+    private fun uploadAtlas() {
+        val bitmap = DieTextureAtlas.build(diceColor)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         bitmap.recycle()
-        return textureHandle[0]
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -67,6 +94,11 @@ class DiceRenderer(
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        if (textureDirty) {
+            textureDirty = false
+            uploadAtlas()
+        }
+
         val now = System.nanoTime()
         val dt = if (lastFrameNanos == 0L) 1f / 60f else ((now - lastFrameNanos) / 1_000_000_000f).coerceAtMost(1f / 30f)
         lastFrameNanos = now
@@ -84,8 +116,28 @@ class DiceRenderer(
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
 
+        // 1. Mirrored dice beneath the table, so the glossy surface has something to reflect.
+        //    Mirroring reverses triangle winding, so front-face orientation is flipped for the
+        //    duration or back-face culling would discard every one of them.
+        GLES20.glFrontFace(GLES20.GL_CW)
+        for (die in world.dice) drawDie(die, mirrored = true, dim = REFLECTION_DIM)
+        GLES20.glFrontFace(GLES20.GL_CCW)
+
+        // 2. Table, blended over the reflection so it shows through faintly.
+        GLES20.glEnable(GLES20.GL_BLEND)
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         drawTable()
-        for (die in world.dice) drawDie(die)
+
+        // 3. Additive halo pooling on the surface under each die. Depth writes are off so the
+        //    glow never occludes the dice drawn afterwards.
+        GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE)
+        GLES20.glDepthMask(false)
+        for (die in world.dice) drawGlow(die)
+        GLES20.glDepthMask(true)
+        GLES20.glDisable(GLES20.GL_BLEND)
+
+        // 4. The dice themselves.
+        for (die in world.dice) drawDie(die, mirrored = false, dim = 1f)
     }
 
     private fun drawTable() {
@@ -93,7 +145,7 @@ class DiceRenderer(
         Matrix.setIdentityM(modelMatrix, 0)
         Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0)
         GLES20.glUniformMatrix4fv(tableShader.uMVPMatrix, 1, false, mvpMatrix, 0)
-        GLES20.glUniform4f(tableShader.uColor, 0f, 0f, 0f, 1f)
+        GLES20.glUniform4f(tableShader.uColor, 0f, 0f, 0f, TABLE_OPACITY)
 
         tableMesh.vertexBuffer.position(0)
         GLES20.glEnableVertexAttribArray(tableShader.aPosition)
@@ -102,11 +154,47 @@ class DiceRenderer(
         GLES20.glDisableVertexAttribArray(tableShader.aPosition)
     }
 
-    private fun drawDie(die: DieBody) {
+    private fun drawGlow(die: DieBody) {
+        // Fade the pool out as a die flies up, so airborne dice do not drag a bright disc around
+        // the table under them.
+        val height = (die.position.y - DieBody.HALF_SIZE).coerceAtLeast(0f)
+        val intensity = (1f - height / 1.4f).coerceIn(0f, 1f) * GLOW_STRENGTH
+        if (intensity <= 0.001f) return
+
+        GLES20.glUseProgram(glowShader.program)
+        Matrix.setIdentityM(modelMatrix, 0)
+        Matrix.translateM(modelMatrix, 0, die.position.x, GLOW_HEIGHT, die.position.z)
+        Matrix.scaleM(modelMatrix, 0, GLOW_RADIUS, 1f, GLOW_RADIUS)
+        Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0)
+
+        GLES20.glUniformMatrix4fv(glowShader.uMVPMatrix, 1, false, mvpMatrix, 0)
+        GLES20.glUniform3f(glowShader.uColor, Color.red(diceColor) / 255f, Color.green(diceColor) / 255f, Color.blue(diceColor) / 255f)
+        GLES20.glUniform1f(glowShader.uIntensity, intensity)
+
+        glowQuad.vertexBuffer.position(0)
+        GLES20.glEnableVertexAttribArray(glowShader.aPosition)
+        GLES20.glVertexAttribPointer(glowShader.aPosition, 3, GLES20.GL_FLOAT, false, 0, glowQuad.vertexBuffer)
+        glowQuad.uvBuffer.position(0)
+        GLES20.glEnableVertexAttribArray(glowShader.aTexCoord)
+        GLES20.glVertexAttribPointer(glowShader.aTexCoord, 2, GLES20.GL_FLOAT, false, 0, glowQuad.uvBuffer)
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, glowQuad.vertexCount)
+
+        GLES20.glDisableVertexAttribArray(glowShader.aPosition)
+        GLES20.glDisableVertexAttribArray(glowShader.aTexCoord)
+    }
+
+    private fun drawDie(die: DieBody, mirrored: Boolean, dim: Float) {
         GLES20.glUseProgram(diceShader.program)
 
         Matrix.setIdentityM(modelMatrix, 0)
-        Matrix.translateM(modelMatrix, 0, die.position.x, die.position.y, die.position.z)
+        if (mirrored) {
+            // Reflection about the y=0 plane: T(x,-y,z) * S(1,-1,1) * R.
+            Matrix.translateM(modelMatrix, 0, die.position.x, -die.position.y, die.position.z)
+            Matrix.scaleM(modelMatrix, 0, 1f, -1f, 1f)
+        } else {
+            Matrix.translateM(modelMatrix, 0, die.position.x, die.position.y, die.position.z)
+        }
         val rotMatrix = die.orientation.toMatrix4()
         Matrix.multiplyMM(modelMatrix, 0, modelMatrix, 0, rotMatrix, 0)
 
@@ -116,6 +204,13 @@ class DiceRenderer(
         GLES20.glUniformMatrix4fv(diceShader.uModelMatrix, 1, false, modelMatrix, 0)
         GLES20.glUniform3f(diceShader.uLightDir, -0.4f, -1f, -0.3f)
         GLES20.glUniform3f(diceShader.uCameraPos, 0f, 4.6f, 4.2f)
+        GLES20.glUniform3f(
+            diceShader.uDiceColor,
+            Color.red(diceColor) / 255f,
+            Color.green(diceColor) / 255f,
+            Color.blue(diceColor) / 255f
+        )
+        GLES20.glUniform1f(diceShader.uDim, dim)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
@@ -139,5 +234,14 @@ class DiceRenderer(
         GLES20.glDisableVertexAttribArray(diceShader.aPosition)
         GLES20.glDisableVertexAttribArray(diceShader.aTexCoord)
         GLES20.glDisableVertexAttribArray(diceShader.aNormal)
+    }
+
+    private companion object {
+        /** Table is slightly translucent so mirrored dice read as a reflection in the surface. */
+        const val TABLE_OPACITY = 0.82f
+        const val REFLECTION_DIM = 0.55f
+        const val GLOW_RADIUS = 0.95f
+        const val GLOW_HEIGHT = 0.012f
+        const val GLOW_STRENGTH = 0.30f
     }
 }

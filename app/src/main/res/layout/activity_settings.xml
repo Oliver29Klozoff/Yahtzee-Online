@@ -38,4 +38,41 @@
         android:layout_marginTop="16dp"
         android:visibility="gone" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/row_border"
+        android:layout_marginTop="28dp"
+        android:layout_marginBottom="20dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dice_color"
+        android:textAllCaps="true"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.08"
+        android:textColor="@color/text_muted"
+        android:layout_marginBottom="14dp" />
+
+    <com.yahtzee.online.dice3d.Dice3DView
+        android:id="@+id/dicePreview"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:layout_marginBottom="16dp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/diceColorRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+
+    </HorizontalScrollView>
+
 </LinearLayout>

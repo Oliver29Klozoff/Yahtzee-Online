@@ -13,3 +13,7 @@ app/google-services.json
 *.jks
 *.keystore
 keystore.properties
+
+# Working copy of the splash artwork; the committed resource lives at
+# app/src/main/res/drawable-nodpi/splash_full.png
+Yahtzee_splash.png
