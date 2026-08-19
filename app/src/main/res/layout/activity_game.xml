@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:background="@color/background">
 
     <TextView
         android:id="@+id/turnStatusText"
@@ -13,16 +13,20 @@
         android:textStyle="bold"
         android:gravity="center"
         android:textColor="@color/text_dark"
-        android:layout_marginBottom="12dp" />
+        android:padding="16dp"
+        android:paddingBottom="0dp" />
 
     <com.yahtzee.online.dice3d.Dice3DView
         android:id="@+id/dice3DView"
         android:layout_width="match_parent"
         android:layout_height="260dp"
+        android:layout_marginTop="12dp"
         android:layout_marginBottom="12dp" />
 
     <LinearLayout
         android:id="@+id/holdRow"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -33,6 +37,8 @@
         android:id="@+id/rollButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:text="@string/roll_dice"
         android:layout_marginBottom="8dp" />
 
@@ -48,6 +54,8 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:orientation="vertical"
         android:background="@drawable/scorecard_card_background"
         android:clipChildren="true">

@@ -93,7 +93,7 @@ class DiceRenderer(
         Matrix.setIdentityM(modelMatrix, 0)
         Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0)
         GLES20.glUniformMatrix4fv(tableShader.uMVPMatrix, 1, false, mvpMatrix, 0)
-        GLES20.glUniform4f(tableShader.uColor, 0.07f, 0.08f, 0.1f, 1f)
+        GLES20.glUniform4f(tableShader.uColor, 0f, 0f, 0f, 1f)
 
         tableMesh.vertexBuffer.position(0)
         GLES20.glEnableVertexAttribArray(tableShader.aPosition)
