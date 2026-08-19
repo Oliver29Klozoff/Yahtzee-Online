@@ -9,7 +9,6 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import com.yahtzee.online.R
 import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.dice3d.Dice3DView
@@ -17,9 +16,10 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
 
-class SoloGameActivity : AppCompatActivity() {
+class SoloGameActivity : ImmersiveActivity() {
 
     companion object {
         const val EXTRA_PLAYER_NAME = "player_name"

@@ -7,14 +7,14 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.net.GameRepository
+import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.GameActivity
 
-class LobbyActivity : AppCompatActivity() {
+class LobbyActivity : ImmersiveActivity() {
 
     companion object {
         const val EXTRA_ROOM_CODE = "room_code"

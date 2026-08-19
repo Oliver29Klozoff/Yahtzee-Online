@@ -7,7 +7,6 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.yahtzee.online.R
 import com.yahtzee.online.net.GameRepository
@@ -15,7 +14,7 @@ import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.lobby.LobbyActivity
 import com.yahtzee.online.update.UpdateChecker
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ImmersiveActivity() {
 
     private val repository = GameRepository()
 

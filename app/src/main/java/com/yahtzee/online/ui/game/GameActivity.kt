@@ -9,7 +9,6 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
@@ -18,8 +17,9 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.net.GameRepository
+import com.yahtzee.online.ui.ImmersiveActivity
 
-class GameActivity : AppCompatActivity() {
+class GameActivity : ImmersiveActivity() {
 
     companion object {
         const val EXTRA_ROOM_CODE = "room_code"
