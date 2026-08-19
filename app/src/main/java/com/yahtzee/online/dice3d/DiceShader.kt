@@ -54,17 +54,6 @@ private const val FRAGMENT_SHADER = """
     uniform vec3 uDiceColor;
     uniform float uDim;
 
-    /**
-     * Opacity looking straight through a face; grazing angles ramp toward fully opaque.
-     *
-     * Held fairly high on purpose. The table behind the dice is black, and alpha blending
-     * against black is multiplicative — at 0.42 a die rendered at under half brightness and
-     * went murky rather than clear. The reference dice are transparent AND brilliantly
-     * saturated, which low alpha over a dark background cannot produce; the see-through
-     * quality comes from the interior pass showing far faces, not from thinning the body out.
-     */
-    const float BODY_ALPHA = 0.74;
-
     void main() {
         vec4 texColor = texture2D(uTexture, vTexCoord);
         vec3 normal = normalize(vWorldNormal);
@@ -118,15 +107,12 @@ private const val FRAGMENT_SHADER = """
             + vec3(1.0) * tightSpec
             + mix(uDiceColor, vec3(1.0), 0.7) * (sheen + secondary);
 
-        // Transmission is what actually separates glass from plastic: an opaque body can only
-        // ever simulate light ON the surface. Faces seen straight-on are the thinnest sight
-        // line through the block and go most transparent, while grazing angles stack up far
-        // more material and turn nearly opaque — the same fresnel curve that drives the edge
-        // glow. Pips stay fully opaque (glassness ~0) so the values remain readable.
-        float glassAlpha = mix(BODY_ALPHA, 1.0, fresnel);
-        float alpha = mix(1.0, glassAlpha, glassness) * texColor.a;
-
-        gl_FragColor = vec4(shaded * uDim, alpha);
+        // The body stays fully opaque. Literal transparency was tried and looked wrong: against
+        // a black table, alpha blending is multiplicative, so a see-through die reads as dim
+        // and washed out rather than as glass. The glass impression comes from the ignited
+        // edges, the specular and environment reflections, and the depth gradient through the
+        // body — all of which survive at full opacity.
+        gl_FragColor = vec4(shaded * uDim, texColor.a);
     }
 """
 

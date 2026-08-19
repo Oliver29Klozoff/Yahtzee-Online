@@ -127,43 +127,14 @@ class DiceRenderer(
         for (die in world.dice) drawGlow(die)
         GLES20.glDepthMask(true)
 
-        // 3. The dice, translucent so light passes through the material rather than only
-        //    reflecting off it. Transparency imposes three requirements:
-        //      - Depth writes off, or a nearer die would reject the ones behind it instead of
-        //        letting them blend through.
-        //      - Painter's ordering, so blending composites in the right sequence; without the
-        //        depth buffer arbitrating, draw order IS the depth order.
-        //      - Each die drawn twice: interior (far) walls first, then exterior. Seeing the
-        //        inside of the far faces through the body is the strongest cue that the block
-        //        is solid glass rather than a hollow shell.
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-        GLES20.glDepthMask(false)
-        for (die in sortedBackToFront()) {
-            GLES20.glCullFace(GLES20.GL_FRONT)
-            drawDie(die, dim = INTERIOR_DIM)
-            GLES20.glCullFace(GLES20.GL_BACK)
-            drawDie(die, dim = 1f)
-        }
-        GLES20.glDepthMask(true)
         GLES20.glDisable(GLES20.GL_BLEND)
-    }
 
-    /**
-     * Dice ordered farthest-first for correct alpha compositing. Reuses one list so a sort per
-     * frame costs no allocation.
-     */
-    private val sortScratch = ArrayList<DieBody>(8)
-
-    private fun sortedBackToFront(): List<DieBody> {
-        sortScratch.clear()
-        sortScratch.addAll(world.dice)
-        sortScratch.sortByDescending { die ->
-            val dx = die.position.x - CAMERA_X
-            val dy = die.position.y - CAMERA_Y
-            val dz = die.position.z - CAMERA_Z
-            dx * dx + dy * dy + dz * dz
-        }
-        return sortScratch
+        // 3. The dice, drawn opaque. Transparency was tried and looked wrong — against a black
+        //    table, alpha blending is multiplicative, so see-through dice read as dim and
+        //    washed out rather than as glass. Staying opaque also means the depth buffer sorts
+        //    them correctly on its own, with no back-to-front ordering, no second interior
+        //    pass, and no depth-mask juggling.
+        for (die in world.dice) drawDie(die, dim = 1f)
     }
 
     private fun drawTable() {
@@ -261,12 +232,6 @@ class DiceRenderer(
         const val CAMERA_Y = 4.6f
         const val CAMERA_Z = 4.2f
 
-        /**
-         * Interior walls sit deeper in the material so they read dimmer than the near faces,
-         * but not so dim that the far pips and internal edges stop showing through — seeing
-         * those is what makes the block look clear rather than merely shiny.
-         */
-        const val INTERIOR_DIM = 0.80f
         const val GLOW_RADIUS = 0.95f
         const val GLOW_HEIGHT = 0.012f
         const val GLOW_STRENGTH = 0.30f
