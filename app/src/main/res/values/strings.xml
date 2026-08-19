@@ -16,4 +16,5 @@
     <string name="players_label">Players</string>
     <string name="scorecard_label">Scorecard</string>
     <string name="total_score">Total %1$d</string>
+    <string name="turn_timer">%1$ds</string>
 </resources>

@@ -18,12 +18,14 @@ data class GameState(
     val rollsUsed: Int = 0,
     val dice: List<Int> = listOf(1, 1, 1, 1, 1),
     val held: List<Boolean> = listOf(false, false, false, false, false),
-    val winnerId: String = ""
+    val winnerId: String = "",
+    val turnDeadline: Long = 0L
 ) {
     companion object {
         const val STATUS_LOBBY = "LOBBY"
         const val STATUS_PLAYING = "PLAYING"
         const val STATUS_FINISHED = "FINISHED"
+        const val TURN_TIME_MILLIS = 30_000L
     }
 
     val currentPlayerId: String?

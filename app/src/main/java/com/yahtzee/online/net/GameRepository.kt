@@ -77,6 +77,7 @@ class GameRepository {
         ref.child("dice").setValue(List(5) { 1 })
         ref.child("held").setValue(List(5) { false })
         ref.child("rollsUsed").setValue(0)
+        ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
     }
 
     fun rollDice(code: String, currentDice: List<Int>, held: List<Boolean>, rollsUsed: Int) {
@@ -110,9 +111,12 @@ class GameRepository {
 
         val nextIndex = (state.currentTurnIndex + 1) % state.playerOrder.size
         ref.child("currentTurnIndex").setValue(nextIndex)
-        ref.child("dice").setValue(List(5) { 1 })
+        // Leave `dice` as whatever they last showed (per-player preference) — only reset
+        // held/rollsUsed so the next player starts a fresh turn, but the dice visually stay
+        // put until someone actually rolls again.
         ref.child("held").setValue(List(5) { false })
         ref.child("rollsUsed").setValue(0)
+        ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
 
         val allDone = state.players.values.all {
             val scores = if (it.id == playerId) it.scores + (category.name to points) else it.scores
@@ -127,6 +131,23 @@ class GameRepository {
             ref.child("status").setValue(GameState.STATUS_FINISHED)
             ref.child("winnerId").setValue(winner?.id ?: "")
         }
+    }
+
+    /**
+     * Called by the current player's own client when their turn timer expires. Rolls for
+     * them if they still have rolls left, otherwise scores their best available category
+     * automatically so the game keeps moving instead of stalling on an inactive player.
+     */
+    fun autoPlayTurn(code: String, state: GameState, playerId: String) {
+        if (!state.isMyTurn(playerId)) return
+        if (state.rollsUsed < 3) {
+            rollDice(code, state.dice, state.held, state.rollsUsed)
+            return
+        }
+        val player = state.players[playerId] ?: return
+        val openCategories = Category.values().filter { !player.scores.containsKey(it.name) }
+        val best = openCategories.maxByOrNull { Scoring.score(it, state.dice) } ?: return
+        submitScore(code, state, best, playerId)
     }
 
     private fun generateRoomCode(): String {
@@ -145,7 +166,8 @@ private fun GameState.toMap(): Map<String, Any?> = mapOf(
     "rollsUsed" to rollsUsed,
     "dice" to dice,
     "held" to held,
-    "winnerId" to winnerId
+    "winnerId" to winnerId,
+    "turnDeadline" to turnDeadline
 )
 
 private fun Player.toMap(): Map<String, Any?> = mapOf(
@@ -181,9 +203,10 @@ private fun DataSnapshot.toGameState(): GameState? {
     val held = child("held").children.mapNotNull { it.getValue(Boolean::class.java) }
         .ifEmpty { List(5) { false } }
     val winnerId = child("winnerId").getValue(String::class.java) ?: ""
+    val turnDeadline = child("turnDeadline").getValue(Long::class.java) ?: 0L
 
     return GameState(
         roomCode, hostId, status, playerOrder, players,
-        currentTurnIndex, rollsUsed, dice, held, winnerId
+        currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline
     )
 }

@@ -1,6 +1,8 @@
 package com.yahtzee.online.ui.game
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -34,6 +36,14 @@ class GameActivity : AppCompatActivity() {
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = 0
     private lateinit var dice3DView: Dice3DView
+    private val timerHandler = Handler(Looper.getMainLooper())
+    private var autoPlayTriggered = false
+    private val timerTick = object : Runnable {
+        override fun run() {
+            updateTimerDisplay()
+            timerHandler.postDelayed(this, 250)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +77,38 @@ class GameActivity : AppCompatActivity() {
                 gameOverShown = true
                 showGameOver(state)
             }
+        }
+
+        timerHandler.post(timerTick)
+    }
+
+    private fun updateTimerDisplay() {
+        val state = lastState ?: return
+        val timerText = findViewById<TextView>(R.id.turnTimerText)
+        if (state.status != GameState.STATUS_PLAYING || state.turnDeadline == 0L) {
+            timerText.visibility = View.GONE
+            return
+        }
+
+        val remainingMillis = state.turnDeadline - System.currentTimeMillis()
+        val remainingSeconds = (remainingMillis / 1000f).coerceAtLeast(0f)
+
+        timerText.visibility = View.VISIBLE
+        timerText.text = getString(R.string.turn_timer, remainingSeconds.toInt() + 1)
+        timerText.setTextColor(
+            resources.getColor(
+                if (remainingSeconds <= 10f) R.color.score_badge_available_text else R.color.text_muted,
+                theme
+            )
+        )
+
+        if (remainingMillis <= 0L && state.isMyTurn(playerId)) {
+            if (!autoPlayTriggered) {
+                autoPlayTriggered = true
+                repository.autoPlayTurn(roomCode, state, playerId)
+            }
+        } else {
+            autoPlayTriggered = false
         }
     }
 
@@ -157,5 +199,6 @@ class GameActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         listener?.let { repository.stopListening(roomCode, it) }
+        timerHandler.removeCallbacks(timerTick)
     }
 }

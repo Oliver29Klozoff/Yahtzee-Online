@@ -5,16 +5,34 @@
     android:orientation="vertical"
     android:background="@color/background">
 
-    <TextView
-        android:id="@+id/turnStatusText"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:textColor="@color/text_dark"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:padding="16dp"
-        android:paddingBottom="0dp" />
+        android:paddingBottom="0dp">
+
+        <TextView
+            android:id="@+id/turnStatusText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textColor="@color/text_dark" />
+
+        <TextView
+            android:id="@+id/turnTimerText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_muted"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
     <com.yahtzee.online.dice3d.Dice3DView
         android:id="@+id/dice3DView"
