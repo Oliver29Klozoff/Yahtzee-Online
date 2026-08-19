@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -28,7 +29,7 @@ class MainActivity : AppCompatActivity() {
         val createButton = findViewById<Button>(R.id.createRoomButton)
         val joinButton = findViewById<Button>(R.id.joinRoomButton)
         val playVsBotsButton = findViewById<Button>(R.id.playVsBotsButton)
-        val settingsButton = findViewById<Button>(R.id.settingsButton)
+        val settingsButton = findViewById<ImageButton>(R.id.settingsButton)
 
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
