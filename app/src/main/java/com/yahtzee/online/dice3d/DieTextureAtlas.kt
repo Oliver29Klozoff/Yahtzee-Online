@@ -14,7 +14,7 @@ import kotlin.math.min
  * Builds the die face texture: a 3x2 atlas (one 512px cell per face value 1..6), used by
  * [DiceShader] as the per-fragment albedo. The 3x2 layout — rather than 6x1 — keeps the atlas
  * at 1536x1024, comfortably inside the 2048 texture limit that some GLES2 devices enforce,
- * while giving each face four times the pixels of the old 256px cells so the pearl pips stay
+ * while giving each face four times the pixels of the old 256px cells so the pips stay
  * smooth instead of visibly stepped.
  *
  * Cells are drawn FULL-BLEED, with no rounded corners and no transparent margin: [CubeMesh] now
@@ -27,10 +27,10 @@ import kotlin.math.min
  *   2. A bright edge band at the cell border, which the bevel geometry maps onto, so the
  *      rounded edges read as ignited.
  *   3. A soft diagonal streak, faking light scattering inside the material.
- *   4. Per pip: recess pocket, lit cavity rim, domed pearl body, specular pinpoint.
+ *   4. Per pip: bright cavity lip, dark domed body, specular pinpoint.
  *
  * Every glass tone derives from [baseColor], so the dice can be recoloured at runtime; the pips
- * stay neutral pearl at any hue, which is also what lets the shader separate them from the body
+ * stay neutral at any hue, which is also what lets the shader separate them from the body
  * by saturation.
  */
 object DieTextureAtlas {
@@ -140,43 +140,45 @@ object DieTextureAtlas {
         }
     }
 
-    /** One pearl pip: recess pocket, lit glass rim, domed body, specular pinpoint. */
+    /**
+     * One polished black pip: a bright glass lip around the cavity, a dark domed body, and a
+     * specular pinpoint.
+     *
+     * Black needs the opposite treatment to white. A white pip separated itself from the blue
+     * body by being brighter, so it only needed a soft recess behind it; a dark pip would
+     * otherwise read as a flat hole punched in the face, so the definition has to come from a
+     * bright lit lip around it and from a strong highlight on the dome. Both stay neutral in
+     * hue, which is what keeps the shader classifying them as pips rather than glass — that
+     * test is saturation-based, so black qualifies exactly as white did.
+     */
     private fun drawPip(canvas: Canvas, px: Float, py: Float, radius: Float) {
-        val recessPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                px, py, radius * 1.62f,
-                intArrayOf(Color.argb(150, 4, 10, 26), Color.argb(0, 4, 10, 26)),
-                floatArrayOf(0.56f, 1f),
-                Shader.TileMode.CLAMP
-            )
-        }
-        canvas.drawCircle(px, py, radius * 1.62f, recessPaint)
-
-        // The cavity lip, brightest on the lower-right where its wall turns up toward the light.
+        // Bright cavity lip: catches the key light from the upper-left and separates the dark
+        // pip from the surrounding blue.
         val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = radius * 0.15f
+            strokeWidth = radius * 0.2f
             shader = LinearGradient(
                 px - radius, py - radius, px + radius, py + radius,
-                intArrayOf(Color.argb(105, 190, 205, 230), Color.argb(235, 240, 246, 255)),
+                intArrayOf(Color.argb(240, 236, 244, 255), Color.argb(120, 150, 178, 220)),
                 floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP
             )
         }
-        canvas.drawCircle(px, py, radius * 1.1f, rimPaint)
+        canvas.drawCircle(px, py, radius * 1.12f, rimPaint)
 
-        // Dome: highlight offset up-left, shading to a cool grey limb at the lower-right — the
-        // off-centre gradient is what makes a flat disc read as a sphere.
+        // Dome: lifted toward the upper-left where light grazes the polished surface, falling
+        // to near-black at the lower-right limb. The off-centre gradient is what makes a flat
+        // disc read as a sphere.
         val domePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
-                px - radius * 0.34f, py - radius * 0.36f, radius * 1.42f,
+                px - radius * 0.34f, py - radius * 0.36f, radius * 1.5f,
                 intArrayOf(
-                    Color.rgb(255, 255, 255),
-                    Color.rgb(242, 246, 253),
-                    Color.rgb(200, 212, 231),
-                    Color.rgb(148, 164, 190)
+                    Color.rgb(92, 100, 114),
+                    Color.rgb(42, 47, 56),
+                    Color.rgb(16, 19, 24),
+                    Color.rgb(4, 5, 8)
                 ),
-                floatArrayOf(0f, 0.4f, 0.74f, 1f),
+                floatArrayOf(0f, 0.38f, 0.72f, 1f),
                 Shader.TileMode.CLAMP
             )
         }
@@ -184,12 +186,12 @@ object DieTextureAtlas {
 
         val specPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
-                px - radius * 0.36f, py - radius * 0.4f, radius * 0.34f,
-                intArrayOf(Color.argb(240, 255, 255, 255), Color.argb(0, 255, 255, 255)),
+                px - radius * 0.36f, py - radius * 0.4f, radius * 0.32f,
+                intArrayOf(Color.argb(215, 255, 255, 255), Color.argb(0, 255, 255, 255)),
                 floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP
             )
         }
-        canvas.drawCircle(px - radius * 0.36f, py - radius * 0.4f, radius * 0.34f, specPaint)
+        canvas.drawCircle(px - radius * 0.36f, py - radius * 0.4f, radius * 0.32f, specPaint)
     }
 }
