@@ -7,7 +7,6 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.yahtzee.online.R
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.bot.SoloGameActivity
@@ -19,7 +18,6 @@ class MainActivity : ImmersiveActivity() {
     private val repository = GameRepository()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 

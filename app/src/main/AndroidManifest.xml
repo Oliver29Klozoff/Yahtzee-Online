@@ -12,7 +12,7 @@
         android:theme="@style/Theme.YahtzeeOnline">
 
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.SplashActivity"
             android:theme="@style/Theme.YahtzeeOnline.Splash"
             android:exported="true">
             <intent-filter>
@@ -21,6 +21,7 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.MainActivity" android:exported="false" />
         <activity android:name=".ui.lobby.LobbyActivity" android:exported="false" />
         <activity android:name=".ui.game.GameActivity" android:exported="false" />
         <activity android:name=".ui.bot.SoloGameActivity" android:exported="false" />
