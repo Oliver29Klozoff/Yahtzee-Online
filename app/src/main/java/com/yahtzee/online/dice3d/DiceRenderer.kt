@@ -279,8 +279,12 @@ class DiceRenderer(
         const val TABLE_OPACITY = 0.82f
         const val REFLECTION_DIM = 0.55f
 
-        /** Interior walls sit deeper in the material, so they read dimmer than the near faces. */
-        const val INTERIOR_DIM = 0.62f
+        /**
+         * Interior walls sit deeper in the material so they read dimmer than the near faces,
+         * but not so dim that the far pips and internal edges stop showing through — seeing
+         * those is what makes the block look clear rather than merely shiny.
+         */
+        const val INTERIOR_DIM = 0.80f
         const val GLOW_RADIUS = 0.95f
         const val GLOW_HEIGHT = 0.012f
         const val GLOW_STRENGTH = 0.30f

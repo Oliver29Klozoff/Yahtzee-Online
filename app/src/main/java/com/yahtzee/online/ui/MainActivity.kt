@@ -16,6 +16,15 @@ import com.yahtzee.online.update.UpdateChecker
 
 class MainActivity : ImmersiveActivity() {
 
+    private companion object {
+        /**
+         * Process-scoped, so the launch check runs once per cold boot. MainActivity is recreated
+         * every time the player backs out of a game, and without this the prompt would reappear
+         * each time they returned to the menu.
+         */
+        var checkedThisLaunch = false
+    }
+
     private val repository = GameRepository()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +42,15 @@ class MainActivity : ImmersiveActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        UpdateChecker(this).cleanupStaleApk()
+        // Cold boot: sweep any APK left behind by a previous update, then quietly look for a new
+        // release. Only runs on a genuinely fresh start, not on every return to the menu from a
+        // game, which would re-prompt mid-session.
+        val updateChecker = UpdateChecker(this)
+        updateChecker.cleanupStaleApk()
+        if (savedInstanceState == null && !checkedThisLaunch) {
+            checkedThisLaunch = true
+            updateChecker.checkOnLaunch()
+        }
 
         playVsBotsButton.setOnClickListener {
             val name = nameInput.text.toString().trim().ifEmpty { "You" }

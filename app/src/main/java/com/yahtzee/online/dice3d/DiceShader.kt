@@ -54,8 +54,12 @@ private const val FRAGMENT_SHADER = """
     uniform vec3 uDiceColor;
     uniform float uDim;
 
-    /** Opacity looking straight through a face; grazing angles ramp toward fully opaque. */
-    const float BODY_ALPHA = 0.60;
+    /**
+     * Opacity looking straight through a face; grazing angles ramp toward fully opaque. Tuned
+     * low so the far faces — and their pips — stay clearly legible through the body, which is
+     * the single most obvious "this is glass" cue in the reference artwork.
+     */
+    const float BODY_ALPHA = 0.42;
 
     void main() {
         vec4 texColor = texture2D(uTexture, vTexCoord);
@@ -71,13 +75,16 @@ private const val FRAGMENT_SHADER = """
         float saturation = (maxC - minC) / max(maxC, 0.001);
         float glassness = clamp(saturation * 1.7, 0.0, 1.0);
 
-        vec3 deepCore = uDiceColor * 0.30;
-        float depth = clamp(0.42 - 0.30 * ndotv - 0.10 * diffuse, 0.0, 0.42) * glassness;
+        // Interior depth is kept light. The reference dice are vivid electric glass, not dark
+        // blocks; darkening the core any further buries the far-side detail that clarity
+        // depends on.
+        vec3 deepCore = uDiceColor * 0.42;
+        float depth = clamp(0.28 - 0.20 * ndotv - 0.08 * diffuse, 0.0, 0.28) * glassness;
         vec3 color = mix(texColor.rgb, deepCore, depth);
 
         vec3 litTint = mix(uDiceColor, vec3(1.0), 0.45);
         color = mix(color, litTint, diffuse * 0.30 * glassness);
-        color *= (0.80 + 0.26 * diffuse);
+        color *= (0.94 + 0.24 * diffuse);
 
         vec3 halfVec = normalize(toLight + toCamera);
         float specAngle = max(dot(normal, halfVec), 0.0);
@@ -96,7 +103,7 @@ private const val FRAGMENT_SHADER = """
 
         float fresnel = pow(1.0 - ndotv, 3.2);
         vec3 edgeColor = mix(uDiceColor, vec3(1.0), 0.62);
-        float edge = fresnel * 0.85 * glassness;
+        float edge = fresnel * 1.05 * glassness;
 
         float transmission = pow(1.0 - ndotv, 1.6) * 0.30 * glassness;
 

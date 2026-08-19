@@ -31,12 +31,47 @@ class UpdateChecker(private val context: Context) {
         "https://api.github.com/repos/Oliver29Klozoff/Yahtzee-Online/releases/latest"
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private companion object {
+        const val PREFS = "update_prefs"
+        const val KEY_DISMISSED_TAG = "dismissed_tag"
+    }
+
     fun cleanupStaleApk() {
         try {
             val apk = File(context.externalCacheDir ?: context.cacheDir, "Yahtzee-update.apk")
             if (apk.exists()) apk.delete()
         } catch (_: Exception) {
         }
+    }
+
+    /**
+     * Launch-time check: prompts only when an update actually exists, and stays completely
+     * silent otherwise — no toast on "up to date", none on network failure. A launch check that
+     * announced itself every cold boot would be noise, and offline players would be nagged with
+     * errors for a check they never asked for.
+     *
+     * Declining an update suppresses the prompt for that version, so it appears once per
+     * release rather than on every launch.
+     */
+    fun checkOnLaunch() {
+        Thread {
+            val result = fetchLatestRelease() ?: return@Thread
+            if (!isNewer(result.tagName, currentVersionName())) return@Thread
+
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (prefs.getString(KEY_DISMISSED_TAG, null) == result.tagName) return@Thread
+
+            mainHandler.post {
+                AlertDialog.Builder(context)
+                    .setTitle("${result.name} available")
+                    .setMessage(result.notes.ifBlank { "A new version is ready to install." })
+                    .setPositiveButton("Update now") { _, _ -> downloadAndInstall(result.apkUrl) }
+                    .setNegativeButton("Not now") { _, _ ->
+                        prefs.edit().putString(KEY_DISMISSED_TAG, result.tagName).apply()
+                    }
+                    .show()
+            }
+        }.start()
     }
 
     /** Manual "Check for Updates" entry point — always shows a result, including "up to date". */
