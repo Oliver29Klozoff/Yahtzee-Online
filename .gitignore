@@ -10,3 +10,6 @@ app/build
 .cxx
 local.properties
 app/google-services.json
+*.jks
+*.keystore
+keystore.properties
