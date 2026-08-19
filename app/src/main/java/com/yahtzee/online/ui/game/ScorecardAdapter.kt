@@ -1,5 +1,6 @@
 package com.yahtzee.online.ui.game
 
+import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -48,16 +49,31 @@ class ScorecardAdapter(
         val player = currentState?.players?.get(playerId)
         val existingScore = player?.scores?.get(category.name)
 
+        fun badge(radiusDp: Float, colorRes: Int) = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusDp * context.resources.displayMetrics.density
+            setColor(context.resources.getColor(colorRes, context.theme))
+        }
+
         if (existingScore != null) {
             score.text = existingScore.toString()
-            view.alpha = 0.6f
-        } else if (currentState != null && canScore) {
-            val preview = Scoring.score(category, currentState.dice)
-            score.text = preview.toString()
-            view.alpha = 1.0f
+            score.background = badge(9f, R.color.score_badge_filled_bg)
+            score.setTextColor(context.resources.getColor(R.color.score_badge_filled_text, context.theme))
+            label.setTextColor(context.resources.getColor(R.color.category_filled_text, context.theme))
+            label.paintFlags = label.paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
         } else {
-            score.text = "-"
-            view.alpha = 0.4f
+            label.paintFlags = label.paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            label.setTextColor(context.resources.getColor(R.color.text_dark, context.theme))
+            if (currentState != null && canScore) {
+                val preview = Scoring.score(category, currentState.dice)
+                score.text = preview.toString()
+                score.background = badge(9f, R.color.score_badge_available_bg)
+                score.setTextColor(context.resources.getColor(R.color.score_badge_available_text, context.theme))
+            } else {
+                score.text = "–"
+                score.background = badge(9f, R.color.score_badge_filled_bg)
+                score.setTextColor(context.resources.getColor(R.color.text_muted, context.theme))
+            }
         }
 
         return view

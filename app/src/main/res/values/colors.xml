@@ -9,4 +9,11 @@
     <color name="die_normal">#2F66D9</color>
     <color name="text_dark">#FFFFFF</color>
     <color name="text_muted">#6E7885</color>
+
+    <color name="row_border">#1C2028</color>
+    <color name="score_badge_available_bg">#152037</color>
+    <color name="score_badge_available_text">#4A90FF</color>
+    <color name="score_badge_filled_bg">#1A1D23</color>
+    <color name="score_badge_filled_text">#565D68</color>
+    <color name="category_filled_text">#454B54</color>
 </resources>

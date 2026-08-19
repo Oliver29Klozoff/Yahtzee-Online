@@ -14,6 +14,7 @@ import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
+import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.net.GameRepository
 
 class GameActivity : AppCompatActivity() {
@@ -87,6 +88,14 @@ class GameActivity : AppCompatActivity() {
 
         val canScore = myTurn && state.rollsUsed > 0
         scorecardAdapter.update(state, playerId, canScore)
+
+        val player = state.players[playerId]
+        val byCategory = player?.scores
+            ?.mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
+            ?.toMap()
+            ?: emptyMap()
+        val total = Scoring.grandTotal(byCategory, player?.yahtzeeBonusCount ?: 0)
+        findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)
     }
 
     private fun renderDice(state: GameState, myTurn: Boolean) {

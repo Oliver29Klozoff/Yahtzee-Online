@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Yahtzee Online</string>
+    <string name="app_name">Yahtzee</string>
     <string name="your_name">Your name</string>
     <string name="create_room">Create Room</string>
     <string name="join_room">Join Room</string>
@@ -14,4 +14,6 @@
     <string name="game_over">Game Over</string>
     <string name="winner_is">Winner: %1$s</string>
     <string name="players_label">Players</string>
+    <string name="scorecard_label">Scorecard</string>
+    <string name="total_score">Total %1$d</string>
 </resources>
