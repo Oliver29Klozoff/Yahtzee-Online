@@ -31,6 +31,7 @@ class GameActivity : ImmersiveActivity() {
     private lateinit var playerId: String
     private var listener: ValueEventListener? = null
     private lateinit var scorecardAdapter: ScorecardAdapter
+    private var viewingPlayerId: String? = null
     private var lastState: GameState? = null
     private var gameOverShown = false
     private var lastDice: List<Int>? = null
@@ -128,10 +129,24 @@ class GameActivity : ImmersiveActivity() {
 
         renderDice(state, myTurn)
 
-        val canScore = myTurn && state.rollsUsed > 0
-        scorecardAdapter.update(state, playerId, canScore)
+        // Default to your own card; tapping a tab switches which player's card is shown.
+        // Scoring stays restricted to your own card on your own turn.
+        val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) } ?: playerId
+        ScorecardTabs.render(
+            context = this,
+            row = findViewById(R.id.playerTabsRow),
+            state = state,
+            localPlayerId = playerId,
+            viewingPlayerId = viewing
+        ) { selectedId ->
+            viewingPlayerId = selectedId
+            render(state)
+        }
 
-        val player = state.players[playerId]
+        val canScore = myTurn && state.rollsUsed > 0 && viewing == playerId
+        scorecardAdapter.update(state, viewing, canScore)
+
+        val player = state.players[viewing]
         val byCategory = player?.scores
             ?.mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
             ?.toMap()

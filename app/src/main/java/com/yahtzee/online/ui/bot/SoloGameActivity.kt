@@ -18,6 +18,7 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
+import com.yahtzee.online.ui.game.ScorecardTabs
 
 class SoloGameActivity : ImmersiveActivity() {
 
@@ -30,6 +31,7 @@ class SoloGameActivity : ImmersiveActivity() {
     private lateinit var engine: LocalGameEngine
     private lateinit var dice3DView: Dice3DView
     private lateinit var scorecardAdapter: ScorecardAdapter
+    private var viewingPlayerId: String? = null
     private val botHandler = Handler(Looper.getMainLooper())
     private var lastRollsUsed = 0
     private var gameOverShown = false
@@ -84,10 +86,24 @@ class SoloGameActivity : ImmersiveActivity() {
         renderDice(state)
         renderHoldRow(state, myTurn)
 
-        val canScore = myTurn && state.rollsUsed > 0
-        scorecardAdapter.update(state, engine.humanPlayerId, canScore)
+        // Default to your own card; tapping a tab switches to a bot's card so you can follow
+        // what they've filled in. Scoring stays restricted to your own card on your own turn.
+        val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) } ?: engine.humanPlayerId
+        ScorecardTabs.render(
+            context = this,
+            row = findViewById(R.id.playerTabsRow),
+            state = state,
+            localPlayerId = engine.humanPlayerId,
+            viewingPlayerId = viewing
+        ) { selectedId ->
+            viewingPlayerId = selectedId
+            render(state)
+        }
 
-        val player = state.players[engine.humanPlayerId]
+        val canScore = myTurn && state.rollsUsed > 0 && viewing == engine.humanPlayerId
+        scorecardAdapter.update(state, viewing, canScore)
+
+        val player = state.players[viewing]
         val byCategory = player?.scores
             ?.mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
             ?.toMap()
