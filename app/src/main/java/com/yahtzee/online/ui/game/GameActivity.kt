@@ -111,7 +111,10 @@ class GameActivity : AppCompatActivity() {
                 if (chip.isSelected) resources.getColor(R.color.die_held, theme)
                 else resources.getColor(R.color.die_normal, theme)
             )
-            chip.setTextColor(resources.getColor(R.color.text_dark, theme))
+            chip.setTextColor(
+                if (chip.isSelected) resources.getColor(R.color.background, theme)
+                else resources.getColor(R.color.text_dark, theme)
+            )
             val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             params.marginStart = 8
             params.marginEnd = 8
