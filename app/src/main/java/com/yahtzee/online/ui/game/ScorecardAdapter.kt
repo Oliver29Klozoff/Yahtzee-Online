@@ -18,6 +18,7 @@ private sealed class Row {
     data class Header(val title: String) : Row()
     data class CategoryRow(val category: Category) : Row()
     object BonusRow : Row()
+    object YahtzeeBonusRow : Row()
 }
 
 class ScorecardAdapter(
@@ -30,6 +31,7 @@ class ScorecardAdapter(
         add(Row.BonusRow)
         add(Row.Header("Lower Section"))
         Category.LOWER.forEach { add(Row.CategoryRow(it)) }
+        add(Row.YahtzeeBonusRow)
     }
 
     private var state: GameState? = null
@@ -64,11 +66,12 @@ class ScorecardAdapter(
     override fun getItem(position: Int): Any = rows[position]
     override fun getItemId(position: Int) = position.toLong()
 
-    override fun getViewTypeCount() = 3
+    override fun getViewTypeCount() = 4
     override fun getItemViewType(position: Int): Int = when (rows[position]) {
         is Row.Header -> 0
         is Row.CategoryRow -> 1
         Row.BonusRow -> 2
+        Row.YahtzeeBonusRow -> 3
     }
 
     override fun isEnabled(position: Int): Boolean = rows[position] is Row.CategoryRow
@@ -78,7 +81,33 @@ class ScorecardAdapter(
             is Row.Header -> bindHeader(row, convertView, parent)
             is Row.CategoryRow -> bindCategory(row.category, convertView, parent)
             Row.BonusRow -> bindBonus(convertView, parent)
+            Row.YahtzeeBonusRow -> bindYahtzeeBonus(convertView, parent)
         }
+    }
+
+    /**
+     * Extra Yahtzees: every five-of-a-kind rolled after the Yahtzee box is already filled with
+     * 50 is worth another 100 points. It was being awarded correctly but never shown anywhere,
+     * so the score simply jumped with nothing to explain it.
+     *
+     * The count is tracked per player rather than per card, so this row reads the same on every
+     * card in a multi-card room.
+     */
+    private fun bindYahtzeeBonus(convertView: View?, parent: ViewGroup): View {
+        val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_bonus_row, parent, false)
+        val label = view.findViewById<TextView>(R.id.bonusLabel)
+        val value = view.findViewById<TextView>(R.id.bonusValue)
+
+        val count = state?.players?.get(playerId)?.yahtzeeBonusCount ?: 0
+        label.text = "Yahtzee bonus (+100 each)"
+        value.text = if (count > 0) "$count × 100 = ${count * 100}" else "–"
+        value.setTextColor(
+            context.resources.getColor(
+                if (count > 0) R.color.score_badge_available_text else R.color.text_muted,
+                context.theme
+            )
+        )
+        return view
     }
 
     private fun bindHeader(row: Row.Header, convertView: View?, parent: ViewGroup): View {

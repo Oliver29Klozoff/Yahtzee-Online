@@ -167,7 +167,11 @@ class GameRepository {
         }
         ref.child("players").child(playerId).child("scores").child(key).setValue(points)
 
-        if (category != Category.YAHTZEE && state.dice.groupBy { it }.values.any { it.size == 5 } && alreadyHadYahtzee) {
+        // Every extra Yahtzee after the box holds 50 is worth another 100 points.
+        val earnedBonus = category != Category.YAHTZEE &&
+            state.dice.groupBy { it }.values.any { it.size == 5 } &&
+            alreadyHadYahtzee
+        if (earnedBonus) {
             ref.child("players").child(playerId).child("yahtzeeBonusCount")
                 .setValue(player.yahtzeeBonusCount + 1)
         }
@@ -187,7 +191,15 @@ class GameRepository {
         }
         if (allDone) {
             val winner = state.players.values.maxByOrNull {
-                val withLatest = if (it.id == playerId) it.copy(scores = it.scores + (key to points)) else it
+                // Include a bonus earned on this very play: the write above has not round-tripped
+                // through Firebase yet, so `state` still holds the pre-bonus count and a
+                // game-winning extra Yahtzee would otherwise be left out of the comparison.
+                val withLatest = if (it.id == playerId) {
+                    it.copy(
+                        scores = it.scores + (key to points),
+                        yahtzeeBonusCount = it.yahtzeeBonusCount + if (earnedBonus) 1 else 0
+                    )
+                } else it
                 withLatest.grandTotalAllCards(state.cardCount)
             }
             ref.child("status").setValue(GameState.STATUS_FINISHED)
