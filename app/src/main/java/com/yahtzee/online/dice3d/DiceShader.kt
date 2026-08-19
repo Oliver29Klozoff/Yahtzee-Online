@@ -53,6 +53,10 @@ private const val FRAGMENT_SHADER = """
     uniform vec3 uCameraPos;
     uniform vec3 uDiceColor;
     uniform float uDim;
+
+    /** Opacity looking straight through a face; grazing angles ramp toward fully opaque. */
+    const float BODY_ALPHA = 0.60;
+
     void main() {
         vec4 texColor = texture2D(uTexture, vTexCoord);
         vec3 normal = normalize(vWorldNormal);
@@ -103,7 +107,15 @@ private const val FRAGMENT_SHADER = """
             + vec3(1.0) * tightSpec
             + mix(uDiceColor, vec3(1.0), 0.7) * (sheen + secondary);
 
-        gl_FragColor = vec4(shaded * uDim, texColor.a);
+        // Transmission is what actually separates glass from plastic: an opaque body can only
+        // ever simulate light ON the surface. Faces seen straight-on are the thinnest sight
+        // line through the block and go most transparent, while grazing angles stack up far
+        // more material and turn nearly opaque — the same fresnel curve that drives the edge
+        // glow. Pips stay fully opaque (glassness ~0) so the values remain readable.
+        float glassAlpha = mix(BODY_ALPHA, 1.0, fresnel);
+        float alpha = mix(1.0, glassAlpha, glassness) * texColor.a;
+
+        gl_FragColor = vec4(shaded * uDim, alpha);
     }
 """
 

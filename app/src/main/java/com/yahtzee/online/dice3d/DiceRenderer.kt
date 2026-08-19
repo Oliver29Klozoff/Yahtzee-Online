@@ -63,7 +63,7 @@ class DiceRenderer(
 
         Matrix.setLookAtM(
             viewMatrix, 0,
-            0f, 4.6f, 4.2f,
+            CAMERA_X, CAMERA_Y, CAMERA_Z,
             0f, 0f, 0f,
             0f, 1f, 0f
         )
@@ -134,10 +134,44 @@ class DiceRenderer(
         GLES20.glDepthMask(false)
         for (die in world.dice) drawGlow(die)
         GLES20.glDepthMask(true)
-        GLES20.glDisable(GLES20.GL_BLEND)
 
-        // 4. The dice themselves.
-        for (die in world.dice) drawDie(die, mirrored = false, dim = 1f)
+        // 4. The dice, now translucent so light passes through the material rather than only
+        //    reflecting off it. Transparency imposes three requirements:
+        //      - Depth writes off, or a nearer die would reject the ones behind it instead of
+        //        letting them blend through.
+        //      - Painter's ordering, so blending composites in the right sequence; without the
+        //        depth buffer arbitrating, draw order IS the depth order.
+        //      - Each die drawn twice: interior (far) walls first, then exterior. Seeing the
+        //        inside of the far faces through the body is the strongest cue that the block
+        //        is solid glass rather than a hollow shell.
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        GLES20.glDepthMask(false)
+        for (die in sortedBackToFront()) {
+            GLES20.glCullFace(GLES20.GL_FRONT)
+            drawDie(die, mirrored = false, dim = INTERIOR_DIM)
+            GLES20.glCullFace(GLES20.GL_BACK)
+            drawDie(die, mirrored = false, dim = 1f)
+        }
+        GLES20.glDepthMask(true)
+        GLES20.glDisable(GLES20.GL_BLEND)
+    }
+
+    /**
+     * Dice ordered farthest-first for correct alpha compositing. Reuses one list so a sort per
+     * frame costs no allocation.
+     */
+    private val sortScratch = ArrayList<DieBody>(8)
+
+    private fun sortedBackToFront(): List<DieBody> {
+        sortScratch.clear()
+        sortScratch.addAll(world.dice)
+        sortScratch.sortByDescending { die ->
+            val dx = die.position.x - CAMERA_X
+            val dy = die.position.y - CAMERA_Y
+            val dz = die.position.z - CAMERA_Z
+            dx * dx + dy * dy + dz * dz
+        }
+        return sortScratch
     }
 
     private fun drawTable() {
@@ -203,7 +237,7 @@ class DiceRenderer(
         GLES20.glUniformMatrix4fv(diceShader.uMVPMatrix, 1, false, mvpMatrix, 0)
         GLES20.glUniformMatrix4fv(diceShader.uModelMatrix, 1, false, modelMatrix, 0)
         GLES20.glUniform3f(diceShader.uLightDir, -0.4f, -1f, -0.3f)
-        GLES20.glUniform3f(diceShader.uCameraPos, 0f, 4.6f, 4.2f)
+        GLES20.glUniform3f(diceShader.uCameraPos, CAMERA_X, CAMERA_Y, CAMERA_Z)
         GLES20.glUniform3f(
             diceShader.uDiceColor,
             Color.red(diceColor) / 255f,
@@ -237,9 +271,16 @@ class DiceRenderer(
     }
 
     private companion object {
+        const val CAMERA_X = 0f
+        const val CAMERA_Y = 4.6f
+        const val CAMERA_Z = 4.2f
+
         /** Table is slightly translucent so mirrored dice read as a reflection in the surface. */
         const val TABLE_OPACITY = 0.82f
         const val REFLECTION_DIM = 0.55f
+
+        /** Interior walls sit deeper in the material, so they read dimmer than the near faces. */
+        const val INTERIOR_DIM = 0.62f
         const val GLOW_RADIUS = 0.95f
         const val GLOW_HEIGHT = 0.012f
         const val GLOW_STRENGTH = 0.30f
