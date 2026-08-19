@@ -20,10 +20,15 @@ class GameRepository {
 
     private fun roomRef(code: String) = db.getReference("games").child(code)
 
-    fun createRoom(hostName: String, onResult: (String) -> Unit) {
+    fun createRoom(hostName: String, diceColor: Int, onResult: (String) -> Unit) {
         val code = generateRoomCode()
         val ref = roomRef(code)
-        val host = Player(id = localPlayerId, name = hostName, joinedAt = System.currentTimeMillis())
+        val host = Player(
+            id = localPlayerId,
+            name = hostName,
+            joinedAt = System.currentTimeMillis(),
+            diceColor = diceColor
+        )
         val state = GameState(
             roomCode = code,
             hostId = localPlayerId,
@@ -34,14 +39,19 @@ class GameRepository {
         ref.setValue(state.toMap()).addOnSuccessListener { onResult(code) }
     }
 
-    fun joinRoom(code: String, playerName: String, onResult: (Boolean) -> Unit) {
+    fun joinRoom(code: String, playerName: String, diceColor: Int, onResult: (Boolean) -> Unit) {
         val ref = roomRef(code)
         ref.get().addOnSuccessListener { snapshot ->
             if (!snapshot.exists()) {
                 onResult(false)
                 return@addOnSuccessListener
             }
-            val player = Player(id = localPlayerId, name = playerName, joinedAt = System.currentTimeMillis())
+            val player = Player(
+                id = localPlayerId,
+                name = playerName,
+                joinedAt = System.currentTimeMillis(),
+                diceColor = diceColor
+            )
             ref.child("players").child(localPlayerId).setValue(player)
             ref.child("playerOrder").get().addOnSuccessListener { orderSnap ->
                 val order = orderSnap.children.mapNotNull { it.getValue(String::class.java) }.toMutableList()

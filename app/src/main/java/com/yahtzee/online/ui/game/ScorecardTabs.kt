@@ -47,6 +47,11 @@ object ScorecardTabs {
                 append(total)
             }
 
+            // Tint each tab with that player's own dice colour, so the colour reads as their
+            // identity at the table rather than only showing up on the dice during their turn.
+            val playerColor = player.diceColor.takeIf { it != 0 }
+                ?: context.resources.getColor(R.color.brand_primary, context.theme)
+
             val tab = TextView(context).apply {
                 text = label
                 textSize = 13f
@@ -57,10 +62,10 @@ object ScorecardTabs {
                 )
                 setTextColor(
                     if (isViewing) context.resources.getColor(R.color.background, context.theme)
-                    else context.resources.getColor(R.color.text_dark, context.theme)
+                    else playerColor
                 )
                 setBackgroundColor(
-                    if (isViewing) context.resources.getColor(R.color.brand_primary, context.theme)
+                    if (isViewing) playerColor
                     else context.resources.getColor(R.color.surface, context.theme)
                 )
                 setOnClickListener { onSelect(id) }

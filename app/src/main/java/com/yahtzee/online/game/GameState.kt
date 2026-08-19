@@ -5,7 +5,13 @@ data class Player(
     val name: String = "",
     val joinedAt: Long = 0L,
     val scores: Map<String, Int> = emptyMap(),
-    val yahtzeeBonusCount: Int = 0
+    val yahtzeeBonusCount: Int = 0,
+    /**
+     * The player's chosen dice colour as an ARGB int, synced so everyone at the table sees
+     * whoever is rolling in their own colour. 0 means "not set" — players on older builds have
+     * no value here — and callers fall back to the default cobalt.
+     */
+    val diceColor: Int = 0
 )
 
 data class GameState(

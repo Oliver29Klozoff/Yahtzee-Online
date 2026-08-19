@@ -8,6 +8,7 @@ import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
+import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.lobby.LobbyActivity
@@ -56,7 +57,7 @@ class MainActivity : ImmersiveActivity() {
                 return@setOnClickListener
             }
             createButton.isEnabled = false
-            repository.createRoom(name) { code ->
+            repository.createRoom(name, DicePreferences.getColor(this)) { code ->
                 createButton.isEnabled = true
                 openLobby(code, name)
             }
@@ -70,7 +71,7 @@ class MainActivity : ImmersiveActivity() {
                 return@setOnClickListener
             }
             joinButton.isEnabled = false
-            repository.joinRoom(code, name) { success ->
+            repository.joinRoom(code, name, DicePreferences.getColor(this)) { success ->
                 joinButton.isEnabled = true
                 if (success) {
                     openLobby(code, name)

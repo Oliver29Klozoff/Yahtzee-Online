@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.dice3d.Dice3DView
+import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
@@ -45,13 +46,12 @@ class SoloGameActivity : ImmersiveActivity() {
 
         val name = intent.getStringExtra(EXTRA_PLAYER_NAME) ?: "You"
         val botCount = intent.getIntExtra(EXTRA_BOT_COUNT, 1).coerceIn(1, 4)
-        engine = LocalGameEngine(name, botCount)
+        engine = LocalGameEngine(name, botCount, DicePreferences.getColor(this))
 
         // Solo games have no turn timer / no timer UI needed.
         findViewById<View>(R.id.turnTimerText).visibility = View.GONE
 
         dice3DView = findViewById(R.id.dice3DView)
-        dice3DView.setDiceColor(DicePreferences.getColor(this))
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)
@@ -85,6 +85,13 @@ class SoloGameActivity : ImmersiveActivity() {
         val rollButton = findViewById<Button>(R.id.rollButton)
         rollButton.isEnabled = myTurn && state.rollsUsed < MAX_ROLLS_PER_TURN
         rollButton.visibility = if (myTurn) View.VISIBLE else View.GONE
+
+        // Dice take the colour of whoever is rolling, so you can tell at a glance whether the
+        // table belongs to you or to a bot. No-op unless the value actually changed.
+        val activeColor = state.players[state.currentPlayerId]?.diceColor
+            ?.takeIf { it != 0 }
+            ?: DieTextureAtlas.DEFAULT_COLOR
+        dice3DView.setDiceColor(activeColor)
 
         renderDice(state)
         renderHoldRow(state, myTurn)

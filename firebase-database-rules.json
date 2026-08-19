@@ -57,6 +57,9 @@
             },
             "yahtzeeBonusCount": {
               ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "diceColor": {
+              ".validate": "newData.isNumber()"
             }
           }
         }

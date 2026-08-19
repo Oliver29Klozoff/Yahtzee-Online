@@ -2,6 +2,7 @@ package com.yahtzee.online.bot
 
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DiceRoller
+import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Player
@@ -14,16 +15,29 @@ import java.util.UUID
  * layer can treat it almost identically, but every mutation happens locally and bot turns
  * play themselves out automatically.
  */
-class LocalGameEngine(humanName: String, botCount: Int) {
+class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
 
     val humanPlayerId: String = UUID.randomUUID().toString()
     private val botIds: List<String> = List(botCount) { UUID.randomUUID().toString() }
     private val roller = DiceRoller()
 
     var state: GameState = run {
-        val human = Player(id = humanPlayerId, name = humanName, joinedAt = System.currentTimeMillis())
+        val human = Player(
+            id = humanPlayerId,
+            name = humanName,
+            joinedAt = System.currentTimeMillis(),
+            diceColor = humanColor
+        )
+        // Each bot gets a colour distinct from the player's, so the dice on the table always
+        // identify whose turn it is.
+        val botColors = DicePreferences.PALETTE.map { it.second }.filter { it != humanColor }
         val bots = botIds.mapIndexed { i, id ->
-            id to Player(id = id, name = "Bot ${i + 1}", joinedAt = System.currentTimeMillis())
+            id to Player(
+                id = id,
+                name = "Bot ${i + 1}",
+                joinedAt = System.currentTimeMillis(),
+                diceColor = botColors[i % botColors.size]
+            )
         }
         val order = listOf(humanPlayerId) + botIds
         GameState(

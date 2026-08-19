@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
+import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -56,7 +57,6 @@ class GameActivity : ImmersiveActivity() {
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: ""
 
         dice3DView = findViewById(R.id.dice3DView)
-        dice3DView.setDiceColor(DicePreferences.getColor(this))
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)
@@ -129,6 +129,14 @@ class GameActivity : ImmersiveActivity() {
         val rollButton = findViewById<Button>(R.id.rollButton)
         rollButton.isEnabled = myTurn && state.rollsUsed < MAX_ROLLS_PER_TURN
         rollButton.visibility = if (myTurn) View.VISIBLE else View.GONE
+
+        // Dice take the colour of whoever is rolling, so a glance at the table tells you whose
+        // turn it is. Players on older builds have no colour stored, hence the fallback.
+        // setDiceColor is a no-op unless the value actually changed, so this is cheap per frame.
+        val activeColor = state.players[state.currentPlayerId]?.diceColor
+            ?.takeIf { it != 0 }
+            ?: DieTextureAtlas.DEFAULT_COLOR
+        dice3DView.setDiceColor(activeColor)
 
         renderDice(state, myTurn)
 
