@@ -32,6 +32,7 @@ class SoloGameActivity : ImmersiveActivity() {
     private lateinit var dice3DView: Dice3DView
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var viewingPlayerId: String? = null
+    private var lastTurnPlayerId: String? = null
     private val botHandler = Handler(Looper.getMainLooper())
     private var lastRollsUsed = 0
     private var gameOverShown = false
@@ -86,9 +87,16 @@ class SoloGameActivity : ImmersiveActivity() {
         renderDice(state)
         renderHoldRow(state, myTurn)
 
-        // Default to your own card; tapping a tab switches to a bot's card so you can follow
-        // what they've filled in. Scoring stays restricted to your own card on your own turn.
-        val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) } ?: engine.humanPlayerId
+        // The scorecard follows whoever's turn it is, so you watch each bot's card fill in as
+        // it plays. Tapping a tab overrides that for the rest of the current turn; the override
+        // clears on the next turn change so focus returns to the new active player.
+        if (state.currentPlayerId != lastTurnPlayerId) {
+            lastTurnPlayerId = state.currentPlayerId
+            viewingPlayerId = null
+        }
+        val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) }
+            ?: state.currentPlayerId?.takeIf { state.players.containsKey(it) }
+            ?: engine.humanPlayerId
         ScorecardTabs.render(
             context = this,
             row = findViewById(R.id.playerTabsRow),

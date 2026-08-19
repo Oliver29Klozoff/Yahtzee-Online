@@ -32,6 +32,7 @@ class GameActivity : ImmersiveActivity() {
     private var listener: ValueEventListener? = null
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var viewingPlayerId: String? = null
+    private var lastTurnPlayerId: String? = null
     private var lastState: GameState? = null
     private var gameOverShown = false
     private var lastDice: List<Int>? = null
@@ -129,9 +130,16 @@ class GameActivity : ImmersiveActivity() {
 
         renderDice(state, myTurn)
 
-        // Default to your own card; tapping a tab switches which player's card is shown.
-        // Scoring stays restricted to your own card on your own turn.
-        val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) } ?: playerId
+        // The scorecard follows whoever's turn it is, so the active player's card is always in
+        // view by default. Tapping a tab overrides that for the rest of the current turn; the
+        // override clears on the next turn change so focus returns to the new active player.
+        if (state.currentPlayerId != lastTurnPlayerId) {
+            lastTurnPlayerId = state.currentPlayerId
+            viewingPlayerId = null
+        }
+        val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) }
+            ?: state.currentPlayerId?.takeIf { state.players.containsKey(it) }
+            ?: playerId
         ScorecardTabs.render(
             context = this,
             row = findViewById(R.id.playerTabsRow),
