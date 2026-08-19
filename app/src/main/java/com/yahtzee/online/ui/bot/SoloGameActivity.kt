@@ -24,6 +24,7 @@ class SoloGameActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_PLAYER_NAME = "player_name"
         const val EXTRA_BOT_COUNT = "bot_count"
+        private const val ROLL_SETTLE_DELAY_MS = 1300L
     }
 
     private lateinit var engine: LocalGameEngine
@@ -99,10 +100,24 @@ class SoloGameActivity : AppCompatActivity() {
             showGameOver(state)
         } else if (engine.isBotTurn() && !botTurnScheduled && state.status == GameState.STATUS_PLAYING) {
             botTurnScheduled = true
+            botHandler.postDelayed({ stepBotTurn() }, 900)
+        }
+    }
+
+    /**
+     * Plays one bot roll at a time with a pause between each — long enough for the 3D dice to
+     * finish tumbling ([Dice3DView]'s roll animation runs ~700-1200ms) — so every intermediate
+     * roll and hold decision is visible on screen instead of the whole turn resolving instantly.
+     */
+    private fun stepBotTurn() {
+        engine.stepBotRoll()
+        if (engine.isBotDoneRolling()) {
             botHandler.postDelayed({
                 botTurnScheduled = false
-                engine.playBotTurn()
-            }, 900)
+                engine.finishBotTurn()
+            }, ROLL_SETTLE_DELAY_MS)
+        } else {
+            botHandler.postDelayed({ stepBotTurn() }, ROLL_SETTLE_DELAY_MS)
         }
     }
 
