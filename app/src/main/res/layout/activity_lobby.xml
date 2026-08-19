@@ -6,6 +6,17 @@
     android:gravity="center_horizontal"
     android:padding="32dp">
 
+    <ImageButton
+        android:id="@+id/backButton"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="start"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_back"
+        android:contentDescription="@string/back"
+        android:padding="10dp"
+        android:layout_marginBottom="8dp" />
+
     <TextView
         android:id="@+id/roomCodeLabel"
         android:layout_width="wrap_content"

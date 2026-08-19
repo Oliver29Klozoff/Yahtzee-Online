@@ -4,6 +4,7 @@ import android.os.Build
 import android.view.View
 import android.view.WindowInsets
 import androidx.appcompat.app.AppCompatActivity
+import com.yahtzee.online.R
 
 /**
  * Base for every screen in the app: hides the system status bar (where notification icons/
@@ -13,6 +14,19 @@ import androidx.appcompat.app.AppCompatActivity
  * of view while this activity is on screen, not real Do-Not-Disturb suppression.
  */
 abstract class ImmersiveActivity : AppCompatActivity() {
+
+    /**
+     * Wires up the standard back arrow for any layout that includes a view with id
+     * `backButton`, so screens get it just by putting the button in their XML. Done here
+     * rather than per-activity because the system back affordance is hidden by immersive
+     * mode, making an on-screen arrow the primary way back on every screen that has one.
+     */
+    override fun setContentView(layoutResID: Int) {
+        super.setContentView(layoutResID)
+        findViewById<View?>(R.id.backButton)?.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
+    }
 
     override fun onResume() {
         super.onResume()

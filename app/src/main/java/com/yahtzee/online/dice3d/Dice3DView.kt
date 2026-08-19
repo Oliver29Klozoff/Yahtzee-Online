@@ -59,15 +59,27 @@ class Dice3DView @JvmOverloads constructor(
                 die.atRest = true
                 return@forEachIndexed
             }
-            die.position = Vec3((i - 2) * 0.55f, 2.2f + random.nextFloat() * 0.4f, -1.3f + (random.nextFloat() - 0.5f) * 0.3f)
+            // Enter from the right, as though released from the player's right hand: staggered
+            // back along the right edge so they trail in rather than arriving as a rank, then
+            // thrown leftward across the table. throwToward derives its roll axis from the
+            // travel direction, so this alone makes them tumble like wheels rolling left.
+            //
+            // Spawning just INSIDE the right wall matters: the world clamps every die to the
+            // wall bounds on each step (x max is tableHalfWidth - HALF_SIZE = 1.7), so a die
+            // started off-screen would snap to the edge on frame one instead of flying in.
+            die.position = Vec3(
+                1.55f,
+                1.85f + random.nextFloat() * 0.5f,
+                0.5f - i * 0.17f + (random.nextFloat() - 0.5f) * 0.18f
+            )
             die.throwToward(
                 targetValue = targetValues[i],
                 direction = Vec3(
-                    (random.nextFloat() - 0.5f) * 1f,
-                    -0.35f,
-                    1f
+                    -1f,
+                    -0.3f,
+                    (random.nextFloat() - 0.5f) * 0.45f - 0.1f
                 ),
-                speed = 5.5f + random.nextFloat() * 1.5f,
+                speed = 5.0f + random.nextFloat() * 1.7f,
                 random = random
             )
         }

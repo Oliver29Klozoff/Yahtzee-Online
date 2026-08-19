@@ -13,6 +13,15 @@
         android:padding="16dp"
         android:paddingBottom="0dp">
 
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_back"
+            android:contentDescription="@string/back"
+            android:padding="9dp" />
+
         <TextView
             android:id="@+id/turnStatusText"
             android:layout_width="0dp"
