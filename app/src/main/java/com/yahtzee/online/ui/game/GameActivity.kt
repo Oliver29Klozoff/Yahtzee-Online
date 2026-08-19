@@ -18,7 +18,9 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.net.GameRepository
+import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.ui.ImmersiveActivity
 
 class GameActivity : ImmersiveActivity() {
@@ -220,6 +222,7 @@ class GameActivity : ImmersiveActivity() {
     }
 
     private fun showGameOver(state: GameState) {
+        submitToLeaderboard(state)
         val winnerName = state.players[state.winnerId]?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
@@ -227,6 +230,20 @@ class GameActivity : ImmersiveActivity() {
             .setPositiveButton("OK") { _, _ -> finish() }
             .setCancelable(false)
             .show()
+    }
+
+    /** Records this player's own final score on the global board — never an opponent's. */
+    private fun submitToLeaderboard(state: GameState) {
+        val me = state.players[playerId] ?: return
+        val byCategory = me.scores
+            .mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
+            .toMap()
+        val total = Scoring.grandTotal(byCategory, me.yahtzeeBonusCount)
+        LeaderboardRepository().submitScore(
+            playerId = PlayerProfile.getId(this),
+            name = PlayerProfile.getName(this).ifEmpty { me.name },
+            score = total
+        )
     }
 
     override fun onDestroy() {

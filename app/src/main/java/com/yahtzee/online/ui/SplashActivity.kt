@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.yahtzee.online.R
+import com.yahtzee.online.game.PlayerProfile
 
 /**
  * Full-screen splash shown for [SPLASH_DURATION_MS] before the main menu. The platform's own
@@ -27,7 +28,14 @@ class SplashActivity : ImmersiveActivity() {
         setContentView(R.layout.activity_splash)
 
         handler.postDelayed({
-            startActivity(Intent(this, MainActivity::class.java))
+            // First launch goes to the name page; afterwards the saved name is used and the
+            // start screen opens directly.
+            val next = if (PlayerProfile.hasName(this)) {
+                MainActivity::class.java
+            } else {
+                NameActivity::class.java
+            }
+            startActivity(Intent(this, next))
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
             finish()
         }, SPLASH_DURATION_MS)

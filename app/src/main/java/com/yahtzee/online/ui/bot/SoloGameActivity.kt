@@ -15,6 +15,8 @@ import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
@@ -192,6 +194,17 @@ class SoloGameActivity : ImmersiveActivity() {
     }
 
     private fun showGameOver(state: GameState) {
+        // Solo results count too — the board ranks people, not game modes.
+        state.players[engine.humanPlayerId]?.let { me ->
+            val byCategory = me.scores
+                .mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
+                .toMap()
+            LeaderboardRepository().submitScore(
+                playerId = PlayerProfile.getId(this),
+                name = PlayerProfile.getName(this).ifEmpty { me.name },
+                score = Scoring.grandTotal(byCategory, me.yahtzeeBonusCount)
+            )
+        }
         val winnerName = state.players[state.winnerId]?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)

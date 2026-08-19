@@ -28,4 +28,10 @@
     <string name="check_for_updates">Check for Updates</string>
     <string name="dice_color">Dice Colour</string>
     <string name="back">Back</string>
+    <string name="name_prompt">What should we call you?</string>
+    <string name="continue_label">Continue</string>
+    <string name="name_required">Enter a name to continue</string>
+    <string name="greeting">Playing as %1$s · tap to change</string>
+    <string name="leaderboard">Leaderboard</string>
+    <string name="leaderboard_empty">No scores yet — finish a game to get on the board.</string>
 </resources>
