@@ -116,26 +116,18 @@ class DiceRenderer(
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
 
-        // 1. Mirrored dice beneath the table, so the glossy surface has something to reflect.
-        //    Mirroring reverses triangle winding, so front-face orientation is flipped for the
-        //    duration or back-face culling would discard every one of them.
-        GLES20.glFrontFace(GLES20.GL_CW)
-        for (die in world.dice) drawDie(die, mirrored = true, dim = REFLECTION_DIM)
-        GLES20.glFrontFace(GLES20.GL_CCW)
-
-        // 2. Table, blended over the reflection so it shows through faintly.
-        GLES20.glEnable(GLES20.GL_BLEND)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        // 1. Table.
         drawTable()
 
-        // 3. Additive halo pooling on the surface under each die. Depth writes are off so the
+        // 2. Additive halo pooling on the surface under each die. Depth writes are off so the
         //    glow never occludes the dice drawn afterwards.
+        GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE)
         GLES20.glDepthMask(false)
         for (die in world.dice) drawGlow(die)
         GLES20.glDepthMask(true)
 
-        // 4. The dice, now translucent so light passes through the material rather than only
+        // 3. The dice, translucent so light passes through the material rather than only
         //    reflecting off it. Transparency imposes three requirements:
         //      - Depth writes off, or a nearer die would reject the ones behind it instead of
         //        letting them blend through.
@@ -148,9 +140,9 @@ class DiceRenderer(
         GLES20.glDepthMask(false)
         for (die in sortedBackToFront()) {
             GLES20.glCullFace(GLES20.GL_FRONT)
-            drawDie(die, mirrored = false, dim = INTERIOR_DIM)
+            drawDie(die, dim = INTERIOR_DIM)
             GLES20.glCullFace(GLES20.GL_BACK)
-            drawDie(die, mirrored = false, dim = 1f)
+            drawDie(die, dim = 1f)
         }
         GLES20.glDepthMask(true)
         GLES20.glDisable(GLES20.GL_BLEND)
@@ -179,7 +171,7 @@ class DiceRenderer(
         Matrix.setIdentityM(modelMatrix, 0)
         Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0)
         GLES20.glUniformMatrix4fv(tableShader.uMVPMatrix, 1, false, mvpMatrix, 0)
-        GLES20.glUniform4f(tableShader.uColor, 0f, 0f, 0f, TABLE_OPACITY)
+        GLES20.glUniform4f(tableShader.uColor, 0f, 0f, 0f, 1f)
 
         tableMesh.vertexBuffer.position(0)
         GLES20.glEnableVertexAttribArray(tableShader.aPosition)
@@ -218,17 +210,11 @@ class DiceRenderer(
         GLES20.glDisableVertexAttribArray(glowShader.aTexCoord)
     }
 
-    private fun drawDie(die: DieBody, mirrored: Boolean, dim: Float) {
+    private fun drawDie(die: DieBody, dim: Float) {
         GLES20.glUseProgram(diceShader.program)
 
         Matrix.setIdentityM(modelMatrix, 0)
-        if (mirrored) {
-            // Reflection about the y=0 plane: T(x,-y,z) * S(1,-1,1) * R.
-            Matrix.translateM(modelMatrix, 0, die.position.x, -die.position.y, die.position.z)
-            Matrix.scaleM(modelMatrix, 0, 1f, -1f, 1f)
-        } else {
-            Matrix.translateM(modelMatrix, 0, die.position.x, die.position.y, die.position.z)
-        }
+        Matrix.translateM(modelMatrix, 0, die.position.x, die.position.y, die.position.z)
         val rotMatrix = die.orientation.toMatrix4()
         Matrix.multiplyMM(modelMatrix, 0, modelMatrix, 0, rotMatrix, 0)
 
@@ -274,10 +260,6 @@ class DiceRenderer(
         const val CAMERA_X = 0f
         const val CAMERA_Y = 4.6f
         const val CAMERA_Z = 4.2f
-
-        /** Table is slightly translucent so mirrored dice read as a reflection in the surface. */
-        const val TABLE_OPACITY = 0.82f
-        const val REFLECTION_DIM = 0.55f
 
         /**
          * Interior walls sit deeper in the material so they read dimmer than the near faces,
