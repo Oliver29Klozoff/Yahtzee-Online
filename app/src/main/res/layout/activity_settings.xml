@@ -35,35 +35,6 @@
     </LinearLayout>
 
     <TextView
-        android:id="@+id/versionText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:textColor="@color/text_muted"
-        android:layout_marginBottom="24dp" />
-
-    <Button
-        android:id="@+id/checkForUpdatesButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/check_for_updates" />
-
-    <ProgressBar
-        android:id="@+id/checkForUpdatesProgress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="16dp"
-        android:visibility="gone" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/row_border"
-        android:layout_marginTop="28dp"
-        android:layout_marginBottom="20dp" />
-
-    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/dice_color"
@@ -92,5 +63,40 @@
             android:orientation="horizontal" />
 
     </HorizontalScrollView>
+
+    <!-- Pushes the update controls and version down to the bottom of the screen. -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/row_border"
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/checkForUpdatesButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/check_for_updates" />
+
+    <ProgressBar
+        android:id="@+id/checkForUpdatesProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/versionText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:textSize="14sp"
+        android:textColor="@color/text_muted"
+        android:layout_marginTop="16dp" />
 
 </LinearLayout>
