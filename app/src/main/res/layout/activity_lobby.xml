@@ -77,7 +77,7 @@
     <com.yahtzee.online.dice3d.Dice3DView
         android:id="@+id/rollOffDice"
         android:layout_width="match_parent"
-        android:layout_height="185dp"
+        android:layout_height="270dp"
         android:layout_marginBottom="10dp"
         android:visibility="gone" />
 
