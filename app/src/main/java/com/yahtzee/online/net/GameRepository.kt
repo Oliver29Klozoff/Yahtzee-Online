@@ -135,13 +135,27 @@ class GameRepository {
         ref.child("openingRollTied").setValue(null)
     }
 
-    fun rollDice(code: String, currentDice: List<Int>, held: List<Boolean>, rollsUsed: Int) {
+    /**
+     * @param resetTimer restarts the turn clock, so each roll a player makes buys them a fresh
+     * 30 seconds to decide on the next one. Automatic rolls pass false: an abandoned turn that
+     * kept extending its own deadline would take minutes to resolve instead of finishing.
+     */
+    fun rollDice(
+        code: String,
+        currentDice: List<Int>,
+        held: List<Boolean>,
+        rollsUsed: Int,
+        resetTimer: Boolean = true
+    ) {
         if (rollsUsed >= 3) return
         val heldSet = held.mapIndexedNotNull { i, isHeld -> if (isHeld) i else null }.toSet()
         val newDice = roller.reroll(currentDice, heldSet)
         val ref = roomRef(code)
         ref.child("dice").setValue(newDice)
         ref.child("rollsUsed").setValue(rollsUsed + 1)
+        if (resetTimer) {
+            ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
+        }
     }
 
     fun toggleHold(code: String, held: List<Boolean>, index: Int) {
@@ -232,7 +246,7 @@ class GameRepository {
         // abandoned turn still plays a sensible hand instead of scoring the first thing rolled.
         if (state.rollsUsed < MAX_ROLLS_PER_TURN) {
             if (state.rollsUsed == 0) {
-                rollDice(code, state.dice, List(5) { false }, 0)
+                rollDice(code, state.dice, List(5) { false }, 0, resetTimer = false)
                 return
             }
             val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
@@ -240,7 +254,7 @@ class GameRepository {
             if (holds.size < 5) {
                 val heldFlags = List(5) { it in holds }
                 roomRef(code).child("held").setValue(heldFlags)
-                rollDice(code, state.dice, heldFlags, state.rollsUsed)
+                rollDice(code, state.dice, heldFlags, state.rollsUsed, resetTimer = false)
                 return
             }
             // Holding all five means the strategy is content; fall through and score.
