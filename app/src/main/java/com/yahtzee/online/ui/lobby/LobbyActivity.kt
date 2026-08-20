@@ -45,6 +45,9 @@ class LobbyActivity : ImmersiveActivity() {
     /** Last seen opening rolls, retained because the winning write clears them immediately. */
     private var revealRolls: Map<String, Int> = emptyMap()
     private var revealOrder: List<String> = emptyList()
+
+    /** True while the result is being held on screen, so state updates leave the views alone. */
+    private var revealing = false
     private val revealHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +104,12 @@ class LobbyActivity : ImmersiveActivity() {
     private var lastState: GameState? = null
 
     private fun renderRollOff(state: GameState) {
+        // Once the reveal is up it owns these views until it finishes. Resolving the roll-off
+        // writes nine separate values, and every one of them fires this listener again — without
+        // this guard the next write would immediately hide the result, which is why the dice
+        // vanished almost as soon as they appeared.
+        if (revealing) return
+
         val statusText = findViewById<TextView>(R.id.rollOffStatusText)
         val rollButton = findViewById<Button>(R.id.rollForFirstButton)
         val rollScroll = findViewById<View>(R.id.rollOffScroll)
@@ -139,6 +148,7 @@ class LobbyActivity : ImmersiveActivity() {
      * Rendered from the retained snapshot, because the winning write clears the live rolls.
      */
     private fun revealWinnerThenStart(state: GameState) {
+        revealing = true
         findViewById<View>(R.id.rollOffDice).visibility = View.VISIBLE
         findViewById<View>(R.id.rollOffScroll).visibility = View.VISIBLE
         findViewById<Button>(R.id.rollForFirstButton).visibility = View.GONE
@@ -155,7 +165,10 @@ class LobbyActivity : ImmersiveActivity() {
         }
 
         renderRollOffDice(state, revealRolls, revealOrder, winnerId = firstPlayerId)
-        revealHandler.postDelayed({ openGame() }, ROLL_OFF_REVEAL_MS)
+        revealHandler.postDelayed({
+            revealing = false
+            openGame()
+        }, ROLL_OFF_REVEAL_MS)
     }
 
     /**
