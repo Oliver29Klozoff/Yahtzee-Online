@@ -64,6 +64,17 @@ object DieTextureAtlas {
         return bitmap
     }
 
+    /**
+     * A single face rendered on its own, for flat UI outside the 3D view — the roll-off row,
+     * for instance. Uses the same drawing as the atlas, so a die shown in a list matches the
+     * ones on the table, in whatever colour that player chose.
+     */
+    fun face(baseColor: Int, value: Int, cellSize: Int = 128): Bitmap {
+        val bitmap = Bitmap.createBitmap(cellSize, cellSize, Bitmap.Config.ARGB_8888)
+        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor))
+        return bitmap
+    }
+
     /** Glass tones derived from one base colour, so any hue yields a coherent material. */
     private class Palette(val deep: Int, val base: Int, val rim: Int, val edge: Int) {
         companion object {

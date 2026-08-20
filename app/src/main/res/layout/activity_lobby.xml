@@ -74,6 +74,22 @@
         android:layout_marginBottom="12dp"
         android:visibility="gone" />
 
+    <HorizontalScrollView
+        android:id="@+id/rollOffScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/rollOffRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+
+    </HorizontalScrollView>
+
     <Button
         android:id="@+id/rollForFirstButton"
         android:layout_width="match_parent"
