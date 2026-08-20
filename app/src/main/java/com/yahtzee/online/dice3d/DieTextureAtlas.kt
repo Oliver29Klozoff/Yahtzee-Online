@@ -124,7 +124,7 @@ object DieTextureAtlas {
                 left + size * 0.1f, top + size * 0.05f, left + size * 0.75f, top + size * 0.7f,
                 intArrayOf(
                     Color.argb(0, 255, 255, 255),
-                    Color.argb(58, 226, 240, 255),
+                    Color.argb(42, 226, 240, 255),
                     Color.argb(0, 255, 255, 255)
                 ),
                 floatArrayOf(0.26f, 0.42f, 0.6f),
