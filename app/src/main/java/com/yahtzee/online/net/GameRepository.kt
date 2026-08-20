@@ -273,6 +273,14 @@ class GameRepository {
         submitScore(code, state, best.second, playerId, best.first)
     }
 
+    /**
+     * Deletes a room outright. Used when the host abandons a lobby nobody joined — leaving it
+     * behind would litter the database with empty rooms and hold on to its code.
+     */
+    fun deleteRoom(code: String) {
+        roomRef(code).removeValue()
+    }
+
     private fun generateRoomCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         return (1..5).map { chars[Random.nextInt(chars.length)] }.joinToString("")

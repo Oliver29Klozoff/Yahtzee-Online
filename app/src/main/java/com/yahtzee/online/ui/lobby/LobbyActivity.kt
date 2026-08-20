@@ -12,14 +12,17 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
+import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.game.GameActivity
 
 class LobbyActivity : ImmersiveActivity() {
@@ -39,6 +42,9 @@ class LobbyActivity : ImmersiveActivity() {
          * mid-flight instead of being seen to land.
          */
         private const val ROLL_OFF_CAMERA_SCALE = 0.70f
+
+        /** How long the host sits alone before being offered a game against bots. */
+        private const val NOBODY_JOINED_PROMPT_MS = 30_000L
     }
 
     private val repository = GameRepository()
@@ -56,6 +62,10 @@ class LobbyActivity : ImmersiveActivity() {
 
     /** True while the result is being held on screen, so state updates leave the views alone. */
     private var revealing = false
+
+    private val botPromptHandler = Handler(Looper.getMainLooper())
+    private var botPromptScheduled = false
+    private var botPromptShown = false
     private val revealHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,6 +89,8 @@ class LobbyActivity : ImmersiveActivity() {
             repository.startGame(roomCode)
         }
 
+        findViewById<Button>(R.id.playBotsInsteadButton).setOnClickListener { startBotGame() }
+
         val rollForFirstButton = findViewById<Button>(R.id.rollForFirstButton)
         rollForFirstButton.setOnClickListener {
             val state = lastState ?: return@setOnClickListener
@@ -100,6 +112,7 @@ class LobbyActivity : ImmersiveActivity() {
 
             val isHost = state.hostId == playerId
             val inLobby = state.status == GameState.STATUS_LOBBY
+            renderBotFallback(state, isHost, inLobby)
             startButton.visibility = if (isHost && inLobby && state.players.size >= 1) View.VISIBLE else View.GONE
             findViewById<TextView>(R.id.waitingText).visibility =
                 if (isHost && inLobby) View.GONE else if (inLobby) View.VISIBLE else View.GONE
@@ -152,6 +165,61 @@ class LobbyActivity : ImmersiveActivity() {
         // showing what the group is waiting on rather than repeating your number back at you.
         rollButton.isEnabled = myRoll == null && playerId in eligible
     }
+
+    /**
+     * Offers a bot game while the host is sitting alone in a lobby, and prompts unprompted if
+     * nobody has turned up after a while, so a room nobody joins is not a dead end.
+     *
+     * The bots are the local engine rather than networked players: with nobody else in the room
+     * there is no one to synchronise with, so running them over Firebase would add moving parts
+     * for no observable difference.
+     */
+    private fun renderBotFallback(state: GameState, isHost: Boolean, inLobby: Boolean) {
+        val alone = isHost && inLobby && state.players.size <= 1
+        findViewById<Button>(R.id.playBotsInsteadButton).visibility =
+            if (alone) View.VISIBLE else View.GONE
+
+        if (!alone) {
+            botPromptHandler.removeCallbacksAndMessages(null)
+            botPromptScheduled = false
+            return
+        }
+        if (botPromptScheduled || botPromptShown) return
+        botPromptScheduled = true
+        botPromptHandler.postDelayed({
+            val current = lastState ?: return@postDelayed
+            if (current.status != GameState.STATUS_LOBBY || current.players.size > 1) return@postDelayed
+            botPromptShown = true
+            AlertDialog.Builder(this)
+                .setTitle(R.string.nobody_joined_title)
+                .setMessage(getString(R.string.nobody_joined_message, roomCode))
+                .setPositiveButton(R.string.play_vs_bots) { _, _ -> startBotGame() }
+                .setNegativeButton(R.string.keep_waiting, null)
+                .show()
+        }, NOBODY_JOINED_PROMPT_MS)
+    }
+
+    /** Abandons the empty room and starts a local game against bots instead. */
+    private fun startBotGame() {
+        val name = state()?.players?.get(playerId)?.name ?: PlayerProfile.getName(this)
+        val labels = arrayOf("1 bot", "2 bots", "3 bots", "4 bots")
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_bot_count)
+            .setItems(labels) { _, which ->
+                // The room is only ours and nobody joined, so tear it down rather than leaving
+                // an empty lobby sitting in the database holding its code.
+                repository.deleteRoom(roomCode)
+                startActivity(
+                    Intent(this, SoloGameActivity::class.java)
+                        .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, name.ifEmpty { "You" })
+                        .putExtra(SoloGameActivity.EXTRA_BOT_COUNT, which + 1)
+                )
+                finish()
+            }
+            .show()
+    }
+
+    private fun state(): GameState? = lastState
 
     /**
      * Holds the finished roll-off on screen for a few seconds before the game opens, so everyone
@@ -306,5 +374,6 @@ class LobbyActivity : ImmersiveActivity() {
         super.onDestroy()
         listener?.let { repository.stopListening(roomCode, it) }
         revealHandler.removeCallbacksAndMessages(null)
+        botPromptHandler.removeCallbacksAndMessages(null)
     }
 }

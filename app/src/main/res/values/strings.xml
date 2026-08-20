@@ -38,6 +38,10 @@
     <string name="you_label">You</string>
     <string name="goes_first">%1$s goes first!</string>
     <string name="you_go_first">You go first!</string>
+    <string name="play_bots_instead">Play against bots instead</string>
+    <string name="nobody_joined_title">Nobody has joined</string>
+    <string name="nobody_joined_message">No one has joined room %1$s yet. Play against bots instead?</string>
+    <string name="keep_waiting">Keep waiting</string>
     <string name="choose_card_count">How many scorecards?</string>
     <string name="one_card">1 card (classic)</string>
     <string name="n_cards">%1$d cards</string>

@@ -74,6 +74,15 @@
         android:layout_marginBottom="12dp"
         android:visibility="gone" />
 
+    <Button
+        android:id="@+id/playBotsInsteadButton"
+        style="?android:attr/borderlessButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/play_bots_instead"
+        android:textColor="@color/brand_primary"
+        android:visibility="gone" />
+
     <com.yahtzee.online.dice3d.Dice3DView
         android:id="@+id/rollOffDice"
         android:layout_width="match_parent"
