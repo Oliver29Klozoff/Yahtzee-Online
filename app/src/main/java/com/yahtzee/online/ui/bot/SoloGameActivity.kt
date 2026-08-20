@@ -24,6 +24,7 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
+import com.yahtzee.online.ui.game.CardTabs
 import com.yahtzee.online.ui.game.ScorecardTabs
 
 class SoloGameActivity : ImmersiveActivity() {
@@ -31,6 +32,7 @@ class SoloGameActivity : ImmersiveActivity() {
     companion object {
         const val EXTRA_PLAYER_NAME = "player_name"
         const val EXTRA_BOT_COUNT = "bot_count"
+        const val EXTRA_CARD_COUNT = "card_count"
         private const val ROLL_SETTLE_DELAY_MS = 1300L
     }
 
@@ -38,6 +40,9 @@ class SoloGameActivity : ImmersiveActivity() {
     private lateinit var dice3DView: Dice3DView
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var viewingPlayerId: String? = null
+
+    /** Which scorecard is shown and scored into; always 0 in a single-card game. */
+    private var selectedCard: Int = 0
     private var lastTurnPlayerId: String? = null
     private val botHandler = Handler(Looper.getMainLooper())
     private var lastRollsUsed = 0
@@ -50,7 +55,8 @@ class SoloGameActivity : ImmersiveActivity() {
 
         val name = intent.getStringExtra(EXTRA_PLAYER_NAME) ?: "You"
         val botCount = intent.getIntExtra(EXTRA_BOT_COUNT, 1).coerceIn(1, 4)
-        engine = LocalGameEngine(name, botCount, DicePreferences.getColor(this))
+        val cardCount = intent.getIntExtra(EXTRA_CARD_COUNT, 1).coerceIn(1, 6)
+        engine = LocalGameEngine(name, botCount, DicePreferences.getColor(this), cardCount)
 
         // Solo games have no turn timer / no timer UI needed.
         findViewById<View>(R.id.turnTimerText).visibility = View.GONE
@@ -63,7 +69,7 @@ class SoloGameActivity : ImmersiveActivity() {
         scorecardList.adapter = scorecardAdapter
         scorecardList.setOnItemClickListener { _, _, position, _ ->
             if (scorecardAdapter.isScorable(position)) {
-                scorecardAdapter.categoryAt(position)?.let { engine.submitScore(it) }
+                scorecardAdapter.categoryAt(position)?.let { engine.submitScore(it, selectedCard) }
             }
         }
 
@@ -123,7 +129,19 @@ class SoloGameActivity : ImmersiveActivity() {
         }
 
         val canScore = myTurn && state.rollsUsed > 0 && viewing == engine.humanPlayerId
-        scorecardAdapter.update(state, viewing, canScore)
+        selectedCard = CardTabs.render(
+            context = this,
+            scroll = findViewById(R.id.cardTabsScroll),
+            row = findViewById(R.id.cardTabsRow),
+            state = state,
+            viewedPlayerId = viewing,
+            selectedCard = selectedCard
+        ) { card ->
+            selectedCard = card
+            render(engine.state)
+        }
+
+        scorecardAdapter.update(state, viewing, canScore, selectedCard)
 
         val total = state.players[viewing]?.grandTotalAllCards(state.cardCount) ?: 0
         findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)

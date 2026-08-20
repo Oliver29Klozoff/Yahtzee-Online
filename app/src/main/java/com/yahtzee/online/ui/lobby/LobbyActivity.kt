@@ -213,6 +213,8 @@ class LobbyActivity : ImmersiveActivity() {
                     Intent(this, SoloGameActivity::class.java)
                         .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, name.ifEmpty { "You" })
                         .putExtra(SoloGameActivity.EXTRA_BOT_COUNT, which + 1)
+                        // Keep the format the host set up for the room they are abandoning.
+                        .putExtra(SoloGameActivity.EXTRA_CARD_COUNT, state()?.cardCount ?: 1)
                 )
                 finish()
             }

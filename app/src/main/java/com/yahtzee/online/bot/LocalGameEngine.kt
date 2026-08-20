@@ -18,15 +18,12 @@ import java.util.UUID
  * layer can treat it almost identically, but every mutation happens locally and bot turns
  * play themselves out automatically.
  */
-class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
-
-    private companion object {
-        /**
-         * Solo games are always single-card, but they share the score-key format with online
-         * rooms so the same scorecard UI reads both without special-casing.
-         */
-        const val SOLO_CARD = 0
-    }
+class LocalGameEngine(
+    humanName: String,
+    botCount: Int,
+    humanColor: Int = 0,
+    private val cardCount: Int = 1
+) {
 
     val humanPlayerId: String = UUID.randomUUID().toString()
     private val botIds: List<String> = List(botCount) { UUID.randomUUID().toString() }
@@ -59,7 +56,8 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
             players = (listOf(humanPlayerId to human) + bots).toMap(),
             dice = List(5) { 1 },
             held = List(5) { false },
-            rollsUsed = 0
+            rollsUsed = 0,
+            cardCount = cardCount
         )
     }
         private set
@@ -87,27 +85,31 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
         onChange?.invoke()
     }
 
-    fun submitScore(category: Category) {
+    fun submitScore(category: Category, cardIndex: Int = 0) {
         val playerId = state.currentPlayerId ?: return
         val player = state.players[playerId] ?: return
-        if (player.scores.containsKey(ScoreKey.of(SOLO_CARD, category))) return
+        val key = ScoreKey.of(cardIndex, category)
+        if (player.scores.containsKey(key)) return
 
         val points = Scoring.score(category, state.dice)
-        val alreadyHadYahtzee = player.scores[ScoreKey.of(SOLO_CARD, Category.YAHTZEE)] == 50
+        // With several cards in play the qualifying Yahtzee may sit on any of them.
+        val alreadyHadYahtzee = (0 until cardCount).any {
+            player.scores[ScoreKey.of(it, Category.YAHTZEE)] == 50
+        }
         val bonusEarned = category != Category.YAHTZEE &&
             state.dice.groupBy { it }.values.any { it.size == 5 } && alreadyHadYahtzee
 
         val updatedPlayer = player.copy(
-            scores = player.scores + (ScoreKey.of(SOLO_CARD, category) to points),
+            scores = player.scores + (key to points),
             yahtzeeBonusCount = player.yahtzeeBonusCount + if (bonusEarned) 1 else 0
         )
         val updatedPlayers = state.players + (playerId to updatedPlayer)
 
-        val allDone = updatedPlayers.values.all { it.scores.size == Category.values().size }
+        val allDone = updatedPlayers.values.all { it.scores.size == state.totalSlots }
         val nextIndex = (state.currentTurnIndex + 1) % state.playerOrder.size
 
         state = if (allDone) {
-            val winner = updatedPlayers.values.maxByOrNull { it.grandTotalAllCards(cardCount = 1) }
+            val winner = updatedPlayers.values.maxByOrNull { it.grandTotalAllCards(cardCount) }
             state.copy(
                 players = updatedPlayers,
                 status = GameState.STATUS_FINISHED,
@@ -130,16 +132,25 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
      * step-by-step pacing: the UI calls [stepBotRoll] once per visible roll, waiting for the
      * dice animation between calls, instead of the whole turn resolving in one synchronous burst.
      */
+    /** Open categories per card for [playerId], excluding cards that are already complete. */
+    private fun openByCard(playerId: String): Map<Int, Set<Category>> {
+        val player = state.players[playerId] ?: return emptyMap()
+        return (0 until cardCount)
+            .associateWith { card ->
+                Category.values().filter { !player.scores.containsKey(ScoreKey.of(card, it)) }.toSet()
+            }
+            .filterValues { it.isNotEmpty() }
+    }
+
     fun isBotDoneRolling(): Boolean {
         val playerId = state.currentPlayerId ?: return true
         if (playerId !in botIds) return true
-        val player = state.players[playerId] ?: return true
-        val openCategories = Category.values().filter { !player.scores.containsKey(ScoreKey.of(SOLO_CARD, it)) }.toSet()
+        val open = openByCard(playerId).values.flatten().toSet()
+        if (open.isEmpty()) return true
         if (state.rollsUsed == 0) return false
         if (state.rollsUsed >= MAX_ROLLS_PER_TURN) return true
         val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
-        val holdIndices = BotStrategy.chooseHolds(state.dice, openCategories, rollsLeft)
-        return holdIndices.size == 5
+        return BotStrategy.chooseHolds(state.dice, open, rollsLeft).size == 5
     }
 
     /**
@@ -151,30 +162,38 @@ class LocalGameEngine(humanName: String, botCount: Int, humanColor: Int = 0) {
     fun stepBotRoll() {
         val playerId = state.currentPlayerId ?: return
         if (playerId !in botIds) return
-        val player = state.players[playerId] ?: return
-        val openCategories = Category.values().filter { !player.scores.containsKey(ScoreKey.of(SOLO_CARD, it)) }.toSet()
 
         if (state.rollsUsed == 0) {
             state = state.copy(held = List(5) { false })
         } else {
+            // Hold whatever serves any card still open, since the bot has yet to commit to one.
+            val open = openByCard(playerId).values.flatten().toSet()
             val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
-            val holdIndices = BotStrategy.chooseHolds(state.dice, openCategories, rollsLeft)
+            val holdIndices = BotStrategy.chooseHolds(state.dice, open, rollsLeft)
             state = state.copy(held = List(5) { it in holdIndices })
         }
         rollDiceForBot()
     }
 
-    /** Submits the bot's final score choice once [isBotDoneRolling] is true. */
+    /**
+     * Submits the bot's final score once [isBotDoneRolling] is true. With several cards it picks
+     * the best category on each, then plays whichever of those scores highest — so a poor roll
+     * lands on a card the bot cares less about rather than burning a valuable box.
+     */
     fun finishBotTurn() {
         val playerId = state.currentPlayerId ?: return
         if (playerId !in botIds) return
         val player = state.players[playerId] ?: return
-        val openCategories = Category.values().filter { !player.scores.containsKey(ScoreKey.of(SOLO_CARD, it)) }.toSet()
-        if (openCategories.isEmpty()) return
 
-        val upperTotal = Category.UPPER.sumOf { player.scoresForCard(SOLO_CARD)[it] ?: 0 }
-        val chosen = BotStrategy.chooseCategory(state.dice, openCategories, upperTotal)
-        submitScore(chosen)
+        val best = openByCard(playerId).entries
+            .map { (card, open) ->
+                val upperTotal = Category.UPPER.sumOf { player.scoresForCard(card)[it] ?: 0 }
+                val category = BotStrategy.chooseCategory(state.dice, open, upperTotal)
+                Triple(card, category, Scoring.score(category, state.dice))
+            }
+            .maxByOrNull { it.third }
+            ?: return
+        submitScore(best.second, best.first)
     }
 
     private fun rollDiceForBot() {

@@ -221,49 +221,16 @@ class GameActivity : ImmersiveActivity() {
      * not reset by turn changes the way the player tabs are.
      */
     private fun renderCardTabs(state: GameState, viewedPlayerId: String) {
-        val scroll = findViewById<View>(R.id.cardTabsScroll)
-        if (state.cardCount <= 1) {
-            scroll.visibility = View.GONE
-            selectedCard = 0
-            return
-        }
-        scroll.visibility = View.VISIBLE
-        selectedCard = selectedCard.coerceIn(0, state.cardCount - 1)
-
-        val row = findViewById<LinearLayout>(R.id.cardTabsRow)
-        row.removeAllViews()
-        val density = resources.displayMetrics.density
-        val viewed = state.players[viewedPlayerId]
-
-        for (card in 0 until state.cardCount) {
-            val filled = viewed?.scoresForCard(card)?.size ?: 0
-            val isSelected = card == selectedCard
-            val tab = TextView(this).apply {
-                text = getString(R.string.card_tab, card + 1, filled, Category.values().size)
-                textSize = 12f
-                gravity = Gravity.CENTER
-                setPadding(
-                    (12 * density).toInt(), (7 * density).toInt(),
-                    (12 * density).toInt(), (7 * density).toInt()
-                )
-                setTextColor(
-                    if (isSelected) resources.getColor(R.color.background, theme)
-                    else resources.getColor(R.color.text_muted, theme)
-                )
-                setBackgroundColor(
-                    if (isSelected) resources.getColor(R.color.brand_primary, theme)
-                    else resources.getColor(R.color.surface, theme)
-                )
-                setOnClickListener {
-                    selectedCard = card
-                    lastState?.let { render(it) }
-                }
-            }
-            tab.layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).also { it.marginEnd = (8 * density).toInt() }
-            row.addView(tab)
+        selectedCard = CardTabs.render(
+            context = this,
+            scroll = findViewById(R.id.cardTabsScroll),
+            row = findViewById(R.id.cardTabsRow),
+            state = state,
+            viewedPlayerId = viewedPlayerId,
+            selectedCard = selectedCard
+        ) { card ->
+            selectedCard = card
+            lastState?.let { render(it) }
         }
     }
 

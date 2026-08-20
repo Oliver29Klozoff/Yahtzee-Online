@@ -75,12 +75,7 @@ class MainActivity : ImmersiveActivity() {
             val botOptions = arrayOf("1 bot", "2 bots", "3 bots", "4 bots")
             AlertDialog.Builder(this)
                 .setTitle(R.string.choose_bot_count)
-                .setItems(botOptions) { _, which ->
-                    val intent = Intent(this, SoloGameActivity::class.java)
-                    intent.putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, playerName())
-                    intent.putExtra(SoloGameActivity.EXTRA_BOT_COUNT, which + 1)
-                    startActivity(intent)
-                }
+                .setItems(botOptions) { _, which -> chooseCardsThenPlayBots(which + 1) }
                 .show()
         }
 
@@ -135,6 +130,24 @@ class MainActivity : ImmersiveActivity() {
         super.onPause()
         leaderboardListener?.let { leaderboard.removeListener(it) }
         leaderboardListener = null
+    }
+
+    /** Solo games support multiple scorecards just as rooms do, so the format is asked for too. */
+    private fun chooseCardsThenPlayBots(botCount: Int) {
+        val labels = GameState.CARD_OPTIONS.map { count ->
+            if (count == 1) getString(R.string.one_card) else getString(R.string.n_cards, count)
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_card_count)
+            .setItems(labels) { _, which ->
+                startActivity(
+                    Intent(this, SoloGameActivity::class.java)
+                        .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, playerName())
+                        .putExtra(SoloGameActivity.EXTRA_BOT_COUNT, botCount)
+                        .putExtra(SoloGameActivity.EXTRA_CARD_COUNT, GameState.CARD_OPTIONS[which])
+                )
+            }
+            .show()
     }
 
     private fun playerName(): String = PlayerProfile.getName(this).ifEmpty { "Player" }
