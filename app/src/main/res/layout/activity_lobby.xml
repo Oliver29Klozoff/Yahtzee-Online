@@ -74,6 +74,13 @@
         android:layout_marginBottom="12dp"
         android:visibility="gone" />
 
+    <com.yahtzee.online.dice3d.Dice3DView
+        android:id="@+id/rollOffDice"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:layout_marginBottom="10dp"
+        android:visibility="gone" />
+
     <HorizontalScrollView
         android:id="@+id/rollOffScroll"
         android:layout_width="match_parent"

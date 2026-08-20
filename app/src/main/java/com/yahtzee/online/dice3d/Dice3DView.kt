@@ -21,15 +21,36 @@ class Dice3DView @JvmOverloads constructor(
 
     init {
         setEGLContextClientVersion(2)
-        repeat(5) { i ->
-            val x = (i - 2) * 0.75f
-            val die = DieBody(position = Vec3(x, DieBody.HALF_SIZE, 0f))
-            die.atRest = true
-            world.dice.add(die)
-        }
+        populate(DEFAULT_DIE_COUNT)
         renderer = DiceRenderer(world, onAllSettled = { notifySettled() })
         setRenderer(renderer)
         renderMode = RENDERMODE_CONTINUOUSLY
+    }
+
+    private fun populate(count: Int) {
+        world.dice.clear()
+        val offset = (count - 1) / 2f
+        repeat(count) { i ->
+            val die = DieBody(position = Vec3((i - offset) * 0.75f, DieBody.HALF_SIZE, 0f))
+            die.atRest = true
+            world.dice.add(die)
+        }
+    }
+
+    /**
+     * Changes how many dice this view shows — a single die for the roll-off, five for a game.
+     *
+     * The mutation is queued onto the GL thread because the renderer walks this same list every
+     * frame; rebuilding it underneath a draw call would risk tearing through it mid-iteration.
+     */
+    fun setDieCount(count: Int) {
+        val safe = count.coerceIn(1, 5)
+        if (world.dice.size == safe) return
+        queueEvent {
+            populate(safe)
+            pendingTargets = List(safe) { 1 }
+            heldFlags = List(safe) { false }
+        }
     }
 
     fun setOnSettledListener(listener: (List<Int>) -> Unit) {
@@ -89,5 +110,9 @@ class Dice3DView @JvmOverloads constructor(
         mainHandler.post {
             onSettledCallback?.invoke(pendingTargets)
         }
+    }
+
+    private companion object {
+        const val DEFAULT_DIE_COUNT = 5
     }
 }

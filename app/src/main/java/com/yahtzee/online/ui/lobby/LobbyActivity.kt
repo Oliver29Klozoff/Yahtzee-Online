@@ -12,6 +12,7 @@ import android.widget.ListView
 import android.widget.TextView
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.net.GameRepository
@@ -32,6 +33,9 @@ class LobbyActivity : ImmersiveActivity() {
     private var listener: ValueEventListener? = null
     private var gameStarted = false
 
+    /** Players whose roll has already been tumbled, so each result animates exactly once. */
+    private val animatedRolls = mutableSetOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lobby)
@@ -40,6 +44,9 @@ class LobbyActivity : ImmersiveActivity() {
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: repository.localPlayerId
 
         findViewById<TextView>(R.id.roomCodeText).text = roomCode
+
+        // The roll-off is a single die, not a hand of five.
+        findViewById<Dice3DView>(R.id.rollOffDice).setDieCount(1)
 
         val startButton = findViewById<Button>(R.id.startGameButton)
         startButton.setOnClickListener {
@@ -83,10 +90,13 @@ class LobbyActivity : ImmersiveActivity() {
             statusText.visibility = View.GONE
             rollButton.visibility = View.GONE
             rollScroll.visibility = View.GONE
+            findViewById<View>(R.id.rollOffDice).visibility = View.GONE
             return
         }
 
         rollScroll.visibility = View.VISIBLE
+        findViewById<View>(R.id.rollOffDice).visibility = View.VISIBLE
+        animateNewRolls(state)
         renderRollOffDice(state)
 
         val eligible = state.openingRollTied.ifEmpty { state.playerOrder }
@@ -101,6 +111,32 @@ class LobbyActivity : ImmersiveActivity() {
         // The dice row already reports every roll including your own, so the status line keeps
         // showing what the group is waiting on rather than repeating your number back at you.
         rollButton.isEnabled = myRoll == null && playerId in eligible
+    }
+
+    /**
+     * Tumbles the shared die whenever someone's roll lands, in that player's own colour, so the
+     * roll-off plays out as actual rolls rather than numbers appearing.
+     *
+     * Only one die is on screen, so if several results arrive in the same update the newest is
+     * animated and the rest are simply recorded — the row below shows every value regardless.
+     * A tie wipes the stored rolls, which resets this so the re-rolls animate too.
+     */
+    private fun animateNewRolls(state: GameState) {
+        if (state.openingRolls.isEmpty()) {
+            animatedRolls.clear()
+            return
+        }
+        val fresh = state.playerOrder.filter { it in state.openingRolls.keys && it !in animatedRolls }
+        if (fresh.isEmpty()) return
+        animatedRolls.addAll(fresh)
+
+        val newest = fresh.last()
+        val value = state.openingRolls[newest] ?: return
+        val color = state.players[newest]?.diceColor?.takeIf { it != 0 } ?: DieTextureAtlas.DEFAULT_COLOR
+
+        val dice = findViewById<Dice3DView>(R.id.rollOffDice)
+        dice.setDiceColor(color)
+        dice.rollTo(listOf(value), listOf(false))
     }
 
     /**
@@ -172,6 +208,17 @@ class LobbyActivity : ImmersiveActivity() {
         gameIntent.putExtra(GameActivity.EXTRA_PLAYER_ID, playerId)
         startActivity(gameIntent)
         finish()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        findViewById<Dice3DView>(R.id.rollOffDice).onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // GLSurfaceView keeps a render thread alive otherwise, even once the lobby is gone.
+        findViewById<Dice3DView>(R.id.rollOffDice).onPause()
     }
 
     override fun onDestroy() {
