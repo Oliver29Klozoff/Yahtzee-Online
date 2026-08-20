@@ -2,6 +2,8 @@ package com.yahtzee.online.ui.lobby
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.widget.ArrayAdapter
@@ -26,6 +28,9 @@ class LobbyActivity : ImmersiveActivity() {
         const val EXTRA_ROOM_CODE = "room_code"
         const val EXTRA_PLAYER_ID = "player_id"
         const val EXTRA_PLAYER_NAME = "player_name"
+
+        /** How long the finished roll-off stays on screen before the game opens. */
+        private const val ROLL_OFF_REVEAL_MS = 5000L
     }
 
     private val repository = GameRepository()
@@ -36,6 +41,11 @@ class LobbyActivity : ImmersiveActivity() {
 
     /** Players whose roll has already been tumbled, so each result animates exactly once. */
     private val animatedRolls = mutableSetOf<String>()
+
+    /** Last seen opening rolls, retained because the winning write clears them immediately. */
+    private var revealRolls: Map<String, Int> = emptyMap()
+    private var revealOrder: List<String> = emptyList()
+    private val revealHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,6 +75,14 @@ class LobbyActivity : ImmersiveActivity() {
             lastState = state
             renderPlayers(state)
 
+            // Hold on to the last set of opening rolls. resolveRollOff wipes them the instant it
+            // picks a winner, so without this the dice would disappear at exactly the moment
+            // everyone wants to look at them.
+            if (state.openingRolls.isNotEmpty()) {
+                revealRolls = state.openingRolls
+                revealOrder = state.playerOrder
+            }
+
             val isHost = state.hostId == playerId
             val inLobby = state.status == GameState.STATUS_LOBBY
             startButton.visibility = if (isHost && inLobby && state.players.size >= 1) View.VISIBLE else View.GONE
@@ -75,7 +93,7 @@ class LobbyActivity : ImmersiveActivity() {
 
             if (state.status == GameState.STATUS_PLAYING && !gameStarted) {
                 gameStarted = true
-                openGame()
+                if (revealRolls.isNotEmpty()) revealWinnerThenStart(state) else openGame()
             }
         }
     }
@@ -115,6 +133,32 @@ class LobbyActivity : ImmersiveActivity() {
     }
 
     /**
+     * Holds the finished roll-off on screen for a few seconds before the game opens, so everyone
+     * gets to see what was rolled and who won rather than the results flashing past.
+     *
+     * Rendered from the retained snapshot, because the winning write clears the live rolls.
+     */
+    private fun revealWinnerThenStart(state: GameState) {
+        findViewById<View>(R.id.rollOffDice).visibility = View.VISIBLE
+        findViewById<View>(R.id.rollOffScroll).visibility = View.VISIBLE
+        findViewById<Button>(R.id.rollForFirstButton).visibility = View.GONE
+
+        val firstPlayerId = state.playerOrder.firstOrNull()
+        val firstName = state.players[firstPlayerId]?.name.orEmpty()
+        findViewById<TextView>(R.id.rollOffStatusText).apply {
+            visibility = View.VISIBLE
+            text = if (firstPlayerId == playerId) {
+                getString(R.string.you_go_first)
+            } else {
+                getString(R.string.goes_first, firstName)
+            }
+        }
+
+        renderRollOffDice(state, revealRolls, revealOrder, winnerId = firstPlayerId)
+        revealHandler.postDelayed({ openGame() }, ROLL_OFF_REVEAL_MS)
+    }
+
+    /**
      * Tumbles the shared die whenever someone's roll lands, in that player's own colour, so the
      * roll-off plays out as actual rolls rather than numbers appearing.
      *
@@ -148,17 +192,22 @@ class LobbyActivity : ImmersiveActivity() {
      * (see GameRepository.resolveRollOff), so during a re-roll everyone shows a placeholder —
      * the tied players are highlighted instead, since they are the only ones who roll again.
      */
-    private fun renderRollOffDice(state: GameState) {
+    private fun renderRollOffDice(
+        state: GameState,
+        rolls: Map<String, Int> = state.openingRolls,
+        order: List<String> = state.playerOrder,
+        winnerId: String? = null
+    ) {
         val row = findViewById<LinearLayout>(R.id.rollOffRow)
         row.removeAllViews()
         val density = resources.displayMetrics.density
-        val dieSize = (54 * density).toInt()
+        val dieSize = (winnerId?.let { 64 } ?: 54) * density
         val tied = state.openingRollTied.toSet()
-        val highest = state.openingRolls.values.maxOrNull()
+        val highest = rolls.values.maxOrNull()
 
-        state.playerOrder.forEach { id ->
+        order.forEach { id ->
             val player = state.players[id] ?: return@forEach
-            val roll = state.openingRolls[id]
+            val roll = rolls[id]
             val color = player.diceColor.takeIf { it != 0 } ?: DieTextureAtlas.DEFAULT_COLOR
 
             val cell = LinearLayout(this).apply {
@@ -167,14 +216,20 @@ class LobbyActivity : ImmersiveActivity() {
                 setPadding((8 * density).toInt(), 0, (8 * density).toInt(), 0)
             }
 
+            // During the reveal the winner's die is shown at full strength and the rest dimmed,
+            // so the result is obvious at a glance.
             val dieView = ImageView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dieSize, dieSize)
+                layoutParams = LinearLayout.LayoutParams(dieSize.toInt(), dieSize.toInt())
                 setImageBitmap(DieTextureAtlas.face(color, roll ?: 1))
-                alpha = if (roll != null) 1f else 0.18f
+                alpha = when {
+                    roll == null -> 0.18f
+                    winnerId != null && id != winnerId -> 0.45f
+                    else -> 1f
+                }
             }
 
             val awaitingReroll = id in tied
-            val isLeader = roll != null && roll == highest
+            val isLeader = if (winnerId != null) id == winnerId else roll != null && roll == highest
 
             val label = TextView(this).apply {
                 text = if (id == playerId) getString(R.string.you_label) else player.name
@@ -225,5 +280,6 @@ class LobbyActivity : ImmersiveActivity() {
     override fun onDestroy() {
         super.onDestroy()
         listener?.let { repository.stopListening(roomCode, it) }
+        revealHandler.removeCallbacksAndMessages(null)
     }
 }

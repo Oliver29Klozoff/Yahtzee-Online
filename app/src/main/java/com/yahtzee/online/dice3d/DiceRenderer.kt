@@ -228,9 +228,13 @@ class DiceRenderer(
     }
 
     private companion object {
+        // Pulled in from (4.6, 4.2) to make the dice noticeably larger on screen. The dice are
+        // left at their original size so collision and the rigged landings are untouched; the
+        // view simply had a lot of empty space around the play area, and the table is black on
+        // black, so cropping its edges costs nothing visually.
         const val CAMERA_X = 0f
-        const val CAMERA_Y = 4.6f
-        const val CAMERA_Z = 4.2f
+        const val CAMERA_Y = 3.6f
+        const val CAMERA_Z = 3.3f
 
         const val GLOW_RADIUS = 0.95f
         const val GLOW_HEIGHT = 0.012f
