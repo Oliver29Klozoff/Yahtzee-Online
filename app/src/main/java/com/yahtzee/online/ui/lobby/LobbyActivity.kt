@@ -15,6 +15,7 @@ import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.GameActivity
@@ -136,7 +137,7 @@ class LobbyActivity : ImmersiveActivity() {
 
         val dice = findViewById<Dice3DView>(R.id.rollOffDice)
         dice.setDiceColor(color)
-        dice.rollTo(listOf(value), listOf(false))
+        dice.rollTo(listOf(value), listOf(false), state.seatAngle(playerId, newest))
     }
 
     /**

@@ -76,6 +76,22 @@ object ScoreKey {
         runCatching { Category.valueOf(key.substringAfter(':')) }.getOrNull()
 }
 
+/**
+ * Where [ofPlayerId] is sitting, as seen by [viewerId], in radians around the table.
+ *
+ * Zero is the viewer's own seat, and seats are spaced evenly by turn order, so on every screen
+ * you sit in the same place and opponents fan out around you in the order they play. Four
+ * players land on the quarters; five or more fall onto intermediate angles for free.
+ */
+fun GameState.seatAngle(viewerId: String, ofPlayerId: String?): Float {
+    if (ofPlayerId == null || playerOrder.isEmpty()) return 0f
+    val mine = playerOrder.indexOf(viewerId)
+    val theirs = playerOrder.indexOf(ofPlayerId)
+    if (mine < 0 || theirs < 0) return 0f
+    val seatsAway = ((theirs - mine) % playerOrder.size + playerOrder.size) % playerOrder.size
+    return (2.0 * Math.PI * seatsAway / playerOrder.size).toFloat()
+}
+
 /** This player's filled categories on one card. */
 fun Player.scoresForCard(card: Int): Map<Category, Int> =
     scores.entries.mapNotNull { (key, value) ->

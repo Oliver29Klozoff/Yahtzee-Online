@@ -23,6 +23,7 @@ import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
+import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -269,7 +270,13 @@ class GameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
-            dice3DView.rollTo(state.dice, state.held)
+            // Dice arrive from wherever the roller is sitting relative to you — your own throws
+            // always come from your right, opponents' from their seat around the table.
+            dice3DView.rollTo(
+                state.dice,
+                state.held,
+                state.seatAngle(playerId, state.currentPlayerId)
+            )
         }
         lastDice = state.dice
         lastRollsUsed = state.rollsUsed

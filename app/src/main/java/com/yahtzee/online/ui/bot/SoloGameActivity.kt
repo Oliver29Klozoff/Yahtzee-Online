@@ -17,6 +17,7 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -156,7 +157,12 @@ class SoloGameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
-            dice3DView.rollTo(state.dice, state.held)
+            // Bots throw from their own seat around the table; yours always come from the right.
+            dice3DView.rollTo(
+                state.dice,
+                state.held,
+                state.seatAngle(engine.humanPlayerId, state.currentPlayerId)
+            )
         }
         lastRollsUsed = state.rollsUsed
     }

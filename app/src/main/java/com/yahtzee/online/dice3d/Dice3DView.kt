@@ -5,6 +5,8 @@ import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.random.Random
 
 class Dice3DView @JvmOverloads constructor(
@@ -70,35 +72,53 @@ class Dice3DView @JvmOverloads constructor(
      * post-landing correction needed, since each die's rotation is computed up front to
      * arrive precisely on its target face.
      */
-    fun rollTo(targetValues: List<Int>, held: List<Boolean>) {
+    /**
+     * Throws the dice toward the middle of the table from the seat at [seatAngleRadians].
+     *
+     * Zero is screen-right, and the angle sweeps toward screen-bottom — the camera looks down
+     * −Z, so +X is right and +Z is bottom. That puts four players on the quarters (right,
+     * bottom, left, top) and any other count on evenly spaced intermediate angles, so a throw
+     * always arrives from where that player is sitting relative to you.
+     *
+     * throwToward derives its roll axis from the direction of travel, so the dice tumble like
+     * wheels rolling along that heading without any extra work here.
+     */
+    fun rollTo(targetValues: List<Int>, held: List<Boolean>, seatAngleRadians: Float = 0f) {
         pendingTargets = targetValues
         heldFlags = held
         val random = Random.Default
+
+        // Unit vector pointing at the thrower's seat, and the direction across it, used to fan
+        // the dice out along the near edge so they trail in rather than arriving as a rank.
+        val seatX = cos(seatAngleRadians)
+        val seatZ = sin(seatAngleRadians)
+        val acrossX = -seatZ
+        val acrossZ = seatX
+
+        val count = world.dice.size
         world.dice.forEachIndexed { i, die ->
             if (held.getOrNull(i) == true) {
                 die.snapToUpright(targetValues[i])
                 die.atRest = true
                 return@forEachIndexed
             }
-            // Enter from the right, as though released from the player's right hand: staggered
-            // back along the right edge so they trail in rather than arriving as a rank, then
-            // thrown leftward across the table. throwToward derives its roll axis from the
-            // travel direction, so this alone makes them tumble like wheels rolling left.
-            //
-            // Spawning just INSIDE the right wall matters: the world clamps every die to the
-            // wall bounds on each step (x max is tableHalfWidth - HALF_SIZE = 1.7), so a die
-            // started off-screen would snap to the edge on frame one instead of flying in.
+            val spread = (i - (count - 1) / 2f) * 0.17f + (random.nextFloat() - 0.5f) * 0.12f
+
+            // Spawn just INSIDE the walls: the world clamps every die to the wall bounds on each
+            // step, so one started beyond them would snap to the edge on frame one rather than
+            // flying in. The table is wider than it is deep, hence the different radii.
             die.position = Vec3(
-                1.55f,
+                (seatX * 1.5f + acrossX * spread).coerceIn(-1.6f, 1.6f),
                 1.85f + random.nextFloat() * 0.5f,
-                0.5f - i * 0.17f + (random.nextFloat() - 0.5f) * 0.18f
+                (seatZ * 0.92f + acrossZ * spread).coerceIn(-1.0f, 1.0f)
             )
+            val scatter = (random.nextFloat() - 0.5f) * 0.4f
             die.throwToward(
                 targetValue = targetValues[i],
                 direction = Vec3(
-                    -1f,
+                    -seatX + acrossX * scatter,
                     -0.3f,
-                    (random.nextFloat() - 0.5f) * 0.45f - 0.1f
+                    -seatZ + acrossZ * scatter
                 ),
                 speed = 5.0f + random.nextFloat() * 1.7f,
                 random = random
