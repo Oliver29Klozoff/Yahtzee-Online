@@ -81,18 +81,18 @@ private const val FRAGMENT_SHADER = """
 
         vec3 halfVec = normalize(toLight + toCamera);
         float specAngle = max(dot(normal, halfVec), 0.0);
-        float tightSpec = pow(specAngle, 120.0) * 0.78;
-        float sheen = pow(specAngle, 20.0) * 0.14;
+        float tightSpec = pow(specAngle, 120.0) * 0.38;
+        float sheen = pow(specAngle, 20.0) * 0.06;
 
         vec3 oppositeLight = reflect(toLight, normal);
-        float secondary = pow(max(dot(-oppositeLight, toCamera), 0.0), 12.0) * 0.10;
+        float secondary = pow(max(dot(-oppositeLight, toCamera), 0.0), 12.0) * 0.05;
 
         // Procedural studio environment: a broad overhead softbox with a weaker bounce from
         // below-front, sampled through the reflection vector so it slides as the die rotates.
         vec3 refl = reflect(-toCamera, normal);
         float softbox = smoothstep(0.30, 0.95, refl.y);
-        float bounce = smoothstep(0.15, 0.85, -refl.y) * 0.20;
-        float env = (softbox * 0.28 + bounce) * glassness;
+        float bounce = smoothstep(0.15, 0.85, -refl.y) * 0.10;
+        float env = (softbox * 0.14 + bounce) * glassness;
 
         float fresnel = pow(1.0 - ndotv, 3.2);
         vec3 edgeColor = mix(uDiceColor, vec3(1.0), 0.62);
