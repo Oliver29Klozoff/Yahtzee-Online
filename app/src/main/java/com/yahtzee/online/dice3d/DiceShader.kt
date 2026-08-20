@@ -95,8 +95,10 @@ private const val FRAGMENT_SHADER = """
         float env = (softbox * 0.14 + bounce) * glassness;
 
         float fresnel = pow(1.0 - ndotv, 3.2);
-        vec3 edgeColor = mix(uDiceColor, vec3(1.0), 0.62);
-        float edge = fresnel * 1.05 * glassness;
+        // Tinted rather than near-white: the edge should read as the material lighting up,
+        // not as a white outline drawn around the die.
+        vec3 edgeColor = mix(uDiceColor, vec3(1.0), 0.42);
+        float edge = fresnel * 0.50 * glassness;
 
         float transmission = pow(1.0 - ndotv, 1.6) * 0.30 * glassness;
 

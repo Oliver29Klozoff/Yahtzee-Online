@@ -76,8 +76,10 @@ object DieTextureAtlas {
                 val rim = Color.HSVToColor(
                     floatArrayOf(hsv[0], hsv[1] * 0.58f, min(1f, hsv[2] + 0.26f))
                 )
+                // Keeps a good deal of its colour instead of washing out to near-white, so the
+                // bevel band the geometry samples glows in the dice colour rather than glaring.
                 val edge = Color.HSVToColor(
-                    floatArrayOf(hsv[0], hsv[1] * 0.22f, min(1f, hsv[2] + 0.45f))
+                    floatArrayOf(hsv[0], hsv[1] * 0.42f, min(1f, hsv[2] + 0.28f))
                 )
                 return Palette(deep, baseColor, rim, edge)
             }
