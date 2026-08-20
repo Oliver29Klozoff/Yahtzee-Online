@@ -47,6 +47,17 @@ class DiceRenderer(
     @Volatile
     private var textureDirty = false
 
+    /**
+     * Camera distance as a multiple of the default. Below 1 moves the camera closer, so the dice
+     * fill more of the view — the roll-off uses that to show its single die large, while a game
+     * keeps 1.0 and its original framing.
+     *
+     * Per-renderer rather than a shared constant: each Dice3DView needs its own framing, and a
+     * global would zoom every view at once.
+     */
+    @Volatile
+    var cameraScale: Float = 1f
+
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
@@ -61,12 +72,7 @@ class DiceRenderer(
         textureId = createTexture()
         uploadAtlas()
 
-        Matrix.setLookAtM(
-            viewMatrix, 0,
-            CAMERA_X, CAMERA_Y, CAMERA_Z,
-            0f, 0f, 0f,
-            0f, 1f, 0f
-        )
+        updateCamera()
     }
 
     private fun createTexture(): Int {
@@ -78,6 +84,16 @@ class DiceRenderer(
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
         return handle[0]
+    }
+
+    /** Rebuilt each frame so a scale change from the UI thread takes effect immediately. */
+    private fun updateCamera() {
+        Matrix.setLookAtM(
+            viewMatrix, 0,
+            CAMERA_X, CAMERA_Y * cameraScale, CAMERA_Z * cameraScale,
+            0f, 0f, 0f,
+            0f, 1f, 0f
+        )
     }
 
     private fun uploadAtlas() {
@@ -114,6 +130,7 @@ class DiceRenderer(
         }
 
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
+        updateCamera()
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
 
         // 1. Table.
@@ -194,7 +211,10 @@ class DiceRenderer(
         GLES20.glUniformMatrix4fv(diceShader.uMVPMatrix, 1, false, mvpMatrix, 0)
         GLES20.glUniformMatrix4fv(diceShader.uModelMatrix, 1, false, modelMatrix, 0)
         GLES20.glUniform3f(diceShader.uLightDir, -0.4f, -1f, -0.3f)
-        GLES20.glUniform3f(diceShader.uCameraPos, CAMERA_X, CAMERA_Y, CAMERA_Z)
+        GLES20.glUniform3f(
+            diceShader.uCameraPos,
+            CAMERA_X, CAMERA_Y * cameraScale, CAMERA_Z * cameraScale
+        )
         GLES20.glUniform3f(
             diceShader.uDiceColor,
             Color.red(diceColor) / 255f,
@@ -228,13 +248,9 @@ class DiceRenderer(
     }
 
     private companion object {
-        // Pulled in from (4.6, 4.2) to make the dice noticeably larger on screen. The dice are
-        // left at their original size so collision and the rigged landings are untouched; the
-        // view simply had a lot of empty space around the play area, and the table is black on
-        // black, so cropping its edges costs nothing visually.
         const val CAMERA_X = 0f
-        const val CAMERA_Y = 3.6f
-        const val CAMERA_Z = 3.3f
+        const val CAMERA_Y = 4.6f
+        const val CAMERA_Z = 4.2f
 
         const val GLOW_RADIUS = 0.95f
         const val GLOW_HEIGHT = 0.012f

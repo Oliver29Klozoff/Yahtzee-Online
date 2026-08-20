@@ -31,6 +31,14 @@ class LobbyActivity : ImmersiveActivity() {
 
         /** How long the finished roll-off stays on screen before the game opens. */
         private const val ROLL_OFF_REVEAL_MS = 5000L
+
+        /**
+         * Camera distance for the roll-off, as a fraction of the game's framing — about 1.4x
+         * larger on screen. Not pushed closer than this because dice are thrown in from about
+         * y=2.3, and a tighter frame clips the top of the arc so the die pops into view
+         * mid-flight instead of being seen to land.
+         */
+        private const val ROLL_OFF_CAMERA_SCALE = 0.70f
     }
 
     private val repository = GameRepository()
@@ -59,8 +67,12 @@ class LobbyActivity : ImmersiveActivity() {
 
         findViewById<TextView>(R.id.roomCodeText).text = roomCode
 
-        // The roll-off is a single die, not a hand of five.
-        findViewById<Dice3DView>(R.id.rollOffDice).setDieCount(1)
+        // The roll-off is a single die, not a hand of five, and it is framed much closer so that
+        // one die reads clearly from across a room.
+        findViewById<Dice3DView>(R.id.rollOffDice).apply {
+            setDieCount(1)
+            setCameraScale(ROLL_OFF_CAMERA_SCALE)
+        }
 
         val startButton = findViewById<Button>(R.id.startGameButton)
         startButton.setOnClickListener {
