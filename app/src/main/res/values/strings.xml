@@ -43,6 +43,15 @@
     <string name="sound_effects">Sound effects</string>
     <string name="play_again">Play again</string>
     <string name="leave_game">Leave</string>
+    <string name="my_dice">My dice</string>
+    <string name="save_dice">Save current</string>
+    <string name="no_saved_dice">Save a design to keep it — tap to use, hold to delete.</string>
+    <string name="name_your_dice">Name these dice</string>
+    <string name="dice_saved">Saved “%1$s”</string>
+    <string name="delete_dice">Delete “%1$s”?</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="back">Back</string>

@@ -5,13 +5,18 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.dice3d.Dice3DView
+import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.update.UpdateChecker
@@ -77,8 +82,97 @@ class SettingsActivity : ImmersiveActivity() {
             // Play something when switching on, so the setting demonstrates itself.
             if (on) sound.play(SoundEngine.Sound.SCORE)
         }
+        findViewById<Button>(R.id.saveDiceButton).setOnClickListener { promptSaveDice() }
+
         renderSwatches()
         renderTableColors()
+        renderSavedDice()
+    }
+
+    /**
+     * Saves the current colour and pip style under a name the player chooses, so a design they
+     * built with the sliders survives making the next one.
+     */
+    private fun promptSaveDice() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.name_your_dice)
+            setSingleLine()
+            filters = arrayOf(android.text.InputFilter.LengthFilter(20))
+            setTextColor(resources.getColor(R.color.text_dark, theme))
+        }
+        val padding = (20 * resources.displayMetrics.density).toInt()
+        val frame = LinearLayout(this).apply {
+            setPadding(padding, padding / 2, padding, 0)
+            addView(input)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.name_your_dice)
+            .setView(frame)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isEmpty()) return@setPositiveButton
+                DicePreferences.saveDie(this, name, selectedColor, darkPips)
+                Toast.makeText(this, getString(R.string.dice_saved, name), Toast.LENGTH_SHORT).show()
+                renderSavedDice()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun renderSavedDice() {
+        val row = findViewById<LinearLayout>(R.id.savedDiceRow)
+        val empty = findViewById<TextView>(R.id.savedDiceEmpty)
+        row.removeAllViews()
+
+        val saved = DicePreferences.savedDice(this)
+        empty.visibility = if (saved.isEmpty()) TextView.VISIBLE else TextView.GONE
+
+        val density = resources.displayMetrics.density
+        val dieSize = (56 * density).toInt()
+
+        saved.forEach { die ->
+            val cell = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(0, 0, (14 * density).toInt(), 0)
+            }
+            // Shown as an actual die face rather than a colour dot: pip style is half of what
+            // was saved, and a swatch cannot show it.
+            cell.addView(ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dieSize, dieSize)
+                setImageBitmap(DieTextureAtlas.face(die.color, 5, die.darkPips))
+            })
+            cell.addView(TextView(this).apply {
+                text = die.name
+                textSize = 12f
+                maxLines = 1
+                gravity = Gravity.CENTER
+                setPadding(0, (4 * density).toInt(), 0, 0)
+                setTextColor(resources.getColor(R.color.text_muted, theme))
+            })
+
+            cell.setOnClickListener {
+                darkPips = die.darkPips
+                DicePreferences.setDarkPips(this, die.darkPips)
+                dicePreview.setDarkPips(die.darkPips)
+                applyColor(die.color, reroll = true)
+                syncSlidersTo(die.color)
+                setUpPipToggle()
+            }
+            cell.setOnLongClickListener {
+                AlertDialog.Builder(this)
+                    .setMessage(getString(R.string.delete_dice, die.name))
+                    .setPositiveButton(R.string.delete) { _, _ ->
+                        DicePreferences.deleteSavedDie(this, die.name)
+                        renderSavedDice()
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+                true
+            }
+            row.addView(cell)
+        }
     }
 
     override fun onResume() {
