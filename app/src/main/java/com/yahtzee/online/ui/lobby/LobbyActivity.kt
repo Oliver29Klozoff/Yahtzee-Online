@@ -114,6 +114,19 @@ class LobbyActivity : ImmersiveActivity() {
                 revealOrder = state.playerOrder
             }
 
+            // A rematch sends the room back to the roll-off while this lobby is still on the
+            // stack behind the finished game. Without clearing these latches the lobby would
+            // refuse to open the next game, having already recorded that one had started.
+            if (state.status == GameState.STATUS_ROLL_OFF || state.status == GameState.STATUS_LOBBY) {
+                if (gameStarted) {
+                    gameStarted = false
+                    revealing = false
+                    revealRolls = emptyMap()
+                    revealOrder = emptyList()
+                    animatedRolls.clear()
+                }
+            }
+
             val isHost = state.hostId == playerId
             val inLobby = state.status == GameState.STATUS_LOBBY
             renderBotFallback(state, isHost, inLobby)

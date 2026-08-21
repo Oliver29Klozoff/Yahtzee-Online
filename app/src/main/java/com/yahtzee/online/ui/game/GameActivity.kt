@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.AppSettings
@@ -59,6 +60,7 @@ class GameActivity : ImmersiveActivity() {
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = 0
     private lateinit var dice3DView: Dice3DView
+    private val sound by lazy { SoundEngine(this) }
     private val timerHandler = Handler(Looper.getMainLooper())
     /** Earliest time the next automatic roll/score may fire, pacing an abandoned turn. */
     private var nextAutoActionAt = 0L
@@ -81,6 +83,8 @@ class GameActivity : ImmersiveActivity() {
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
+        // The dice report their own landing, so the knock lands with the visual, not the throw.
+        dice3DView.setOnSettledListener { sound.play(SoundEngine.Sound.LAND) }
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)
@@ -104,6 +108,12 @@ class GameActivity : ImmersiveActivity() {
             if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
                 gameOverShown = true
                 showGameOver(state)
+            }
+
+            // Someone else called a rematch: the room has already reset, so close this finished
+            // board and drop back to the lobby, which is waiting behind us to run the roll-off.
+            if (gameOverShown && state.status == GameState.STATUS_ROLL_OFF) {
+                finish()
             }
         }
 
@@ -246,6 +256,7 @@ class GameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
+            sound.play(SoundEngine.Sound.ROLL)
             // Dice arrive from wherever the roller is sitting relative to you — your own throws
             // always come from your right, opponents' from their seat around the table.
             dice3DView.rollTo(
@@ -310,16 +321,24 @@ class GameActivity : ImmersiveActivity() {
             return
         }
         pendingCategory = null
+        sound.play(SoundEngine.Sound.SCORE)
         repository.submitScore(roomCode, state, category, playerId, selectedCard)
     }
 
     private fun showGameOver(state: GameState) {
+        sound.play(SoundEngine.Sound.WIN)
         submitToLeaderboard(state)
         val winnerName = state.players[state.winnerId]?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
             .setMessage(getString(R.string.winner_is, winnerName))
-            .setPositiveButton("OK") { _, _ -> finish() }
+            .setPositiveButton(R.string.play_again) { _, _ ->
+                // Resetting the room sends every client back to the roll-off, so this returns to
+                // the lobby to follow it rather than sitting on a finished board.
+                repository.rematch(roomCode, state)
+                finish()
+            }
+            .setNegativeButton(R.string.leave_game) { _, _ -> finish() }
             .setCancelable(false)
             .show()
     }
@@ -340,6 +359,7 @@ class GameActivity : ImmersiveActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        sound.release()
         listener?.let { repository.stopListening(roomCode, it) }
         timerHandler.removeCallbacks(timerTick)
     }

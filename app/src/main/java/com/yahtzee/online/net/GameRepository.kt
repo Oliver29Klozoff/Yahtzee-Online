@@ -290,6 +290,31 @@ class GameRepository {
     }
 
     /**
+     * Replays the same room with the same people: clears every scorecard and returns to the
+     * roll-off, so first turn is decided fresh rather than inherited from the previous game.
+     *
+     * Keeps the room code, the players, their colours and the chosen format, which is the whole
+     * point — a rematch should not mean everyone rejoining.
+     */
+    fun rematch(code: String, state: GameState) {
+        val ref = roomRef(code)
+        state.players.keys.forEach { id ->
+            ref.child("players").child(id).child("scores").setValue(null)
+            ref.child("players").child(id).child("yahtzeeBonusCount").setValue(0)
+        }
+        ref.child("winnerId").setValue("")
+        ref.child("currentTurnIndex").setValue(0)
+        ref.child("rollsUsed").setValue(0)
+        ref.child("held").setValue(List(5) { false })
+        ref.child("turnDeadline").setValue(0L)
+        ref.child("openingRolls").setValue(null)
+        ref.child("openingRollTied").setValue(null)
+        // Status goes last: every client watches this to decide when to move, so flipping it
+        // before the reset had landed would send them into a game still holding old scores.
+        ref.child("status").setValue(GameState.STATUS_ROLL_OFF)
+    }
+
+    /**
      * Deletes a room outright. Used when the host abandons a lobby nobody joined — leaving it
      * behind would litter the database with empty rooms and hold on to its code.
      */

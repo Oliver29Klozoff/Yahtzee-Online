@@ -40,6 +40,9 @@
     <string name="table_colour">Table</string>
     <string name="keep_screen_on">Keep screen on during a game</string>
     <string name="confirm_scoring">Confirm before scoring</string>
+    <string name="sound_effects">Sound effects</string>
+    <string name="play_again">Play again</string>
+    <string name="leave_game">Leave</string>
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="back">Back</string>

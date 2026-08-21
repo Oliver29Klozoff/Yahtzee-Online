@@ -10,6 +10,7 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
+import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
@@ -39,6 +40,7 @@ class SoloGameActivity : ImmersiveActivity() {
 
     private lateinit var engine: LocalGameEngine
     private lateinit var dice3DView: Dice3DView
+    private val sound by lazy { SoundEngine(this) }
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var viewingPlayerId: String? = null
 
@@ -66,6 +68,8 @@ class SoloGameActivity : ImmersiveActivity() {
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
+        // The dice report their own landing, so the knock lands with the visual, not the throw.
+        dice3DView.setOnSettledListener { sound.play(SoundEngine.Sound.LAND) }
         if (AppSettings.keepScreenOn(this)) {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
@@ -75,7 +79,7 @@ class SoloGameActivity : ImmersiveActivity() {
         scorecardList.adapter = scorecardAdapter
         scorecardList.setOnItemClickListener { _, _, position, _ ->
             if (scorecardAdapter.isScorable(position)) {
-                scorecardAdapter.categoryAt(position)?.let { engine.submitScore(it, selectedCard) }
+                scorecardAdapter.categoryAt(position)?.let { sound.play(SoundEngine.Sound.SCORE); engine.submitScore(it, selectedCard) }
             }
         }
 
@@ -181,6 +185,7 @@ class SoloGameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
+            sound.play(SoundEngine.Sound.ROLL)
             // Bots throw from their own seat around the table; yours always come from the right.
             dice3DView.rollTo(
                 state.dice,
@@ -220,7 +225,21 @@ class SoloGameActivity : ImmersiveActivity() {
         }
     }
 
+    /**
+     * Starts a fresh game with the same opponents and format. Relaunching the activity is
+     * simpler than resetting the engine in place: every piece of per-game state here — the
+     * viewed card, whose scorecard is showing, the pending bot turn — would otherwise have to be
+     * unwound by hand, and missing one leaves the next game subtly wrong.
+     */
+    private fun restartSoloGame() {
+        botHandler.removeCallbacksAndMessages(null)
+        startActivity(intent)
+        finish()
+        overridePendingTransition(0, 0)
+    }
+
     private fun showGameOver(state: GameState) {
+        sound.play(SoundEngine.Sound.WIN)
         // Solo results count too — the board ranks people, not game modes.
         state.players[engine.humanPlayerId]?.let { me ->
             LeaderboardRepository().submitScore(
@@ -233,13 +252,15 @@ class SoloGameActivity : ImmersiveActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
             .setMessage(getString(R.string.winner_is, winnerName))
-            .setPositiveButton("OK") { _, _ -> finish() }
+            .setPositiveButton(R.string.play_again) { _, _ -> restartSoloGame() }
+            .setNegativeButton(R.string.leave_game) { _, _ -> finish() }
             .setCancelable(false)
             .show()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        sound.release()
         botHandler.removeCallbacksAndMessages(null)
     }
 }

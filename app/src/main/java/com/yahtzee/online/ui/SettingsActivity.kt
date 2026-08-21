@@ -10,6 +10,7 @@ import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import com.yahtzee.online.R
+import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
@@ -19,6 +20,7 @@ class SettingsActivity : ImmersiveActivity() {
 
     private lateinit var updateChecker: UpdateChecker
     private lateinit var dicePreview: Dice3DView
+    private val sound by lazy { SoundEngine(this) }
     private var selectedColor: Int = DicePreferences.PALETTE.first().second
     private var darkPips: Boolean = true
 
@@ -70,6 +72,11 @@ class SettingsActivity : ImmersiveActivity() {
             R.id.confirmScoringButton,
             AppSettings.confirmScoring(this)
         ) { AppSettings.setConfirmScoring(this, it) }
+        setUpToggle(R.id.soundButton, AppSettings.soundEnabled(this)) { on ->
+            AppSettings.setSoundEnabled(this, on)
+            // Play something when switching on, so the setting demonstrates itself.
+            if (on) sound.play(SoundEngine.Sound.SCORE)
+        }
         renderSwatches()
         renderTableColors()
     }
@@ -87,6 +94,11 @@ class SettingsActivity : ImmersiveActivity() {
         // GLSurfaceView needs its EGL context torn down with the activity; without this the
         // preview keeps a render thread alive after leaving Settings.
         dicePreview.onPause()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sound.release()
     }
 
     /**
