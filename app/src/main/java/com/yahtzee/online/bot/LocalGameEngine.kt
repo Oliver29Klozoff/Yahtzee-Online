@@ -25,6 +25,16 @@ class LocalGameEngine(
     private val cardCount: Int = 1
 ) {
 
+    private companion object {
+        /** Short, easily told apart at a glance on the scorecard tabs. */
+        val BOT_NAMES = listOf(
+            "Ada", "Bruno", "Cleo", "Dexter", "Etta", "Felix",
+            "Greta", "Hugo", "Iris", "Jonas", "Kira", "Lorne",
+            "Mabel", "Nico", "Opal", "Piper", "Quinn", "Rufus",
+            "Sable", "Theo", "Uma", "Vera", "Wilder", "Zaia"
+        )
+    }
+
     val humanPlayerId: String = UUID.randomUUID().toString()
     private val botIds: List<String> = List(botCount) { UUID.randomUUID().toString() }
     private val roller = DiceRoller()
@@ -39,10 +49,13 @@ class LocalGameEngine(
         // Each bot gets a colour distinct from the player's, so the dice on the table always
         // identify whose turn it is.
         val botColors = DicePreferences.PALETTE.map { it.second }.filter { it != humanColor }
+        // Names are drawn without replacement so no two opponents share one, and shuffled per
+        // game so the same three bots are not sitting there every time.
+        val names = BOT_NAMES.shuffled().toMutableList()
         val bots = botIds.mapIndexed { i, id ->
             id to Player(
                 id = id,
-                name = "Bot ${i + 1}",
+                name = names.removeFirstOrNull() ?: "Bot ${i + 1}",
                 joinedAt = System.currentTimeMillis(),
                 diceColor = botColors[i % botColors.size]
             )
