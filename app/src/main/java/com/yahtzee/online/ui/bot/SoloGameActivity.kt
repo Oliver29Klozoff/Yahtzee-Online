@@ -14,6 +14,7 @@ import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.Category
+import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.grandTotalAllCards
@@ -64,6 +65,10 @@ class SoloGameActivity : ImmersiveActivity() {
 
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
+        dice3DView.setTableColor(AppSettings.tableColor(this))
+        if (AppSettings.keepScreenOn(this)) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)

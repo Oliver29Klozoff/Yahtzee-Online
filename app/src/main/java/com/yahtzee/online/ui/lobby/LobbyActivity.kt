@@ -17,6 +17,7 @@ import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
@@ -84,6 +85,7 @@ class LobbyActivity : ImmersiveActivity() {
             setDieCount(1)
             setDarkPips(DicePreferences.useDarkPips(this@LobbyActivity))
             setCameraScale(ROLL_OFF_CAMERA_SCALE)
+            setTableColor(AppSettings.tableColor(this@LobbyActivity))
         }
 
         val startButton = findViewById<Button>(R.id.startGameButton)

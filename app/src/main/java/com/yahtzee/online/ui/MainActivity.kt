@@ -76,14 +76,7 @@ class MainActivity : ImmersiveActivity() {
             }.toTypedArray()
             AlertDialog.Builder(this)
                 .setTitle(R.string.choose_card_count)
-                .setItems(labels) { _, which ->
-                    val cardCount = GameState.CARD_OPTIONS[which]
-                    createButton.isEnabled = false
-                    repository.createRoom(playerName(), DicePreferences.getColor(this), cardCount) { code ->
-                        createButton.isEnabled = true
-                        openLobby(code)
-                    }
-                }
+                .setItems(labels) { _, which -> chooseTurnLength(GameState.CARD_OPTIONS[which]) }
                 .show()
         }
 
@@ -120,6 +113,38 @@ class MainActivity : ImmersiveActivity() {
         super.onPause()
         leaderboardListener?.let { leaderboard.removeListener(it) }
         leaderboardListener = null
+    }
+
+    /**
+     * Turn length is set by the host with the room's format, not in Settings: every player has
+     * to be counting down the same clock, so it cannot be a per-device preference.
+     */
+    private fun chooseTurnLength(cardCount: Int) {
+        val createButton = findViewById<Button>(R.id.createRoomButton)
+        val labels = GameState.TURN_SECOND_OPTIONS.map { seconds ->
+            when (seconds) {
+                0 -> getString(R.string.no_time_limit)
+                90 -> getString(R.string.turn_minutes_seconds, 1, 30)
+                60 -> getString(R.string.turn_minutes, 1)
+                else -> getString(R.string.turn_seconds, seconds)
+            }
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_turn_length)
+            .setItems(labels) { _, which ->
+                createButton.isEnabled = false
+                repository.createRoom(
+                    playerName(),
+                    DicePreferences.getColor(this),
+                    cardCount,
+                    GameState.TURN_SECOND_OPTIONS[which]
+                ) { code ->
+                    createButton.isEnabled = true
+                    openLobby(code)
+                }
+            }
+            .show()
     }
 
     private fun playerName(): String = PlayerProfile.getName(this).ifEmpty { "Player" }

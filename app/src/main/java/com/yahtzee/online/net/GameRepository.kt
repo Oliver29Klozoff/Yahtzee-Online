@@ -25,7 +25,13 @@ class GameRepository {
 
     private fun roomRef(code: String) = db.getReference("games").child(code)
 
-    fun createRoom(hostName: String, diceColor: Int, cardCount: Int = 1, onResult: (String) -> Unit) {
+    fun createRoom(
+        hostName: String,
+        diceColor: Int,
+        cardCount: Int = 1,
+        turnSeconds: Int = 30,
+        onResult: (String) -> Unit
+    ) {
         val code = generateRoomCode()
         val ref = roomRef(code)
         val host = Player(
@@ -40,7 +46,8 @@ class GameRepository {
             status = GameState.STATUS_LOBBY,
             playerOrder = listOf(localPlayerId),
             players = mapOf(localPlayerId to host),
-            cardCount = cardCount
+            cardCount = cardCount,
+            turnSeconds = turnSeconds
         )
         ref.setValue(state.toMap()).addOnSuccessListener { onResult(code) }
     }
@@ -130,21 +137,30 @@ class GameRepository {
         ref.child("dice").setValue(List(5) { 1 })
         ref.child("held").setValue(List(5) { false })
         ref.child("rollsUsed").setValue(0)
-        ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
+        ref.child("turnDeadline").setValue(deadlineFor(state))
         ref.child("openingRolls").setValue(null)
         ref.child("openingRollTied").setValue(null)
     }
 
     /**
+     * A fresh deadline for this room, or 0 when the host turned the clock off — the timer UI
+     * treats 0 as "no limit" and hides itself, and auto-play never fires.
+     */
+    private fun deadlineFor(state: GameState): Long =
+        if (state.turnMillis <= 0L) 0L else System.currentTimeMillis() + state.turnMillis
+
+    /**
+     * @param turnMillis this room's turn length, used to restart the clock.
      * @param resetTimer restarts the turn clock, so each roll a player makes buys them a fresh
-     * 30 seconds to decide on the next one. Automatic rolls pass false: an abandoned turn that
-     * kept extending its own deadline would take minutes to resolve instead of finishing.
+     * turn's worth of thinking time. Automatic rolls pass false: an abandoned turn that kept
+     * extending its own deadline would take minutes to resolve instead of finishing.
      */
     fun rollDice(
         code: String,
         currentDice: List<Int>,
         held: List<Boolean>,
         rollsUsed: Int,
+        turnMillis: Long = 0L,
         resetTimer: Boolean = true
     ) {
         if (rollsUsed >= 3) return
@@ -153,8 +169,8 @@ class GameRepository {
         val ref = roomRef(code)
         ref.child("dice").setValue(newDice)
         ref.child("rollsUsed").setValue(rollsUsed + 1)
-        if (resetTimer) {
-            ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
+        if (resetTimer && turnMillis > 0L) {
+            ref.child("turnDeadline").setValue(System.currentTimeMillis() + turnMillis)
         }
     }
 
@@ -200,7 +216,7 @@ class GameRepository {
         // put until someone actually rolls again.
         ref.child("held").setValue(List(5) { false })
         ref.child("rollsUsed").setValue(0)
-        ref.child("turnDeadline").setValue(System.currentTimeMillis() + GameState.TURN_TIME_MILLIS)
+        ref.child("turnDeadline").setValue(deadlineFor(state))
 
         val allDone = state.players.values.all {
             val scores = if (it.id == playerId) it.scores + (key to points) else it.scores
@@ -246,7 +262,7 @@ class GameRepository {
         // abandoned turn still plays a sensible hand instead of scoring the first thing rolled.
         if (state.rollsUsed < MAX_ROLLS_PER_TURN) {
             if (state.rollsUsed == 0) {
-                rollDice(code, state.dice, List(5) { false }, 0, resetTimer = false)
+                rollDice(code, state.dice, List(5) { false }, 0, state.turnMillis, resetTimer = false)
                 return
             }
             val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
@@ -254,7 +270,7 @@ class GameRepository {
             if (holds.size < 5) {
                 val heldFlags = List(5) { it in holds }
                 roomRef(code).child("held").setValue(heldFlags)
-                rollDice(code, state.dice, heldFlags, state.rollsUsed, resetTimer = false)
+                rollDice(code, state.dice, heldFlags, state.rollsUsed, state.turnMillis, resetTimer = false)
                 return
             }
             // Holding all five means the strategy is content; fall through and score.
@@ -301,7 +317,8 @@ private fun GameState.toMap(): Map<String, Any?> = mapOf(
     "turnDeadline" to turnDeadline,
     "openingRolls" to openingRolls,
     "openingRollTied" to openingRollTied,
-    "cardCount" to cardCount
+    "cardCount" to cardCount,
+    "turnSeconds" to turnSeconds
 )
 
 private fun Player.toMap(): Map<String, Any?> = mapOf(
@@ -349,10 +366,11 @@ private fun DataSnapshot.toGameState(): GameState? {
     }.toMap()
     val openingRollTied = child("openingRollTied").children.mapNotNull { it.getValue(String::class.java) }
     val cardCount = child("cardCount").getValue(Int::class.java) ?: 1
+    val turnSeconds = child("turnSeconds").getValue(Int::class.java) ?: 30
 
     return GameState(
         roomCode, hostId, status, playerOrder, players,
         currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline,
-        openingRolls, openingRollTied, cardCount
+        openingRolls, openingRollTied, cardCount, turnSeconds
     )
 }

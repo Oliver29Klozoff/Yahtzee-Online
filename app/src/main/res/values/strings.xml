@@ -31,6 +31,17 @@
     <string name="pip_style">Pips</string>
     <string name="pips_dark">Dark</string>
     <string name="pips_light">White</string>
+    <string name="choose_turn_length">How long is each turn?</string>
+    <string name="turn_seconds">%1$d seconds</string>
+    <string name="turn_minutes">%1$d minute</string>
+    <string name="turn_minutes_seconds">%1$dm %2$ds</string>
+    <string name="no_time_limit">No time limit</string>
+    <string name="confirm_score">Tap %1$s again to score it</string>
+    <string name="table_colour">Table</string>
+    <string name="keep_screen_on">Keep screen on during a game</string>
+    <string name="confirm_scoring">Confirm before scoring</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
     <string name="back">Back</string>
     <string name="name_prompt">What should we call you?</string>
     <string name="continue_label">Continue</string>

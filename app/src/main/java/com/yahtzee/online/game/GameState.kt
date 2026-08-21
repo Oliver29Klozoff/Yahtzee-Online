@@ -33,7 +33,13 @@ data class GameState(
      * More than one is Triple-Yahtzee style: a single shared roll per turn, and the player picks
      * which card it goes on, so the game runs cardCount x 13 turns.
      */
-    val cardCount: Int = 1
+    val cardCount: Int = 1,
+    /**
+     * Seconds a player gets per roll before their turn is played for them, chosen by the host.
+     * Unlike the display preferences this cannot be per-device — every player has to be counting
+     * down the same clock. 0 means no limit.
+     */
+    val turnSeconds: Int = 30
 ) {
     companion object {
         const val STATUS_LOBBY = "LOBBY"
@@ -44,12 +50,19 @@ data class GameState(
 
         /** Card counts the host can choose from. */
         val CARD_OPTIONS = listOf(1, 3, 5, 6)
+
+        /** Turn lengths the host can choose from, in seconds; 0 is no limit. */
+        val TURN_SECOND_OPTIONS = listOf(30, 60, 90, 0)
     }
 
     val currentPlayerId: String?
         get() = playerOrder.getOrNull(currentTurnIndex)
 
     fun isMyTurn(playerId: String): Boolean = currentPlayerId == playerId
+
+    /** This room's turn limit in milliseconds, or 0 when the host turned the clock off. */
+    val turnMillis: Long
+        get() = turnSeconds.coerceAtLeast(0) * 1000L
 
     /** Total score slots each player must fill before the game ends. */
     val totalSlots: Int

@@ -10,11 +10,13 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -48,6 +50,9 @@ class GameActivity : ImmersiveActivity() {
     /** Which scorecard the player is looking at and will score into. Always 0 unless the room
      *  was created with more than one card. */
     private var selectedCard: Int = 0
+
+    /** Category awaiting a confirming second tap, when that setting is on. */
+    private var pendingCategory: Category? = null
     private var lastTurnPlayerId: String? = null
     private var lastState: GameState? = null
     private var gameOverShown = false
@@ -71,8 +76,11 @@ class GameActivity : ImmersiveActivity() {
         roomCode = intent.getStringExtra(EXTRA_ROOM_CODE) ?: ""
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: ""
 
+        applyDisplaySettings()
+
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
+        dice3DView.setTableColor(AppSettings.tableColor(this))
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)
@@ -86,7 +94,7 @@ class GameActivity : ImmersiveActivity() {
         findViewById<Button>(R.id.rollButton).setOnClickListener {
             val state = lastState ?: return@setOnClickListener
             if (!state.isMyTurn(playerId) || state.rollsUsed >= MAX_ROLLS_PER_TURN) return@setOnClickListener
-            repository.rollDice(roomCode, state.dice, state.held, state.rollsUsed)
+            repository.rollDice(roomCode, state.dice, state.held, state.rollsUsed, state.turnMillis)
         }
 
         listener = repository.listenToRoom(roomCode) { state ->
@@ -137,7 +145,7 @@ class GameActivity : ImmersiveActivity() {
         // The bar drains smoothly rather than stepping once a second: the tick runs every
         // 250ms and the range is in milliseconds, so the movement stays continuous.
         timerBar.visibility = View.VISIBLE
-        timerBar.max = GameState.TURN_TIME_MILLIS.toInt()
+        timerBar.max = state.turnMillis.toInt().coerceAtLeast(1)
         timerBar.progress = remainingMillis.toInt()
         timerBar.progressTintList = android.content.res.ColorStateList.valueOf(color)
         timerBar.progressBackgroundTintList =
@@ -281,9 +289,27 @@ class GameActivity : ImmersiveActivity() {
         }
     }
 
+    /**
+     * Keeps the display awake through other players' turns, since a game can sit idle for a
+     * while without anyone touching this device.
+     */
+    private fun applyDisplaySettings() {
+        if (AppSettings.keepScreenOn(this)) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     private fun onScoreCategory(category: Category) {
         val state = lastState ?: return
         if (!state.isMyTurn(playerId) || state.rollsUsed == 0) return
+
+        // Optional double-tap guard: scoring cannot be undone, and a mis-tap can decide a game.
+        if (AppSettings.confirmScoring(this) && pendingCategory != category) {
+            pendingCategory = category
+            Toast.makeText(this, getString(R.string.confirm_score, category.label), Toast.LENGTH_SHORT).show()
+            return
+        }
+        pendingCategory = null
         repository.submitScore(roomCode, state, category, playerId, selectedCard)
     }
 

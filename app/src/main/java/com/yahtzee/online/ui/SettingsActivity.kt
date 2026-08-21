@@ -11,6 +11,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
+import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.update.UpdateChecker
 
@@ -57,9 +58,20 @@ class SettingsActivity : ImmersiveActivity() {
         dicePreview.setDiceColor(selectedColor)
         dicePreview.setDarkPips(darkPips)
 
+        dicePreview.setTableColor(AppSettings.tableColor(this))
+
         setUpSliders()
         setUpPipToggle()
+        setUpToggle(
+            R.id.keepScreenOnButton,
+            AppSettings.keepScreenOn(this)
+        ) { AppSettings.setKeepScreenOn(this, it) }
+        setUpToggle(
+            R.id.confirmScoringButton,
+            AppSettings.confirmScoring(this)
+        ) { AppSettings.setConfirmScoring(this, it) }
         renderSwatches()
+        renderTableColors()
     }
 
     override fun onResume() {
@@ -143,6 +155,53 @@ class SettingsActivity : ImmersiveActivity() {
         dicePreview.setDiceColor(color)
         if (reroll) dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
         renderSwatches()
+    }
+
+    /** Simple on/off button, since a Switch would need a Material theme this app does not use. */
+    private fun setUpToggle(buttonId: Int, initial: Boolean, onChange: (Boolean) -> Unit) {
+        val button = findViewById<Button>(buttonId)
+        var value = initial
+        fun refresh() {
+            button.text = getString(if (value) R.string.on else R.string.off)
+        }
+        refresh()
+        button.setOnClickListener {
+            value = !value
+            onChange(value)
+            refresh()
+        }
+    }
+
+    private fun renderTableColors() {
+        val row = findViewById<LinearLayout>(R.id.tableColorRow)
+        row.removeAllViews()
+        val density = resources.displayMetrics.density
+        val size = (44 * density).toInt()
+        val current = AppSettings.tableColor(this)
+
+        AppSettings.TABLE_COLORS.forEach { (name, color) ->
+            val swatch = TextView(this).apply {
+                contentDescription = name
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(color)
+                    // The darkest felts are nearly invisible against the page, so every swatch
+                    // carries an outline and the selected one is picked out in white.
+                    setStroke(
+                        (if (color == current) 3 * density else 1 * density).toInt(),
+                        if (color == current) Color.WHITE else Color.parseColor("#39404A")
+                    )
+                }
+                setOnClickListener {
+                    AppSettings.setTableColor(this@SettingsActivity, color)
+                    dicePreview.setTableColor(color)
+                    renderTableColors()
+                }
+            }
+            swatch.layoutParams = LinearLayout.LayoutParams(size, size)
+                .also { it.marginEnd = (12 * density).toInt() }
+            row.addView(swatch)
+        }
     }
 
     private fun renderSwatches() {

@@ -68,6 +68,10 @@ class DiceRenderer(
     @Volatile
     var cameraScale: Float = 1f
 
+    /** Table felt colour, a local look preference. */
+    @Volatile
+    var tableColor: Int = 0xFF000000.toInt()
+
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
@@ -169,7 +173,13 @@ class DiceRenderer(
         Matrix.setIdentityM(modelMatrix, 0)
         Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0)
         GLES20.glUniformMatrix4fv(tableShader.uMVPMatrix, 1, false, mvpMatrix, 0)
-        GLES20.glUniform4f(tableShader.uColor, 0f, 0f, 0f, 1f)
+        GLES20.glUniform4f(
+            tableShader.uColor,
+            Color.red(tableColor) / 255f,
+            Color.green(tableColor) / 255f,
+            Color.blue(tableColor) / 255f,
+            1f
+        )
 
         tableMesh.vertexBuffer.position(0)
         GLES20.glEnableVertexAttribArray(tableShader.aPosition)

@@ -67,15 +67,20 @@ class Dice3DView @JvmOverloads constructor(
         renderer.diceColor = color
     }
 
-    /**
-     * Framing for this view, as a multiple of the default camera distance. Below 1 moves the
-     * camera closer so the dice appear larger; a game leaves this at 1.
-     */
     /** Dark or pale pips; the atlas is regenerated on the GL thread next frame. */
     fun setDarkPips(dark: Boolean) {
         renderer.darkPips = dark
     }
 
+    /** Table felt colour behind the dice. */
+    fun setTableColor(color: Int) {
+        renderer.tableColor = color
+    }
+
+    /**
+     * Framing for this view, as a multiple of the default camera distance. Below 1 moves the
+     * camera closer so the dice appear larger; a game leaves this at 1.
+     */
     fun setCameraScale(scale: Float) {
         renderer.cameraScale = scale.coerceIn(0.4f, 2f)
     }
