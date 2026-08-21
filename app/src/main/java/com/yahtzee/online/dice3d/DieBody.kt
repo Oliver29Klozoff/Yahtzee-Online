@@ -44,7 +44,13 @@ class DieBody(
      * angular-velocity/damping integrator), tumbling several whole turns around a random
      * axis and decelerating into the precomputed target orientation.
      */
-    fun throwToward(targetValue: Int, direction: Vec3, speed: Float, random: Random = Random.Default) {
+    fun throwToward(
+        targetValue: Int,
+        direction: Vec3,
+        speed: Float,
+        random: Random = Random.Default,
+        durationScale: Float = 1f
+    ) {
         val travelDir = direction.normalized()
         velocity = travelDir * speed
         angularVelocity = Vec3.ZERO
@@ -76,7 +82,7 @@ class DieBody(
         atRest = false
         restTimer = 0f
         rigElapsed = 0f
-        rigDuration = 1.1f + random.nextFloat() * 0.3f
+        rigDuration = (1.1f + random.nextFloat() * 0.3f) * durationScale.coerceAtLeast(0.05f)
         rigActive = true
     }
 

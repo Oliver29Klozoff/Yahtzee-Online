@@ -29,7 +29,13 @@ class SoundEngine(private val context: Context) {
 
     private val tracks = mutableMapOf<Sound, AudioTrack>()
 
+    /**
+     * Plays [sound] and, where it makes sense, the matching buzz. Haptics live here rather than
+     * at the call sites because they fire at exactly the same moments; splitting them would mean
+     * every caller remembering to do both.
+     */
     fun play(sound: Sound) {
+        vibrateFor(sound)
         if (!AppSettings.soundEnabled(context)) return
         val track = tracks.getOrPut(sound) { buildTrack(pcmFor(sound)) }
         try {
@@ -41,6 +47,37 @@ class SoundEngine(private val context: Context) {
         } catch (_: IllegalStateException) {
             // A track can be left in a bad state if the device took the audio path away; losing
             // a sound effect is not worth interrupting a game over.
+        }
+    }
+
+    /**
+     * A short buzz for the events worth feeling. The rattle is deliberately left silent in the
+     * hand: it runs most of a second, and a vibration that long is irritating rather than
+     * informative.
+     */
+    private fun vibrateFor(sound: Sound) {
+        if (!AppSettings.hapticsEnabled(context)) return
+        val millis = when (sound) {
+            Sound.LAND -> 22L
+            Sound.SCORE -> 14L
+            Sound.WIN -> 60L
+            Sound.ROLL -> return
+        }
+        val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE)
+                as? android.os.VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+        } ?: return
+        if (!vibrator.hasVibrator()) return
+        runCatching {
+            vibrator.vibrate(
+                android.os.VibrationEffect.createOneShot(
+                    millis,
+                    android.os.VibrationEffect.DEFAULT_AMPLITUDE
+                )
+            )
         }
     }
 

@@ -83,6 +83,7 @@ class GameActivity : ImmersiveActivity() {
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
+        dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)
         // The dice report their own landing, so the knock lands with the visual, not the throw.
         dice3DView.setOnSettledListener { sound.play(SoundEngine.Sound.LAND) }
 
@@ -253,6 +254,14 @@ class GameActivity : ImmersiveActivity() {
         }
     }
 
+    /**
+     * Mirrors a seat across the vertical axis for a left-handed player, so their own throws
+     * come from the left. Every seat mirrors together, or opponents would end up sharing a side
+     * of the table with the player.
+     */
+    private fun mirrorForHand(angle: Float): Float =
+        if (AppSettings.leftHanded(this)) (Math.PI.toFloat() - angle) else angle
+
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
@@ -262,7 +271,7 @@ class GameActivity : ImmersiveActivity() {
             dice3DView.rollTo(
                 state.dice,
                 state.held,
-                state.seatAngle(playerId, state.currentPlayerId)
+                mirrorForHand(state.seatAngle(playerId, state.currentPlayerId))
             )
         }
         lastDice = state.dice

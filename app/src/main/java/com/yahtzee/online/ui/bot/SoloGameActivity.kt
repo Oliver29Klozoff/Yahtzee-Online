@@ -59,7 +59,13 @@ class SoloGameActivity : ImmersiveActivity() {
         val name = intent.getStringExtra(EXTRA_PLAYER_NAME) ?: "You"
         val botCount = intent.getIntExtra(EXTRA_BOT_COUNT, 1).coerceIn(1, 4)
         val cardCount = intent.getIntExtra(EXTRA_CARD_COUNT, 1).coerceIn(1, 6)
-        engine = LocalGameEngine(name, botCount, DicePreferences.getColor(this), cardCount)
+        engine = LocalGameEngine(
+            name,
+            botCount,
+            DicePreferences.getColor(this),
+            cardCount,
+            AppSettings.botSkill(this)
+        )
 
         // Solo games have no turn timer / no timer UI needed.
         findViewById<View>(R.id.turnTimerText).visibility = View.GONE
@@ -68,6 +74,7 @@ class SoloGameActivity : ImmersiveActivity() {
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
+        dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)
         // The dice report their own landing, so the knock lands with the visual, not the throw.
         dice3DView.setOnSettledListener { sound.play(SoundEngine.Sound.LAND) }
         if (AppSettings.keepScreenOn(this)) {
@@ -182,6 +189,14 @@ class SoloGameActivity : ImmersiveActivity() {
         }
     }
 
+    /**
+     * Mirrors a seat across the vertical axis for a left-handed player, so their own throws
+     * come from the left. Every seat mirrors together, or opponents would end up sharing a side
+     * of the table with the player.
+     */
+    private fun mirrorForHand(angle: Float): Float =
+        if (AppSettings.leftHanded(this)) (Math.PI.toFloat() - angle) else angle
+
     private fun renderDice(state: GameState) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
@@ -190,7 +205,7 @@ class SoloGameActivity : ImmersiveActivity() {
             dice3DView.rollTo(
                 state.dice,
                 state.held,
-                state.seatAngle(engine.humanPlayerId, state.currentPlayerId)
+                mirrorForHand(state.seatAngle(engine.humanPlayerId, state.currentPlayerId))
             )
         }
         lastRollsUsed = state.rollsUsed

@@ -86,6 +86,7 @@ class LobbyActivity : ImmersiveActivity() {
             setDarkPips(DicePreferences.useDarkPips(this@LobbyActivity))
             setCameraScale(ROLL_OFF_CAMERA_SCALE)
             setTableColor(AppSettings.tableColor(this@LobbyActivity))
+            setMotionScale(AppSettings.diceMotion(this@LobbyActivity).durationScale)
         }
 
         val startButton = findViewById<Button>(R.id.startGameButton)
@@ -293,7 +294,12 @@ class LobbyActivity : ImmersiveActivity() {
 
         val dice = findViewById<Dice3DView>(R.id.rollOffDice)
         dice.setDiceColor(color)
-        dice.rollTo(listOf(value), listOf(false), state.seatAngle(playerId, newest))
+        val angle = state.seatAngle(playerId, newest)
+        dice.rollTo(
+            listOf(value),
+            listOf(false),
+            if (AppSettings.leftHanded(this)) (Math.PI.toFloat() - angle) else angle
+        )
     }
 
     /**

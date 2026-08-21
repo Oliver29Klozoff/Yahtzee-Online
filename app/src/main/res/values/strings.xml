@@ -41,6 +41,10 @@
     <string name="keep_screen_on">Keep screen on during a game</string>
     <string name="confirm_scoring">Confirm before scoring</string>
     <string name="sound_effects">Sound effects</string>
+    <string name="haptics">Vibration</string>
+    <string name="left_handed">Left-handed throw</string>
+    <string name="dice_motion">Dice animation</string>
+    <string name="bot_skill">Bot skill</string>
     <string name="play_again">Play again</string>
     <string name="leave_game">Leave</string>
     <string name="my_dice">My dice</string>

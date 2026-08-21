@@ -20,6 +20,7 @@ class Dice3DView @JvmOverloads constructor(
     private var onSettledCallback: ((List<Int>) -> Unit)? = null
     private var pendingTargets: List<Int> = List(5) { 1 }
     private var heldFlags: List<Boolean> = List(5) { false }
+    private var motionScale: Float = 1f
 
     init {
         setEGLContextClientVersion(2)
@@ -78,6 +79,15 @@ class Dice3DView @JvmOverloads constructor(
     }
 
     /**
+     * How much of the throw animation to play, as a fraction of full. Zero snaps to the result.
+     * Speed is divided by it so a quicker roll still crosses the table in the shorter time,
+     * rather than the dice being cut off mid-flight.
+     */
+    fun setMotionScale(scale: Float) {
+        motionScale = scale.coerceIn(0f, 1f)
+    }
+
+    /**
      * Framing for this view, as a multiple of the default camera distance. Below 1 moves the
      * camera closer so the dice appear larger; a game leaves this at 1.
      */
@@ -105,6 +115,17 @@ class Dice3DView @JvmOverloads constructor(
         pendingTargets = targetValues
         heldFlags = held
         val random = Random.Default
+
+        // Motion off: place the result straight away. Still reports settled, so anything waiting
+        // on the roll — the landing sound, the next bot step — carries on as normal.
+        if (motionScale <= 0f) {
+            world.dice.forEachIndexed { i, die ->
+                die.snapToUpright(targetValues[i])
+                die.atRest = true
+            }
+            notifySettled()
+            return
+        }
 
         // Unit vector pointing at the thrower's seat, and the direction across it, used to fan
         // the dice out along the near edge so they trail in rather than arriving as a rank.
@@ -138,8 +159,9 @@ class Dice3DView @JvmOverloads constructor(
                     -0.3f,
                     -seatZ + acrossZ * scatter
                 ),
-                speed = 5.0f + random.nextFloat() * 1.7f,
-                random = random
+                speed = (5.0f + random.nextFloat() * 1.7f) / motionScale,
+                random = random,
+                durationScale = motionScale
             )
         }
     }

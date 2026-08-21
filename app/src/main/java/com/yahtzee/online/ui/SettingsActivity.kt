@@ -82,6 +82,30 @@ class SettingsActivity : ImmersiveActivity() {
             // Play something when switching on, so the setting demonstrates itself.
             if (on) sound.play(SoundEngine.Sound.SCORE)
         }
+        setUpToggle(R.id.hapticsButton, AppSettings.hapticsEnabled(this)) { on ->
+            AppSettings.setHapticsEnabled(this, on)
+            if (on) sound.play(SoundEngine.Sound.LAND)
+        }
+        setUpToggle(R.id.leftHandedButton, AppSettings.leftHanded(this)) {
+            AppSettings.setLeftHanded(this, it)
+        }
+        setUpCycler(
+            R.id.diceMotionButton,
+            AppSettings.DiceMotion.values().toList(),
+            AppSettings.diceMotion(this),
+            { it.label }
+        ) { motion ->
+            AppSettings.setDiceMotion(this, motion)
+            dicePreview.setMotionScale(motion.durationScale)
+            dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
+        }
+        setUpCycler(
+            R.id.botSkillButton,
+            AppSettings.BotSkill.values().toList(),
+            AppSettings.botSkill(this),
+            { it.label }
+        ) { AppSettings.setBotSkill(this, it) }
+
         findViewById<Button>(R.id.saveDiceButton).setOnClickListener { promptSaveDice() }
 
         renderSwatches()
@@ -274,6 +298,31 @@ class SettingsActivity : ImmersiveActivity() {
         button.setOnClickListener {
             value = !value
             onChange(value)
+            refresh()
+        }
+    }
+
+    /**
+     * A button that steps through a fixed set of options, for settings with more than two
+     * states. Cheaper on space than a spinner, and these lists are short enough that cycling
+     * never feels like hunting.
+     */
+    private fun <T> setUpCycler(
+        buttonId: Int,
+        options: List<T>,
+        initial: T,
+        label: (T) -> String,
+        onChange: (T) -> Unit
+    ) {
+        val button = findViewById<Button>(buttonId)
+        var index = options.indexOf(initial).coerceAtLeast(0)
+        fun refresh() {
+            button.text = label(options[index])
+        }
+        refresh()
+        button.setOnClickListener {
+            index = (index + 1) % options.size
+            onChange(options[index])
             refresh()
         }
     }

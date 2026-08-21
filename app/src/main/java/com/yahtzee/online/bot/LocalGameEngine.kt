@@ -1,5 +1,6 @@
 package com.yahtzee.online.bot
 
+import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DiceRoller
 import com.yahtzee.online.game.DicePreferences
@@ -22,7 +23,8 @@ class LocalGameEngine(
     humanName: String,
     botCount: Int,
     humanColor: Int = 0,
-    private val cardCount: Int = 1
+    private val cardCount: Int = 1,
+    private val botSkill: AppSettings.BotSkill = AppSettings.BotSkill.HARD
 ) {
 
     private companion object {
@@ -163,7 +165,7 @@ class LocalGameEngine(
         if (state.rollsUsed == 0) return false
         if (state.rollsUsed >= MAX_ROLLS_PER_TURN) return true
         val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
-        return BotStrategy.chooseHolds(state.dice, open, rollsLeft).size == 5
+        return BotSkillPlay.chooseHolds(botSkill, state.dice, open, rollsLeft).size == 5
     }
 
     /**
@@ -182,7 +184,7 @@ class LocalGameEngine(
             // Hold whatever serves any card still open, since the bot has yet to commit to one.
             val open = openByCard(playerId).values.flatten().toSet()
             val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
-            val holdIndices = BotStrategy.chooseHolds(state.dice, open, rollsLeft)
+            val holdIndices = BotSkillPlay.chooseHolds(botSkill, state.dice, open, rollsLeft)
             state = state.copy(held = List(5) { it in holdIndices })
         }
         rollDiceForBot()
@@ -201,7 +203,7 @@ class LocalGameEngine(
         val best = openByCard(playerId).entries
             .map { (card, open) ->
                 val upperTotal = Category.UPPER.sumOf { player.scoresForCard(card)[it] ?: 0 }
-                val category = BotStrategy.chooseCategory(state.dice, open, upperTotal)
+                val category = BotSkillPlay.chooseCategory(botSkill, state.dice, open, upperTotal)
                 Triple(card, category, Scoring.score(category, state.dice))
             }
             .maxByOrNull { it.third }
