@@ -7,6 +7,7 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
@@ -18,6 +19,10 @@ class SettingsActivity : ImmersiveActivity() {
     private lateinit var updateChecker: UpdateChecker
     private lateinit var dicePreview: Dice3DView
     private var selectedColor: Int = DicePreferences.PALETTE.first().second
+    private var darkPips: Boolean = true
+
+    /** Guards the sliders while they are being set from a preset, so they do not feed back. */
+    private var syncingSliders = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,8 +51,14 @@ class SettingsActivity : ImmersiveActivity() {
         }
 
         selectedColor = DicePreferences.getColor(this)
+        darkPips = DicePreferences.useDarkPips(this)
+
         dicePreview = findViewById(R.id.dicePreview)
         dicePreview.setDiceColor(selectedColor)
+        dicePreview.setDarkPips(darkPips)
+
+        setUpSliders()
+        setUpPipToggle()
         renderSwatches()
     }
 
@@ -64,6 +75,74 @@ class SettingsActivity : ImmersiveActivity() {
         // GLSurfaceView needs its EGL context torn down with the activity; without this the
         // preview keeps a render thread alive after leaving Settings.
         dicePreview.onPause()
+    }
+
+    /**
+     * Hue, saturation and brightness sliders, so a player is not limited to the presets. Edits
+     * apply live to the preview; the dice are only re-thrown on release, since regenerating the
+     * texture on every pixel of drag would be wasteful and the tumbling would never settle.
+     */
+    private fun setUpSliders() {
+        val hue = findViewById<SeekBar>(R.id.hueSlider)
+        val saturation = findViewById<SeekBar>(R.id.saturationSlider)
+        val brightness = findViewById<SeekBar>(R.id.brightnessSlider)
+
+        val listener = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser || syncingSliders) return
+                val color = Color.HSVToColor(
+                    floatArrayOf(
+                        hue.progress.toFloat(),
+                        saturation.progress / 100f,
+                        brightness.progress / 100f
+                    )
+                )
+                applyColor(color, reroll = false)
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar?) {
+                dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
+            }
+        }
+
+        hue.setOnSeekBarChangeListener(listener)
+        saturation.setOnSeekBarChangeListener(listener)
+        brightness.setOnSeekBarChangeListener(listener)
+        syncSlidersTo(selectedColor)
+    }
+
+    private fun syncSlidersTo(color: Int) {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(color, hsv)
+        syncingSliders = true
+        findViewById<SeekBar>(R.id.hueSlider).progress = hsv[0].toInt()
+        findViewById<SeekBar>(R.id.saturationSlider).progress = (hsv[1] * 100).toInt()
+        findViewById<SeekBar>(R.id.brightnessSlider).progress = (hsv[2] * 100).toInt()
+        syncingSliders = false
+    }
+
+    private fun setUpPipToggle() {
+        val button = findViewById<Button>(R.id.pipStyleButton)
+        fun refresh() {
+            button.text = getString(if (darkPips) R.string.pips_dark else R.string.pips_light)
+        }
+        refresh()
+        button.setOnClickListener {
+            darkPips = !darkPips
+            DicePreferences.setDarkPips(this, darkPips)
+            dicePreview.setDarkPips(darkPips)
+            dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
+            refresh()
+        }
+    }
+
+    private fun applyColor(color: Int, reroll: Boolean) {
+        selectedColor = color
+        DicePreferences.setColor(this, color)
+        dicePreview.setDiceColor(color)
+        if (reroll) dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
+        renderSwatches()
     }
 
     private fun renderSwatches() {
@@ -84,11 +163,8 @@ class SettingsActivity : ImmersiveActivity() {
                     }
                 }
                 setOnClickListener {
-                    selectedColor = color
-                    DicePreferences.setColor(this@SettingsActivity, color)
-                    dicePreview.setDiceColor(color)
-                    dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
-                    renderSwatches()
+                    applyColor(color, reroll = true)
+                    syncSlidersTo(color)
                 }
             }
             swatch.layoutParams = LinearLayout.LayoutParams(size, size)

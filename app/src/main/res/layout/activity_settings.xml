@@ -64,6 +64,56 @@
 
     </HorizontalScrollView>
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/custom_colour"
+        android:textSize="13sp"
+        android:textColor="@color/text_muted"
+        android:layout_marginTop="18dp" />
+
+    <SeekBar
+        android:id="@+id/hueSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="359" />
+
+    <SeekBar
+        android:id="@+id/saturationSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100" />
+
+    <SeekBar
+        android:id="@+id/brightnessSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/pip_style"
+            android:textSize="15sp"
+            android:textColor="@color/text_dark" />
+
+        <Button
+            android:id="@+id/pipStyleButton"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="110dp" />
+
+    </LinearLayout>
+
     <!-- Pushes the update controls and version down to the bottom of the screen. -->
     <Space
         android:layout_width="match_parent"

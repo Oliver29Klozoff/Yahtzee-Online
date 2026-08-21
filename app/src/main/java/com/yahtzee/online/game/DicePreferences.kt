@@ -12,6 +12,7 @@ object DicePreferences {
 
     private const val PREFS = "dice_prefs"
     private const val KEY_COLOR = "dice_color"
+    private const val KEY_DARK_PIPS = "dark_pips"
 
     /** Selectable colours, paired with the label shown in Settings. */
     val PALETTE: List<Pair<String, Int>> = listOf(
@@ -26,13 +27,26 @@ object DicePreferences {
     )
 
     fun getColor(context: Context): Int =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getInt(KEY_COLOR, DieTextureAtlas.DEFAULT_COLOR)
+        prefs(context).getInt(KEY_COLOR, DieTextureAtlas.DEFAULT_COLOR)
 
     fun setColor(context: Context, color: Int) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putInt(KEY_COLOR, color)
-            .apply()
+        prefs(context).edit().putInt(KEY_COLOR, color).apply()
     }
+
+    /**
+     * Whether pips are dark rather than white.
+     *
+     * Kept local rather than synced with the dice colour: unlike the colour, which identifies
+     * whose turn it is and so has to look the same to everyone, this is purely about what the
+     * owner finds readable — pale dice want dark pips and vice versa.
+     */
+    fun useDarkPips(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_DARK_PIPS, true)
+
+    fun setDarkPips(context: Context, dark: Boolean) {
+        prefs(context).edit().putBoolean(KEY_DARK_PIPS, dark).apply()
+    }
+
+    private fun prefs(context: Context) =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

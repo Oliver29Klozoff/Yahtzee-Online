@@ -72,6 +72,7 @@ class GameActivity : ImmersiveActivity() {
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: ""
 
         dice3DView = findViewById(R.id.dice3DView)
+        dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)

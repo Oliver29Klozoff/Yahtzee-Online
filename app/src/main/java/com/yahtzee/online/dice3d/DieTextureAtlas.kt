@@ -46,7 +46,11 @@ object DieTextureAtlas {
         6 to listOf(0.28f to 0.22f, 0.72f to 0.22f, 0.28f to 0.5f, 0.72f to 0.5f, 0.28f to 0.78f, 0.72f to 0.78f)
     )
 
-    fun build(baseColor: Int = DEFAULT_COLOR, cellSize: Int = CubeMesh.CELL_PX): Bitmap {
+    fun build(
+        baseColor: Int = DEFAULT_COLOR,
+        darkPips: Boolean = true,
+        cellSize: Int = CubeMesh.CELL_PX
+    ): Bitmap {
         val bitmap = Bitmap.createBitmap(
             cellSize * CubeMesh.ATLAS_COLS,
             cellSize * CubeMesh.ATLAS_ROWS,
@@ -59,7 +63,7 @@ object DieTextureAtlas {
             val cell = value - 1
             val left = (cell % CubeMesh.ATLAS_COLS) * cellSize
             val top = (cell / CubeMesh.ATLAS_COLS) * cellSize
-            drawFace(canvas, left, top, cellSize, value, palette)
+            drawFace(canvas, left, top, cellSize, value, palette, darkPips)
         }
         return bitmap
     }
@@ -69,9 +73,9 @@ object DieTextureAtlas {
      * for instance. Uses the same drawing as the atlas, so a die shown in a list matches the
      * ones on the table, in whatever colour that player chose.
      */
-    fun face(baseColor: Int, value: Int, cellSize: Int = 128): Bitmap {
+    fun face(baseColor: Int, value: Int, darkPips: Boolean = true, cellSize: Int = 128): Bitmap {
         val bitmap = Bitmap.createBitmap(cellSize, cellSize, Bitmap.Config.ARGB_8888)
-        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor))
+        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPips)
         return bitmap
     }
 
@@ -97,7 +101,15 @@ object DieTextureAtlas {
         }
     }
 
-    private fun drawFace(canvas: Canvas, left: Int, top: Int, size: Int, value: Int, palette: Palette) {
+    private fun drawFace(
+        canvas: Canvas,
+        left: Int,
+        top: Int,
+        size: Int,
+        value: Int,
+        palette: Palette,
+        darkPips: Boolean
+    ) {
         val rect = RectF(left.toFloat(), top.toFloat(), (left + size).toFloat(), (top + size).toFloat())
         val cx = left + size / 2f
         val cy = top + size / 2f
@@ -149,7 +161,7 @@ object DieTextureAtlas {
         // 4. Pips.
         val pipRadius = size * 0.086f
         pipLayouts[value]?.forEach { (fx, fy) ->
-            drawPip(canvas, left + fx * size, top + fy * size, pipRadius)
+            drawPip(canvas, left + fx * size, top + fy * size, pipRadius, darkPips)
         }
     }
 
@@ -164,33 +176,52 @@ object DieTextureAtlas {
      * hue, which is what keeps the shader classifying them as pips rather than glass — that
      * test is saturation-based, so black qualifies exactly as white did.
      */
-    private fun drawPip(canvas: Canvas, px: Float, py: Float, radius: Float) {
-        // Bright cavity lip: catches the key light from the upper-left and separates the dark
-        // pip from the surrounding blue.
+    private fun drawPip(canvas: Canvas, px: Float, py: Float, radius: Float, dark: Boolean) {
+        // Cavity lip. A dark pip needs a bright lip to stop it reading as a hole punched in the
+        // face; a pale pip already separates itself by being brighter than the body, so its lip
+        // is a soft shadow that sets it into the surface instead.
         val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
             strokeWidth = radius * 0.2f
-            shader = LinearGradient(
-                px - radius, py - radius, px + radius, py + radius,
-                intArrayOf(Color.argb(240, 236, 244, 255), Color.argb(120, 150, 178, 220)),
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP
-            )
+            shader = if (dark) {
+                LinearGradient(
+                    px - radius, py - radius, px + radius, py + radius,
+                    intArrayOf(Color.argb(240, 236, 244, 255), Color.argb(120, 150, 178, 220)),
+                    floatArrayOf(0f, 1f),
+                    Shader.TileMode.CLAMP
+                )
+            } else {
+                LinearGradient(
+                    px - radius, py - radius, px + radius, py + radius,
+                    intArrayOf(Color.argb(150, 6, 14, 32), Color.argb(60, 20, 36, 70)),
+                    floatArrayOf(0f, 1f),
+                    Shader.TileMode.CLAMP
+                )
+            }
         }
         canvas.drawCircle(px, py, radius * 1.12f, rimPaint)
 
-        // Dome: lifted toward the upper-left where light grazes the polished surface, falling
-        // to near-black at the lower-right limb. The off-centre gradient is what makes a flat
-        // disc read as a sphere.
+        // Dome: the highlight sits up-left and the limb falls away to the lower-right, which is
+        // what makes a flat disc read as a sphere in either colour.
+        val domeStops = if (dark) {
+            intArrayOf(
+                Color.rgb(92, 100, 114),
+                Color.rgb(42, 47, 56),
+                Color.rgb(16, 19, 24),
+                Color.rgb(4, 5, 8)
+            )
+        } else {
+            intArrayOf(
+                Color.rgb(255, 255, 255),
+                Color.rgb(242, 246, 253),
+                Color.rgb(200, 212, 231),
+                Color.rgb(148, 164, 190)
+            )
+        }
         val domePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 px - radius * 0.34f, py - radius * 0.36f, radius * 1.5f,
-                intArrayOf(
-                    Color.rgb(92, 100, 114),
-                    Color.rgb(42, 47, 56),
-                    Color.rgb(16, 19, 24),
-                    Color.rgb(4, 5, 8)
-                ),
+                domeStops,
                 floatArrayOf(0f, 0.38f, 0.72f, 1f),
                 Shader.TileMode.CLAMP
             )
@@ -200,7 +231,10 @@ object DieTextureAtlas {
         val specPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 px - radius * 0.36f, py - radius * 0.4f, radius * 0.32f,
-                intArrayOf(Color.argb(215, 255, 255, 255), Color.argb(0, 255, 255, 255)),
+                intArrayOf(
+                    Color.argb(if (dark) 215 else 240, 255, 255, 255),
+                    Color.argb(0, 255, 255, 255)
+                ),
                 floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP
             )

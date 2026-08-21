@@ -63,6 +63,7 @@ class SoloGameActivity : ImmersiveActivity() {
         findViewById<View>(R.id.turnTimerBar).visibility = View.GONE
 
         dice3DView = findViewById(R.id.dice3DView)
+        dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
 
         scorecardAdapter = ScorecardAdapter(this)
         val scorecardList = findViewById<ListView>(R.id.scorecardList)

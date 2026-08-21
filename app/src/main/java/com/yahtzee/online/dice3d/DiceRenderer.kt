@@ -44,6 +44,16 @@ class DiceRenderer(
             }
         }
 
+    /** Dark or pale pips, a personal readability preference rather than a synced one. */
+    @Volatile
+    var darkPips: Boolean = true
+        set(value) {
+            if (field != value) {
+                field = value
+                textureDirty = true
+            }
+        }
+
     @Volatile
     private var textureDirty = false
 
@@ -97,7 +107,7 @@ class DiceRenderer(
     }
 
     private fun uploadAtlas() {
-        val bitmap = DieTextureAtlas.build(diceColor)
+        val bitmap = DieTextureAtlas.build(diceColor, darkPips)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         bitmap.recycle()

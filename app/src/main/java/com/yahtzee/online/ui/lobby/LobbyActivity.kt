@@ -17,6 +17,7 @@ import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.seatAngle
@@ -81,6 +82,7 @@ class LobbyActivity : ImmersiveActivity() {
         // one die reads clearly from across a room.
         findViewById<Dice3DView>(R.id.rollOffDice).apply {
             setDieCount(1)
+            setDarkPips(DicePreferences.useDarkPips(this@LobbyActivity))
             setCameraScale(ROLL_OFF_CAMERA_SCALE)
         }
 
@@ -298,6 +300,7 @@ class LobbyActivity : ImmersiveActivity() {
         val density = resources.displayMetrics.density
         val dieSize = (winnerId?.let { 64 } ?: 54) * density
         val tied = state.openingRollTied.toSet()
+        val darkPips = DicePreferences.useDarkPips(this)
         val highest = rolls.values.maxOrNull()
 
         order.forEach { id ->
@@ -315,7 +318,7 @@ class LobbyActivity : ImmersiveActivity() {
             // so the result is obvious at a glance.
             val dieView = ImageView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(dieSize.toInt(), dieSize.toInt())
-                setImageBitmap(DieTextureAtlas.face(color, roll ?: 1))
+                setImageBitmap(DieTextureAtlas.face(color, roll ?: 1, darkPips))
                 alpha = when {
                     roll == null -> 0.18f
                     winnerId != null && id != winnerId -> 0.45f
