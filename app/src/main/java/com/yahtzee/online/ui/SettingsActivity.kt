@@ -86,9 +86,6 @@ class SettingsActivity : ImmersiveActivity() {
             AppSettings.setHapticsEnabled(this, on)
             if (on) sound.play(SoundEngine.Sound.LAND)
         }
-        setUpToggle(R.id.leftHandedButton, AppSettings.leftHanded(this)) {
-            AppSettings.setLeftHanded(this, it)
-        }
         setUpCycler(
             R.id.diceMotionButton,
             AppSettings.DiceMotion.values().toList(),

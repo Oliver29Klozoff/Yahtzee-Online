@@ -294,12 +294,7 @@ class LobbyActivity : ImmersiveActivity() {
 
         val dice = findViewById<Dice3DView>(R.id.rollOffDice)
         dice.setDiceColor(color)
-        val angle = state.seatAngle(playerId, newest)
-        dice.rollTo(
-            listOf(value),
-            listOf(false),
-            if (AppSettings.leftHanded(this)) (Math.PI.toFloat() - angle) else angle
-        )
+        dice.rollTo(listOf(value), listOf(false), state.seatAngle(playerId, newest))
     }
 
     /**

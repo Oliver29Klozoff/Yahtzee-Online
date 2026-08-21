@@ -17,7 +17,6 @@ object AppSettings {
     private const val KEY_TABLE_COLOR = "table_color"
     private const val KEY_SOUND = "sound_enabled"
     private const val KEY_HAPTICS = "haptics_enabled"
-    private const val KEY_LEFT_HANDED = "left_handed"
     private const val KEY_MOTION = "dice_motion"
     private const val KEY_BOT_SKILL = "bot_skill"
 
@@ -68,17 +67,6 @@ object AppSettings {
 
     fun setHapticsEnabled(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean(KEY_HAPTICS, on).apply()
-    }
-
-    /**
-     * Mirrors the throw so your dice enter from the left. Opponents' seats mirror with it, so
-     * the table stays coherent rather than everyone converging on one side.
-     */
-    fun leftHanded(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_LEFT_HANDED, false)
-
-    fun setLeftHanded(context: Context, on: Boolean) {
-        prefs(context).edit().putBoolean(KEY_LEFT_HANDED, on).apply()
     }
 
     /** How much of the dice animation to play. */

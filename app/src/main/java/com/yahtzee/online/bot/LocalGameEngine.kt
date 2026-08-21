@@ -37,6 +37,27 @@ class LocalGameEngine(
         )
     }
 
+    /**
+     * Dice colours for the bots: hues spread evenly around the wheel starting from the player's
+     * own, so every bot is distinct both from the player and from each other.
+     *
+     * Picking from the fixed palette and filtering out the player's colour looked equivalent but
+     * was not. That filter compares colours exactly, and a colour chosen with the custom sliders
+     * almost never equals a palette entry — so a player using a custom blue would still be given
+     * a bot in palette blue, and two players' dice would be near-indistinguishable. Deriving from
+     * the player's hue keeps them apart whatever they picked.
+     */
+    private fun botColoursAvoiding(humanColor: Int, count: Int): List<Int> {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(humanColor, hsv)
+        val step = 360f / (count + 1)
+        return (1..count).map { i ->
+            android.graphics.Color.HSVToColor(
+                floatArrayOf((hsv[0] + step * i) % 360f, 0.78f, 0.95f)
+            )
+        }
+    }
+
     val humanPlayerId: String = UUID.randomUUID().toString()
     private val botIds: List<String> = List(botCount) { UUID.randomUUID().toString() }
     private val roller = DiceRoller()
@@ -48,9 +69,7 @@ class LocalGameEngine(
             joinedAt = System.currentTimeMillis(),
             diceColor = humanColor
         )
-        // Each bot gets a colour distinct from the player's, so the dice on the table always
-        // identify whose turn it is.
-        val botColors = DicePreferences.PALETTE.map { it.second }.filter { it != humanColor }
+        val botColors = botColoursAvoiding(humanColor, botCount)
         // Names are drawn without replacement so no two opponents share one, and shuffled per
         // game so the same three bots are not sitting there every time.
         val names = BOT_NAMES.shuffled().toMutableList()
@@ -59,7 +78,7 @@ class LocalGameEngine(
                 id = id,
                 name = names.removeFirstOrNull() ?: "Bot ${i + 1}",
                 joinedAt = System.currentTimeMillis(),
-                diceColor = botColors[i % botColors.size]
+                diceColor = botColors[i]
             )
         }
         val order = listOf(humanPlayerId) + botIds

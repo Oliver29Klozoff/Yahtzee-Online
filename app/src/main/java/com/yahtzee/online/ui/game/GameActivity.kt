@@ -254,14 +254,6 @@ class GameActivity : ImmersiveActivity() {
         }
     }
 
-    /**
-     * Mirrors a seat across the vertical axis for a left-handed player, so their own throws
-     * come from the left. Every seat mirrors together, or opponents would end up sharing a side
-     * of the table with the player.
-     */
-    private fun mirrorForHand(angle: Float): Float =
-        if (AppSettings.leftHanded(this)) (Math.PI.toFloat() - angle) else angle
-
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
@@ -271,7 +263,7 @@ class GameActivity : ImmersiveActivity() {
             dice3DView.rollTo(
                 state.dice,
                 state.held,
-                mirrorForHand(state.seatAngle(playerId, state.currentPlayerId))
+                state.seatAngle(playerId, state.currentPlayerId)
             )
         }
         lastDice = state.dice
