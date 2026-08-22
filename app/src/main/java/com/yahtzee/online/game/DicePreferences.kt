@@ -1,6 +1,7 @@
 package com.yahtzee.online.game
 
 import android.content.Context
+import androidx.core.graphics.ColorUtils
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import org.json.JSONArray
 import org.json.JSONObject
@@ -14,7 +15,7 @@ object DicePreferences {
 
     private const val PREFS = "dice_prefs"
     private const val KEY_COLOR = "dice_color"
-    private const val KEY_DARK_PIPS = "dark_pips"
+    private const val KEY_PIP_STYLE = "pip_style"
     private const val KEY_SAVED = "saved_dice"
     private const val MAX_SAVED = 12
 
@@ -31,7 +32,7 @@ object DicePreferences {
     )
 
     /** A dice design the player built and named, so a custom colour is not lost to the next one. */
-    data class SavedDie(val name: String, val color: Int, val darkPips: Boolean)
+    data class SavedDie(val name: String, val color: Int, val pipStyle: PipStyle)
 
     /**
      * Saved designs, oldest first.
@@ -48,7 +49,10 @@ object DicePreferences {
                 SavedDie(
                     name = item.optString("name").ifEmpty { return@mapNotNull null },
                     color = item.optInt("color", DieTextureAtlas.DEFAULT_COLOR),
-                    darkPips = item.optBoolean("darkPips", true)
+                    pipStyle = item.optString("pipStyle").takeIf { it.isNotEmpty() }
+                        ?.let { name -> runCatching { PipStyle.valueOf(name) }.getOrNull() }
+                    // Designs saved before styles existed stored a plain boolean.
+                        ?: if (item.optBoolean("darkPips", true)) PipStyle.DARK else PipStyle.LIGHT
                 )
             }
         }.getOrDefault(emptyList())
@@ -58,11 +62,11 @@ object DicePreferences {
      * Saves the current design under [name], replacing any design of the same name so re-saving
      * updates rather than duplicating. Oldest entries drop off past [MAX_SAVED].
      */
-    fun saveDie(context: Context, name: String, color: Int, darkPips: Boolean) {
+    fun saveDie(context: Context, name: String, color: Int, pipStyle: PipStyle) {
         val trimmed = name.trim().take(20)
         if (trimmed.isEmpty()) return
         val updated = (savedDice(context).filterNot { it.name.equals(trimmed, ignoreCase = true) } +
-            SavedDie(trimmed, color, darkPips)).takeLast(MAX_SAVED)
+            SavedDie(trimmed, color, pipStyle)).takeLast(MAX_SAVED)
         writeSaved(context, updated)
     }
 
@@ -77,7 +81,7 @@ object DicePreferences {
                 JSONObject()
                     .put("name", it.name)
                     .put("color", it.color)
-                    .put("darkPips", it.darkPips)
+                    .put("pipStyle", it.pipStyle.name)
             )
         }
         prefs(context).edit().putString(KEY_SAVED, array.toString()).apply()
@@ -91,17 +95,38 @@ object DicePreferences {
     }
 
     /**
-     * Whether pips are dark rather than white.
+     * How pips are coloured.
      *
-     * Kept local rather than synced with the dice colour: unlike the colour, which identifies
-     * whose turn it is and so has to look the same to everyone, this is purely about what the
-     * owner finds readable — pale dice want dark pips and vice versa.
+     * [AUTO] is the default and picks per die from that die's own brightness, because a single
+     * choice cannot suit every colour on the table: bot colours are spread right around the
+     * wheel, so white pips vanish into a pale green or amber die while black pips disappear
+     * into a navy one. The fixed options remain for anyone who prefers one look throughout.
+     *
+     * Local rather than synced: unlike the colour, which identifies whose turn it is and so has
+     * to look the same to everyone, this is only about legibility on this screen.
      */
-    fun useDarkPips(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_DARK_PIPS, true)
+    enum class PipStyle(val label: String) {
+        AUTO("Auto"),
+        DARK("Dark"),
+        LIGHT("White");
 
-    fun setDarkPips(context: Context, dark: Boolean) {
-        prefs(context).edit().putBoolean(KEY_DARK_PIPS, dark).apply()
+        /** Whether a die of [diceColor] should carry dark pips under this style. */
+        fun darkFor(diceColor: Int): Boolean = when (this) {
+            DARK -> true
+            LIGHT -> false
+            // Bright faces take dark pips and vice versa. The threshold sits above the midpoint
+            // because a mid-tone die still reads better with light pips against a dark table.
+            AUTO -> ColorUtils.calculateLuminance(diceColor) > 0.42
+        }
+    }
+
+    fun pipStyle(context: Context): PipStyle {
+        val name = prefs(context).getString(KEY_PIP_STYLE, PipStyle.AUTO.name)
+        return runCatching { PipStyle.valueOf(name!!) }.getOrDefault(PipStyle.AUTO)
+    }
+
+    fun setPipStyle(context: Context, style: PipStyle) {
+        prefs(context).edit().putString(KEY_PIP_STYLE, style.name).apply()
     }
 
     private fun prefs(context: Context) =

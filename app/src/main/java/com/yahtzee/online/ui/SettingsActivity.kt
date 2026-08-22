@@ -27,7 +27,7 @@ class SettingsActivity : ImmersiveActivity() {
     private lateinit var dicePreview: Dice3DView
     private val sound by lazy { SoundEngine(this) }
     private var selectedColor: Int = DicePreferences.PALETTE.first().second
-    private var darkPips: Boolean = true
+    private var pipStyle: DicePreferences.PipStyle = DicePreferences.PipStyle.AUTO
 
     /** Guards the sliders while they are being set from a preset, so they do not feed back. */
     private var syncingSliders = false
@@ -59,11 +59,11 @@ class SettingsActivity : ImmersiveActivity() {
         }
 
         selectedColor = DicePreferences.getColor(this)
-        darkPips = DicePreferences.useDarkPips(this)
+        pipStyle = DicePreferences.pipStyle(this)
 
         dicePreview = findViewById(R.id.dicePreview)
         dicePreview.setDiceColor(selectedColor)
-        dicePreview.setDarkPips(darkPips)
+        dicePreview.setPipStyle(pipStyle)
 
         dicePreview.setTableColor(AppSettings.tableColor(this))
 
@@ -133,7 +133,7 @@ class SettingsActivity : ImmersiveActivity() {
             .setPositiveButton(R.string.save) { _, _ ->
                 val name = input.text.toString().trim()
                 if (name.isEmpty()) return@setPositiveButton
-                DicePreferences.saveDie(this, name, selectedColor, darkPips)
+                DicePreferences.saveDie(this, name, selectedColor, pipStyle)
                 Toast.makeText(this, getString(R.string.dice_saved, name), Toast.LENGTH_SHORT).show()
                 renderSavedDice()
             }
@@ -162,7 +162,7 @@ class SettingsActivity : ImmersiveActivity() {
             // was saved, and a swatch cannot show it.
             cell.addView(ImageView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(dieSize, dieSize)
-                setImageBitmap(DieTextureAtlas.face(die.color, 5, die.darkPips))
+                setImageBitmap(DieTextureAtlas.face(die.color, 5, die.pipStyle.darkFor(die.color)))
             })
             cell.addView(TextView(this).apply {
                 text = die.name
@@ -174,9 +174,9 @@ class SettingsActivity : ImmersiveActivity() {
             })
 
             cell.setOnClickListener {
-                darkPips = die.darkPips
-                DicePreferences.setDarkPips(this, die.darkPips)
-                dicePreview.setDarkPips(die.darkPips)
+                pipStyle = die.pipStyle
+                DicePreferences.setPipStyle(this, die.pipStyle)
+                dicePreview.setPipStyle(die.pipStyle)
                 applyColor(die.color, reroll = true)
                 syncSlidersTo(die.color)
                 setUpPipToggle()
@@ -262,17 +262,16 @@ class SettingsActivity : ImmersiveActivity() {
     }
 
     private fun setUpPipToggle() {
-        val button = findViewById<Button>(R.id.pipStyleButton)
-        fun refresh() {
-            button.text = getString(if (darkPips) R.string.pips_dark else R.string.pips_light)
-        }
-        refresh()
-        button.setOnClickListener {
-            darkPips = !darkPips
-            DicePreferences.setDarkPips(this, darkPips)
-            dicePreview.setDarkPips(darkPips)
+        setUpCycler(
+            R.id.pipStyleButton,
+            DicePreferences.PipStyle.values().toList(),
+            pipStyle,
+            { it.label }
+        ) { style ->
+            pipStyle = style
+            DicePreferences.setPipStyle(this, style)
+            dicePreview.setPipStyle(style)
             dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
-            refresh()
         }
     }
 

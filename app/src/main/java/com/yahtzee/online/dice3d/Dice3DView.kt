@@ -5,6 +5,7 @@ import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import com.yahtzee.online.game.DicePreferences
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -68,9 +69,9 @@ class Dice3DView @JvmOverloads constructor(
         renderer.diceColor = color
     }
 
-    /** Dark or pale pips; the atlas is regenerated on the GL thread next frame. */
-    fun setDarkPips(dark: Boolean) {
-        renderer.darkPips = dark
+    /** Pip colouring; the atlas is regenerated on the GL thread next frame. */
+    fun setPipStyle(style: DicePreferences.PipStyle) {
+        renderer.pipStyle = style
     }
 
     /** Table felt colour behind the dice. */
@@ -134,6 +135,13 @@ class Dice3DView @JvmOverloads constructor(
         val acrossX = -seatZ
         val acrossZ = seatX
 
+        // Spawn just INSIDE the walls: the world clamps every die to the wall bounds on each
+        // step, so one started beyond them would snap to the edge on frame one rather than
+        // flying in. Taken from the table rather than fixed, so resizing the surface moves the
+        // throw line with it instead of leaving the dice appearing mid-table.
+        val spawnX = world.tableHalfWidth - DieBody.HALF_SIZE - 0.1f
+        val spawnZ = world.tableHalfDepth - DieBody.HALF_SIZE - 0.1f
+
         val count = world.dice.size
         world.dice.forEachIndexed { i, die ->
             if (held.getOrNull(i) == true) {
@@ -141,15 +149,14 @@ class Dice3DView @JvmOverloads constructor(
                 die.atRest = true
                 return@forEachIndexed
             }
-            val spread = (i - (count - 1) / 2f) * 0.17f + (random.nextFloat() - 0.5f) * 0.12f
+            // Fanned wider than the dice are thick, so they enter the table already separated
+            // rather than as a column that has to untangle itself on the way across.
+            val spread = (i - (count - 1) / 2f) * 0.24f + (random.nextFloat() - 0.5f) * 0.12f
 
-            // Spawn just INSIDE the walls: the world clamps every die to the wall bounds on each
-            // step, so one started beyond them would snap to the edge on frame one rather than
-            // flying in. The table is wider than it is deep, hence the different radii.
             die.position = Vec3(
-                (seatX * 1.5f + acrossX * spread).coerceIn(-1.6f, 1.6f),
+                (seatX * spawnX * 0.94f + acrossX * spread).coerceIn(-spawnX, spawnX),
                 1.85f + random.nextFloat() * 0.5f,
-                (seatZ * 0.92f + acrossZ * spread).coerceIn(-1.0f, 1.0f)
+                (seatZ * spawnZ * 0.94f + acrossZ * spread).coerceIn(-spawnZ, spawnZ)
             )
             val scatter = (random.nextFloat() - 0.5f) * 0.4f
             die.throwToward(
@@ -159,7 +166,8 @@ class Dice3DView @JvmOverloads constructor(
                     -0.3f,
                     -seatZ + acrossZ * scatter
                 ),
-                speed = (5.0f + random.nextFloat() * 1.7f) / motionScale,
+                // A little quicker than before so a throw still crosses the longer table.
+                speed = (5.6f + random.nextFloat() * 1.9f) / motionScale,
                 random = random,
                 durationScale = motionScale
             )

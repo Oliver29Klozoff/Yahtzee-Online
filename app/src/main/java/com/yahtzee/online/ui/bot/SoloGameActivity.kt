@@ -89,7 +89,7 @@ class SoloGameActivity : ImmersiveActivity() {
         findViewById<View>(R.id.turnTimerBar).visibility = View.GONE
 
         dice3DView = findViewById(R.id.dice3DView)
-        dice3DView.setDarkPips(DicePreferences.useDarkPips(this))
+        dice3DView.setPipStyle(DicePreferences.pipStyle(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
         dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)
         // The dice report their own landing, so the knock lands with the visual, not the throw.

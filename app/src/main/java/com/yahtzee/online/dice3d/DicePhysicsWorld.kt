@@ -6,9 +6,16 @@ import kotlin.math.abs
  * Simple fixed-step rigid body simulation for N dice on a bounded table.
  * Not a general-purpose physics engine: tuned specifically for dice-in-a-tray feel.
  */
+/**
+ * Table size is limited by the camera, not by taste: it sits at a fixed height and angle with a
+ * 45° vertical field of view, so the far corners leave the frame if the surface grows past what
+ * the narrowest dice view (the lobby's, roughly 1.4:1) can show. These bounds are the largest
+ * that keep every die fully visible there without pulling the camera back, which would have
+ * shrunk the dice on screen.
+ */
 class DicePhysicsWorld(
-    val tableHalfWidth: Float = 2.2f,
-    val tableHalfDepth: Float = 1.6f,
+    val tableHalfWidth: Float = 2.75f,
+    val tableHalfDepth: Float = 2f,
     val groundY: Float = 0f
 ) {
     val dice = mutableListOf<DieBody>()
@@ -29,6 +36,9 @@ class DicePhysicsWorld(
             resolveWallCollisions(die)
         }
         resolveDieDieCollisions()
+        // Separating overlapping dice can nudge a resting one past a wall, and resting dice skip
+        // the wall pass above, so the bounds are re-imposed on everything afterwards.
+        clampToBounds()
         for (die in dice) {
             if (!die.atRest) die.markRestIfSettled(dt)
         }
@@ -97,9 +107,22 @@ class DicePhysicsWorld(
                 if (dist > 1e-4f && dist < minDist) {
                     val normal = delta * (1f / dist)
                     val overlap = minDist - dist
-                    val push = normal * (overlap * 0.5f)
-                    if (!a.atRest) a.position = a.position - push
-                    if (!b.atRest) b.position = b.position + push
+
+                    // Overlap is always corrected, whether or not the dice are at rest. Skipping
+                    // resting dice left any die that settled against another permanently
+                    // overlapping it, since nothing would ever push them apart again — and two
+                    // dice that both came to rest touching stayed that way for the whole turn.
+                    // A resting die holds its ground and the moving one takes the whole push;
+                    // if both are resting they share it.
+                    when {
+                        a.atRest && !b.atRest -> b.position = b.position + normal * overlap
+                        b.atRest && !a.atRest -> a.position = a.position - normal * overlap
+                        else -> {
+                            val push = normal * (overlap * 0.5f)
+                            a.position = a.position - push
+                            b.position = b.position + push
+                        }
+                    }
 
                     val relVel = b.velocity - a.velocity
                     val speedAlongNormal = relVel.dot(normal)

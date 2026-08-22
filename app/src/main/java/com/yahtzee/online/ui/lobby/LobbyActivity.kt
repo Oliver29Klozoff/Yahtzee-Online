@@ -84,7 +84,7 @@ class LobbyActivity : ImmersiveActivity() {
         // one die reads clearly from across a room.
         findViewById<Dice3DView>(R.id.rollOffDice).apply {
             setDieCount(1)
-            setDarkPips(DicePreferences.useDarkPips(this@LobbyActivity))
+            setPipStyle(DicePreferences.pipStyle(this@LobbyActivity))
             setCameraScale(ROLL_OFF_CAMERA_SCALE)
             setTableColor(AppSettings.tableColor(this@LobbyActivity))
             setMotionScale(AppSettings.diceMotion(this@LobbyActivity).durationScale)
