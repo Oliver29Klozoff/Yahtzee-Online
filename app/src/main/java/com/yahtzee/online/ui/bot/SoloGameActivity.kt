@@ -28,7 +28,6 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
-import com.yahtzee.online.ui.game.CardTabs
 import com.yahtzee.online.ui.game.ScoreConfirm
 import com.yahtzee.online.ui.game.ScorecardTabs
 import com.yahtzee.online.ui.game.activeDiceColorOf
@@ -50,8 +49,6 @@ class SoloGameActivity : ImmersiveActivity() {
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var viewingPlayerId: String? = null
 
-    /** Which scorecard is shown and scored into; always 0 in a single-card game. */
-    private var selectedCard: Int = 0
     private var lastTurnPlayerId: String? = null
     private val botHandler = Handler(Looper.getMainLooper())
     private var lastRollsUsed = 0
@@ -93,18 +90,12 @@ class SoloGameActivity : ImmersiveActivity() {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
 
-        scorecardAdapter = ScorecardAdapter(this)
-        val scorecardList = findViewById<ListView>(R.id.scorecardList)
-        scorecardList.adapter = scorecardAdapter
-        scorecardList.setOnItemClickListener { _, _, position, _ ->
-            if (scorecardAdapter.isScorable(position)) {
-                scorecardAdapter.categoryAt(position)?.let { category ->
-                    if (scoreConfirm.consumesTap(selectedCard, category)) return@setOnItemClickListener
-                    sound.play(SoundEngine.Sound.SCORE)
-                    engine.submitScore(category, selectedCard)
-                }
-            }
+        scorecardAdapter = ScorecardAdapter(this) { card, category ->
+            if (scoreConfirm.consumesTap(card, category)) return@ScorecardAdapter
+            sound.play(SoundEngine.Sound.SCORE)
+            engine.submitScore(category, card)
         }
+        findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
 
         findViewById<Button>(R.id.rollButton).setOnClickListener {
             val state = engine.state
@@ -256,19 +247,7 @@ class SoloGameActivity : ImmersiveActivity() {
         }
 
         val canScore = myTurn && state.rollsUsed > 0 && viewing == engine.humanPlayerId
-        selectedCard = CardTabs.render(
-            context = this,
-            scroll = findViewById(R.id.cardTabsScroll),
-            row = findViewById(R.id.cardTabsRow),
-            state = state,
-            viewedPlayerId = viewing,
-            selectedCard = selectedCard
-        ) { card ->
-            selectedCard = card
-            render(engine.state)
-        }
-
-        scorecardAdapter.update(state, viewing, canScore, selectedCard)
+        scorecardAdapter.update(state, viewing, canScore)
 
         val total = state.players[viewing]?.grandTotalAllCards(state.cardCount) ?: 0
         findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)

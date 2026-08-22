@@ -2,10 +2,12 @@ package com.yahtzee.online.ui.game
 
 import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.LinearLayout
 import android.widget.TextView
 import com.yahtzee.online.R
 import com.yahtzee.online.game.Category
@@ -21,8 +23,18 @@ private sealed class Row {
     object YahtzeeBonusRow : Row()
 }
 
+/**
+ * The paper-style scorecard.
+ *
+ * With several cards in play every category shows one cell per card, side by side on a single
+ * sheet, which is how a printed Triple Yahtzee card works — the choice of where to put a roll
+ * is much easier to make when the alternatives are visible next to each other rather than
+ * behind a tab. Each cell is tapped directly, so the card is chosen by the same tap that picks
+ * the category.
+ */
 class ScorecardAdapter(
-    private val context: android.content.Context
+    private val context: android.content.Context,
+    private val onScore: (card: Int, category: Category) -> Unit = { _, _ -> }
 ) : BaseAdapter() {
 
     private val rows: List<Row> = buildList {
@@ -38,29 +50,17 @@ class ScorecardAdapter(
     private var playerId: String = ""
     private var canScore = false
 
-    /** Which scorecard is being shown; always 0 in single-card rooms. */
-    private var cardIndex: Int = 0
-
-    fun update(state: GameState, playerId: String, canScore: Boolean, cardIndex: Int = 0) {
+    fun update(state: GameState, playerId: String, canScore: Boolean) {
         this.state = state
         this.playerId = playerId
         this.canScore = canScore
-        this.cardIndex = cardIndex
         notifyDataSetChanged()
     }
 
-    fun isScorable(position: Int): Boolean {
-        val row = rows[position] as? Row.CategoryRow ?: return false
-        val player = state?.players?.get(playerId)
-        return canScore && player?.scores?.containsKey(ScoreKey.of(cardIndex, row.category)) != true
-    }
+    private fun cardCount(): Int = (state?.cardCount ?: 1).coerceAtLeast(1)
 
-    /** This player's filled categories on the card currently displayed. */
-    private fun cardScores(): Map<Category, Int> =
-        state?.players?.get(playerId)?.scoresForCard(cardIndex) ?: emptyMap()
-
-    /** Category represented at [position], or null for header/bonus rows. */
-    fun categoryAt(position: Int): Category? = (rows[position] as? Row.CategoryRow)?.category
+    private fun scoresFor(card: Int): Map<Category, Int> =
+        state?.players?.get(playerId)?.scoresForCard(card) ?: emptyMap()
 
     override fun getCount() = rows.size
     override fun getItem(position: Int): Any = rows[position]
@@ -74,7 +74,8 @@ class ScorecardAdapter(
         Row.YahtzeeBonusRow -> 3
     }
 
-    override fun isEnabled(position: Int): Boolean = rows[position] is Row.CategoryRow
+    // Cells handle their own taps now, since a row-level tap could not say which card was meant.
+    override fun isEnabled(position: Int): Boolean = false
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         return when (val row = rows[position]) {
@@ -85,41 +86,16 @@ class ScorecardAdapter(
         }
     }
 
-    /**
-     * Extra Yahtzees: every five-of-a-kind rolled after the Yahtzee box is already filled with
-     * 50 is worth another 100 points. It was being awarded correctly but never shown anywhere,
-     * so the score simply jumped with nothing to explain it.
-     *
-     * The count is tracked per player rather than per card, so this row reads the same on every
-     * card in a multi-card room.
-     */
-    private fun bindYahtzeeBonus(convertView: View?, parent: ViewGroup): View {
-        val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_bonus_row, parent, false)
-        val label = view.findViewById<TextView>(R.id.bonusLabel)
-        val value = view.findViewById<TextView>(R.id.bonusValue)
-
-        val count = state?.players?.get(playerId)?.yahtzeeBonusCount ?: 0
-        label.text = "Yahtzee bonus (+100 each)"
-        value.text = if (count > 0) "$count × 100 = ${count * 100}" else "–"
-        value.setTextColor(
-            context.resources.getColor(
-                if (count > 0) R.color.score_badge_available_text else R.color.text_muted,
-                context.theme
-            )
-        )
-        return view
-    }
-
     private fun bindHeader(row: Row.Header, convertView: View?, parent: ViewGroup): View {
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_section_header, parent, false)
         view.findViewById<TextView>(R.id.sectionTitle).text = row.title
 
         val subtotalView = view.findViewById<TextView>(R.id.sectionSubtotal)
-        val player = state?.players?.get(playerId)
-        if (row.title == "Upper Section" && player != null) {
-            val scores = cardScores()
-            val upperTotal = Category.UPPER.sumOf { scores[it] ?: 0 }
-            subtotalView.text = "Subtotal $upperTotal"
+        if (row.title == "Upper Section" && state != null) {
+            // Every card's upper subtotal, in the same order as the columns below it.
+            subtotalView.text = (0 until cardCount()).joinToString("   ") { card ->
+                Category.UPPER.sumOf { scoresFor(card)[it] ?: 0 }.toString()
+            }
             subtotalView.visibility = View.VISIBLE
         } else {
             subtotalView.visibility = View.GONE
@@ -129,19 +105,40 @@ class ScorecardAdapter(
 
     private fun bindBonus(convertView: View?, parent: ViewGroup): View {
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_bonus_row, parent, false)
-        val label = view.findViewById<TextView>(R.id.bonusLabel)
-        val value = view.findViewById<TextView>(R.id.bonusValue)
+        view.findViewById<TextView>(R.id.bonusLabel).text = "Bonus if 63+ (get 35 pts)"
 
-        val scores = cardScores()
-        val upperTotal = Category.UPPER.sumOf { scores[it] ?: 0 }
-        val bonusEarned = upperTotal >= 63
+        val cells = view.findViewById<LinearLayout>(R.id.bonusCells)
+        cells.removeAllViews()
+        for (card in 0 until cardCount()) {
+            val upperTotal = Category.UPPER.sumOf { scoresFor(card)[it] ?: 0 }
+            val earned = upperTotal >= 63
+            cells.addView(
+                textCell(
+                    text = if (earned) "+35" else "$upperTotal/63",
+                    colorRes = if (earned) R.color.score_badge_available_text else R.color.text_muted
+                )
+            )
+        }
+        return view
+    }
 
-        label.text = "Bonus if 63+ (get 35 pts)"
-        value.text = if (bonusEarned) "+35 ✓" else "$upperTotal / 63"
-        value.setTextColor(
-            context.resources.getColor(
-                if (bonusEarned) R.color.score_badge_available_text else R.color.text_muted,
-                context.theme
+    /**
+     * Extra Yahtzees: every five-of-a-kind rolled after the Yahtzee box is already filled with
+     * 50 is worth another 100 points. Counted per player rather than per card, so this shows a
+     * single figure however many cards are in play.
+     */
+    private fun bindYahtzeeBonus(convertView: View?, parent: ViewGroup): View {
+        val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_bonus_row, parent, false)
+        view.findViewById<TextView>(R.id.bonusLabel).text = "Yahtzee bonus (+100 each)"
+
+        val count = state?.players?.get(playerId)?.yahtzeeBonusCount ?: 0
+        val cells = view.findViewById<LinearLayout>(R.id.bonusCells)
+        cells.removeAllViews()
+        cells.addView(
+            textCell(
+                text = if (count > 0) "$count × 100 = ${count * 100}" else "–",
+                colorRes = if (count > 0) R.color.score_badge_available_text else R.color.text_muted,
+                wide = true
             )
         )
         return view
@@ -151,41 +148,77 @@ class ScorecardAdapter(
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_category, parent, false)
         val label = view.findViewById<TextView>(R.id.categoryLabel)
         val hint = view.findViewById<TextView>(R.id.categoryHint)
-        val score = view.findViewById<TextView>(R.id.categoryScore)
+        val cells = view.findViewById<LinearLayout>(R.id.scoreCells)
 
         label.text = category.label
         hint.text = category.hint
 
         val currentState = state
-        val existingScore = cardScores()[category]
+        cells.removeAllViews()
 
-        fun badge(radiusDp: Float, colorRes: Int) = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = radiusDp * context.resources.displayMetrics.density
-            setColor(context.resources.getColor(colorRes, context.theme))
-        }
-
-        if (existingScore != null) {
-            score.text = existingScore.toString()
-            score.background = badge(10f, R.color.score_badge_filled_bg)
-            score.setTextColor(context.resources.getColor(R.color.score_badge_filled_text, context.theme))
+        // Struck through only once every card has this category filled — with cards still open
+        // the category is not finished with.
+        val allFilled = (0 until cardCount()).all { scoresFor(it).containsKey(category) }
+        if (allFilled) {
             label.setTextColor(context.resources.getColor(R.color.category_filled_text, context.theme))
             label.paintFlags = label.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
         } else {
             label.paintFlags = label.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             label.setTextColor(context.resources.getColor(R.color.text_dark, context.theme))
-            if (currentState != null && canScore) {
-                val preview = Scoring.score(category, currentState.dice)
-                score.text = preview.toString()
-                score.background = badge(10f, R.color.score_badge_available_bg)
-                score.setTextColor(context.resources.getColor(R.color.score_badge_available_text, context.theme))
-            } else {
-                score.text = "–"
-                score.background = badge(10f, R.color.score_badge_filled_bg)
-                score.setTextColor(context.resources.getColor(R.color.text_muted, context.theme))
-            }
         }
 
+        for (card in 0 until cardCount()) {
+            val existing = scoresFor(card)[category]
+            val open = existing == null
+            val cell = TextView(context).apply {
+                gravity = Gravity.CENTER
+                textSize = 14f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                val size = (34 * context.resources.displayMetrics.density).toInt()
+                layoutParams = LinearLayout.LayoutParams(size, size).also {
+                    it.marginStart = (5 * context.resources.displayMetrics.density).toInt()
+                }
+            }
+
+            when {
+                existing != null -> {
+                    cell.text = existing.toString()
+                    cell.background = badge(R.color.score_badge_filled_bg)
+                    cell.setTextColor(context.resources.getColor(R.color.score_badge_filled_text, context.theme))
+                }
+                currentState != null && canScore -> {
+                    cell.text = Scoring.score(category, currentState.dice).toString()
+                    cell.background = badge(R.color.score_badge_available_bg)
+                    cell.setTextColor(context.resources.getColor(R.color.score_badge_available_text, context.theme))
+                    cell.setOnClickListener { onScore(card, category) }
+                }
+                else -> {
+                    cell.text = "–"
+                    cell.background = badge(R.color.score_badge_filled_bg)
+                    cell.setTextColor(context.resources.getColor(R.color.text_muted, context.theme))
+                }
+            }
+            cells.addView(cell)
+        }
         return view
+    }
+
+    private fun badge(colorRes: Int) = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = 10f * context.resources.displayMetrics.density
+        setColor(context.resources.getColor(colorRes, context.theme))
+    }
+
+    private fun textCell(text: String, colorRes: Int, wide: Boolean = false) = TextView(context).apply {
+        this.text = text
+        gravity = Gravity.CENTER
+        textSize = 13f
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setTextColor(context.resources.getColor(colorRes, context.theme))
+        val density = context.resources.displayMetrics.density
+        layoutParams = LinearLayout.LayoutParams(
+            if (wide) LinearLayout.LayoutParams.WRAP_CONTENT else (34 * density).toInt(),
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).also { it.marginStart = (5 * density).toInt() }
     }
 }

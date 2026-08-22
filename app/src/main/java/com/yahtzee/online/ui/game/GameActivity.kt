@@ -48,10 +48,6 @@ class GameActivity : ImmersiveActivity() {
     private lateinit var scorecardAdapter: ScorecardAdapter
     private var viewingPlayerId: String? = null
 
-    /** Which scorecard the player is looking at and will score into. Always 0 unless the room
-     *  was created with more than one card. */
-    private var selectedCard: Int = 0
-
     private val scoreConfirm by lazy { ScoreConfirm(this) }
     private var lastTurnPlayerId: String? = null
     private var lastState: GameState? = null
@@ -86,14 +82,8 @@ class GameActivity : ImmersiveActivity() {
         // The dice report their own landing, so the knock lands with the visual, not the throw.
         dice3DView.setOnSettledListener { sound.play(SoundEngine.Sound.LAND) }
 
-        scorecardAdapter = ScorecardAdapter(this)
-        val scorecardList = findViewById<ListView>(R.id.scorecardList)
-        scorecardList.adapter = scorecardAdapter
-        scorecardList.setOnItemClickListener { _, _, position, _ ->
-            if (scorecardAdapter.isScorable(position)) {
-                scorecardAdapter.categoryAt(position)?.let { onScoreCategory(it) }
-            }
-        }
+        scorecardAdapter = ScorecardAdapter(this) { card, category -> onScoreCategory(card, category) }
+        findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
 
         findViewById<Button>(R.id.rollButton).setOnClickListener {
             val state = lastState ?: return@setOnClickListener
@@ -224,10 +214,8 @@ class GameActivity : ImmersiveActivity() {
             render(state)
         }
 
-        renderCardTabs(state, viewing)
-
         val canScore = myTurn && state.rollsUsed > 0 && viewing == playerId
-        scorecardAdapter.update(state, viewing, canScore, selectedCard)
+        scorecardAdapter.update(state, viewing, canScore)
 
         // The header shows the player's total across every card, so it stays a comparable
         // figure regardless of which card is currently open.
@@ -241,20 +229,6 @@ class GameActivity : ImmersiveActivity() {
      * where a roll should go. Tabs are for choosing a card to view and score into, so they are
      * not reset by turn changes the way the player tabs are.
      */
-    private fun renderCardTabs(state: GameState, viewedPlayerId: String) {
-        selectedCard = CardTabs.render(
-            context = this,
-            scroll = findViewById(R.id.cardTabsScroll),
-            row = findViewById(R.id.cardTabsRow),
-            state = state,
-            viewedPlayerId = viewedPlayerId,
-            selectedCard = selectedCard
-        ) { card ->
-            selectedCard = card
-            lastState?.let { render(it) }
-        }
-    }
-
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
@@ -306,14 +280,14 @@ class GameActivity : ImmersiveActivity() {
         }
     }
 
-    private fun onScoreCategory(category: Category) {
+    private fun onScoreCategory(card: Int, category: Category) {
         val state = lastState ?: return
         if (!state.isMyTurn(playerId) || state.rollsUsed == 0) return
 
         // Scoring cannot be undone, so an optional second tap guards against a mis-tap.
-        if (scoreConfirm.consumesTap(selectedCard, category)) return
+        if (scoreConfirm.consumesTap(card, category)) return
         sound.play(SoundEngine.Sound.SCORE)
-        repository.submitScore(roomCode, state, category, playerId, selectedCard)
+        repository.submitScore(roomCode, state, category, playerId, card)
     }
 
     private fun showGameOver(state: GameState) {
