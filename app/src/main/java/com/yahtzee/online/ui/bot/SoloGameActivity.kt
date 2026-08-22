@@ -29,6 +29,7 @@ import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
 import com.yahtzee.online.ui.game.CardTabs
+import com.yahtzee.online.ui.game.ScoreConfirm
 import com.yahtzee.online.ui.game.ScorecardTabs
 import com.yahtzee.online.ui.game.activeDiceColorOf
 import com.yahtzee.online.ui.game.styleHoldChip
@@ -56,6 +57,9 @@ class SoloGameActivity : ImmersiveActivity() {
     private var lastRollsUsed = 0
     private var gameOverShown = false
     private var botTurnScheduled = false
+    private val scoreConfirm by lazy { ScoreConfirm(this) }
+    private var rollOffDiceShown = false
+    private var botRollOffScheduled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,7 +98,11 @@ class SoloGameActivity : ImmersiveActivity() {
         scorecardList.adapter = scorecardAdapter
         scorecardList.setOnItemClickListener { _, _, position, _ ->
             if (scorecardAdapter.isScorable(position)) {
-                scorecardAdapter.categoryAt(position)?.let { sound.play(SoundEngine.Sound.SCORE); engine.submitScore(it, selectedCard) }
+                scorecardAdapter.categoryAt(position)?.let { category ->
+                    if (scoreConfirm.consumesTap(selectedCard, category)) return@setOnItemClickListener
+                    sound.play(SoundEngine.Sound.SCORE)
+                    engine.submitScore(category, selectedCard)
+                }
             }
         }
 
@@ -112,7 +120,89 @@ class SoloGameActivity : ImmersiveActivity() {
         render(engine.state)
     }
 
+    /**
+     * The pre-game roll for turn order. The player rolls, then each bot follows on a delay so
+     * their dice are watched arriving one at a time rather than all appearing at once.
+     *
+     * The dice view drops to a single die for this and goes back to five when play starts, and
+     * the scoring UI stays hidden throughout — there is nothing to score yet.
+     */
+    private fun renderRollOff(state: GameState): Boolean {
+        val inRollOff = state.status == GameState.STATUS_ROLL_OFF
+        findViewById<View>(R.id.holdRow).visibility = if (inRollOff) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.scorecardList).visibility = if (inRollOff) View.GONE else View.VISIBLE
+        if (!inRollOff) {
+            if (rollOffDiceShown) {
+                rollOffDiceShown = false
+                dice3DView.setDieCount(5)
+            }
+            return false
+        }
+
+        if (!rollOffDiceShown) {
+            rollOffDiceShown = true
+            dice3DView.setDieCount(1)
+        }
+
+        val pending = engine.rollOffPending()
+        val myRoll = state.openingRolls[engine.humanPlayerId]
+        val tieNotice = if (state.openingRollTied.isNotEmpty()) {
+            getString(R.string.roll_off_tied) + " "
+        } else ""
+        findViewById<TextView>(R.id.turnStatusText).text = tieNotice + getString(R.string.roll_off_title)
+        findViewById<TextView>(R.id.rollsLeftText).text = rollOffSummary(state)
+
+        val rollButton = findViewById<Button>(R.id.rollButton)
+        val myTurnToRoll = engine.humanPlayerId in pending
+        rollButton.visibility = if (myTurnToRoll) View.VISIBLE else View.GONE
+        rollButton.isEnabled = myTurnToRoll
+        rollButton.text = getString(R.string.roll_for_first)
+        rollButton.setOnClickListener {
+            val value = engine.rollForFirst(engine.humanPlayerId) ?: return@setOnClickListener
+            animateRollOffDie(engine.humanPlayerId, value)
+            scheduleBotRollOff()
+        }
+
+        // Bots roll on their own once the player has, or straight away if the tie left them
+        // rolling without the player.
+        if (myRoll != null || !myTurnToRoll) scheduleBotRollOff()
+        return true
+    }
+
+    /** "You 4 · Ada 2 · Hugo —" so the results read at a glance while they come in. */
+    private fun rollOffSummary(state: GameState): String =
+        state.playerOrder.joinToString("  ·  ") { id ->
+            val name = if (id == engine.humanPlayerId) getString(R.string.you_label)
+            else state.players[id]?.name.orEmpty()
+            "$name ${state.openingRolls[id]?.toString() ?: "—"}"
+        }
+
+    private fun scheduleBotRollOff() {
+        if (botRollOffScheduled) return
+        val next = engine.rollOffPending().firstOrNull { it != engine.humanPlayerId } ?: return
+        botRollOffScheduled = true
+        botHandler.postDelayed({
+            botRollOffScheduled = false
+            val value = engine.rollForFirst(next) ?: return@postDelayed
+            animateRollOffDie(next, value)
+            scheduleBotRollOff()
+        }, ROLL_SETTLE_DELAY_MS)
+    }
+
+    private fun animateRollOffDie(playerId: String, value: Int) {
+        val color = engine.state.players[playerId]?.diceColor?.takeIf { it != 0 }
+            ?: DieTextureAtlas.DEFAULT_COLOR
+        dice3DView.setDiceColor(color)
+        dice3DView.rollTo(
+            listOf(value),
+            listOf(false),
+            engine.state.seatAngle(engine.humanPlayerId, playerId)
+        )
+    }
+
     private fun render(state: GameState) {
+        if (renderRollOff(state)) return
+
         val myTurn = !engine.isBotTurn()
         val currentPlayerName = state.players[state.currentPlayerId]?.name ?: ""
 
@@ -125,6 +215,12 @@ class SoloGameActivity : ImmersiveActivity() {
         val rollButton = findViewById<Button>(R.id.rollButton)
         rollButton.isEnabled = myTurn && state.rollsUsed < MAX_ROLLS_PER_TURN
         rollButton.visibility = if (myTurn) View.VISIBLE else View.GONE
+        // Reclaim the button from the roll-off, which borrows it for its own handler.
+        rollButton.text = getString(R.string.roll_dice)
+        rollButton.setOnClickListener {
+            if (engine.isBotTurn() || engine.state.rollsUsed >= MAX_ROLLS_PER_TURN) return@setOnClickListener
+            engine.rollDice()
+        }
 
         // Dice take the colour of whoever is rolling, so you can tell at a glance whether the
         // table belongs to you or to a bot. No-op unless the value actually changed.
@@ -142,6 +238,8 @@ class SoloGameActivity : ImmersiveActivity() {
         if (state.currentPlayerId != lastTurnPlayerId) {
             lastTurnPlayerId = state.currentPlayerId
             viewingPlayerId = null
+            // A half-finished confirmation must not survive into someone else's turn.
+            scoreConfirm.reset()
         }
         val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) }
             ?: state.currentPlayerId?.takeIf { state.players.containsKey(it) }
@@ -204,6 +302,7 @@ class SoloGameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
+            scoreConfirm.reset()
             sound.play(SoundEngine.Sound.ROLL)
             // Bots throw from their own seat around the table; yours always come from the right.
             dice3DView.rollTo(

@@ -13,6 +13,7 @@ import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
+import kotlin.random.Random
 
 /**
  * Runs a full Yahtzee game entirely on-device (no Firebase) between the human player and
@@ -88,7 +89,7 @@ class LocalGameEngine(
         GameState(
             roomCode = "SOLO",
             hostId = humanPlayerId,
-            status = GameState.STATUS_PLAYING,
+            status = GameState.STATUS_ROLL_OFF,
             playerOrder = order,
             players = (listOf(humanPlayerId to human) + bots).toMap(),
             dice = List(5) { 1 },
@@ -106,6 +107,53 @@ class LocalGameEngine(
     }
 
     fun isBotTurn(): Boolean = state.currentPlayerId in botIds
+
+    /**
+     * Players who still owe an opening roll. After a tie this narrows to just the tied players,
+     * mirroring the online rules — everyone else keeps the placing they already earned.
+     */
+    fun rollOffPending(): List<String> {
+        val eligible = state.openingRollTied.ifEmpty { state.playerOrder }
+        return eligible.filterNot { state.openingRolls.containsKey(it) }
+    }
+
+    /**
+     * Rolls one die for [playerId] to decide turn order, resolving once everyone eligible has
+     * rolled. Returns the value rolled, or null if that player was not owed a roll.
+     */
+    fun rollForFirst(playerId: String): Int? {
+        if (state.status != GameState.STATUS_ROLL_OFF) return null
+        if (playerId !in rollOffPending()) return null
+
+        val value = Random.nextInt(1, 7)
+        state = state.copy(openingRolls = state.openingRolls + (playerId to value))
+        onChange?.invoke()
+
+        if (rollOffPending().isEmpty()) resolveRollOff()
+        return value
+    }
+
+    private fun resolveRollOff() {
+        val eligible = state.openingRollTied.ifEmpty { state.playerOrder }
+        val highest = eligible.maxOf { state.openingRolls[it] ?: 0 }
+        val winners = eligible.filter { state.openingRolls[it] == highest }
+
+        state = if (winners.size > 1) {
+            // Tie: only those players roll again, and their earlier rolls are cleared so the
+            // pending list is recomputed correctly.
+            state.copy(openingRollTied = winners, openingRolls = emptyMap())
+        } else {
+            val first = winners.first()
+            state.copy(
+                playerOrder = listOf(first) + state.playerOrder.filterNot { it == first },
+                currentTurnIndex = 0,
+                status = GameState.STATUS_PLAYING,
+                openingRolls = emptyMap(),
+                openingRollTied = emptyList()
+            )
+        }
+        onChange?.invoke()
+    }
 
     fun rollDice() {
         if (state.rollsUsed >= MAX_ROLLS_PER_TURN) return

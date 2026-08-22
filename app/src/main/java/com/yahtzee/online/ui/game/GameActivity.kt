@@ -52,8 +52,7 @@ class GameActivity : ImmersiveActivity() {
      *  was created with more than one card. */
     private var selectedCard: Int = 0
 
-    /** Category awaiting a confirming second tap, when that setting is on. */
-    private var pendingCategory: Category? = null
+    private val scoreConfirm by lazy { ScoreConfirm(this) }
     private var lastTurnPlayerId: String? = null
     private var lastState: GameState? = null
     private var gameOverShown = false
@@ -208,6 +207,8 @@ class GameActivity : ImmersiveActivity() {
         if (state.currentPlayerId != lastTurnPlayerId) {
             lastTurnPlayerId = state.currentPlayerId
             viewingPlayerId = null
+            // A half-finished confirmation must not survive into someone else's turn.
+            scoreConfirm.reset()
         }
         val viewing = viewingPlayerId?.takeIf { state.players.containsKey(it) }
             ?: state.currentPlayerId?.takeIf { state.players.containsKey(it) }
@@ -257,6 +258,7 @@ class GameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
+            scoreConfirm.reset()
             sound.play(SoundEngine.Sound.ROLL)
             // Dice arrive from wherever the roller is sitting relative to you — your own throws
             // always come from your right, opponents' from their seat around the table.
@@ -308,13 +310,8 @@ class GameActivity : ImmersiveActivity() {
         val state = lastState ?: return
         if (!state.isMyTurn(playerId) || state.rollsUsed == 0) return
 
-        // Optional double-tap guard: scoring cannot be undone, and a mis-tap can decide a game.
-        if (AppSettings.confirmScoring(this) && pendingCategory != category) {
-            pendingCategory = category
-            Toast.makeText(this, getString(R.string.confirm_score, category.label), Toast.LENGTH_SHORT).show()
-            return
-        }
-        pendingCategory = null
+        // Scoring cannot be undone, so an optional second tap guards against a mis-tap.
+        if (scoreConfirm.consumesTap(selectedCard, category)) return
         sound.play(SoundEngine.Sound.SCORE)
         repository.submitScore(roomCode, state, category, playerId, selectedCard)
     }
