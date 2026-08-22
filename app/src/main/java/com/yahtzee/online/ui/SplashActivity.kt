@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.widget.TextView
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.yahtzee.online.R
 import com.yahtzee.online.game.PlayerProfile
@@ -26,6 +27,14 @@ class SplashActivity : ImmersiveActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
+
+        // Read from the package rather than hardcoded, so it cannot drift from the build the
+        // player is actually running.
+        val version = runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        }.getOrNull()
+        findViewById<TextView>(R.id.splashVersion).text =
+            version?.let { getString(R.string.version_label, it) }.orEmpty()
 
         handler.postDelayed({
             // First launch goes to the name page; afterwards the saved name is used and the

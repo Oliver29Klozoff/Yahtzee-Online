@@ -12,4 +12,14 @@
         android:src="@drawable/splash_full"
         android:contentDescription="@string/app_name" />
 
+    <TextView
+        android:id="@+id/splashVersion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:textSize="12sp"
+        android:letterSpacing="0.06"
+        android:textColor="@color/text_muted" />
+
 </FrameLayout>

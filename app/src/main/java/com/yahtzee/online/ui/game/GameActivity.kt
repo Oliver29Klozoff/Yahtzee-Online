@@ -54,6 +54,9 @@ class GameActivity : ImmersiveActivity() {
     private var gameOverShown = false
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = 0
+
+    /** True while the dice are mid-throw, so the values are not revealed before they land. */
+    private var diceRolling = false
     private lateinit var dice3DView: Dice3DView
     private val sound by lazy { SoundEngine(this) }
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -80,7 +83,14 @@ class GameActivity : ImmersiveActivity() {
         dice3DView.setTableColor(AppSettings.tableColor(this))
         dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)
         // The dice report their own landing, so the knock lands with the visual, not the throw.
-        dice3DView.setOnSettledListener { sound.play(SoundEngine.Sound.LAND) }
+        dice3DView.setOnSettledListener {
+            sound.play(SoundEngine.Sound.LAND)
+            // Redraw so the values appear only once the dice have actually come to rest.
+            if (diceRolling) {
+                diceRolling = false
+                lastState?.let { render(it) }
+            }
+        }
 
         scorecardAdapter = ScorecardAdapter(this) { card, category -> onScoreCategory(card, category) }
         findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
@@ -232,6 +242,7 @@ class GameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
+            diceRolling = true
             scoreConfirm.reset()
             sound.play(SoundEngine.Sound.ROLL)
             // Dice arrive from wherever the roller is sitting relative to you — your own throws
@@ -250,6 +261,10 @@ class GameActivity : ImmersiveActivity() {
 
     private fun renderHoldRow(state: GameState, myTurn: Boolean) {
         val holdRow = findViewById<LinearLayout>(R.id.holdRow)
+        // Kept in the layout but hidden mid-throw: the values are already known, and showing
+        // them would give the result away before the dice land. INVISIBLE rather than GONE so
+        // nothing below shifts as they appear.
+        holdRow.visibility = if (diceRolling) View.INVISIBLE else View.VISIBLE
         holdRow.removeAllViews()
         state.dice.forEachIndexed { index, value ->
             val chip = Button(this)
