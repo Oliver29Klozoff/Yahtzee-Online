@@ -9,13 +9,12 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.ui.ColorContrast
 
 /**
- * The keep/reroll chips under the dice, drawn in whoever's dice colour is currently on the
- * table so the row belongs to the same player as the dice above it.
+ * The keep/reroll chips under the dice.
  *
- * A held chip is filled with that colour and an unheld one merely outlined in it, which reads
- * as picked-up versus left-on-the-table without needing a second colour. The number takes black
- * or white by what it sits on rather than the player's colour, so a black or very pale die does
- * not leave the value unreadable.
+ * Both states are outlined in whoever's dice colour is currently on the table, so the row
+ * belongs to the same player as the dice above it. A kept die fills solid white with black
+ * text — the strongest contrast available, and deliberately not the player's colour, since a
+ * dark one would make the kept dice the hardest to pick out rather than the easiest.
  */
 
 /** The colour of whoever is rolling, falling back to the default for older clients. */
@@ -31,10 +30,10 @@ fun styleHoldChip(chip: Button, held: Boolean, diceColor: Int) {
     chip.background = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
         cornerRadius = 10f * density
-        setColor(if (held) diceColor else surface)
+        setColor(if (held) android.graphics.Color.WHITE else surface)
         setStroke((2 * density).toInt(), diceColor)
     }
     chip.setTextColor(
-        if (held) ColorContrast.textOn(diceColor) else ColorContrast.textOn(surface)
+        if (held) android.graphics.Color.BLACK else ColorContrast.textOn(surface)
     )
 }
