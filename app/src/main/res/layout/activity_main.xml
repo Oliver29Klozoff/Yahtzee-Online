@@ -38,6 +38,14 @@
                 android:layout_marginBottom="26dp" />
 
             <Button
+                android:id="@+id/continueGameButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/continue_game"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone" />
+
+            <Button
                 android:id="@+id/createRoomButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

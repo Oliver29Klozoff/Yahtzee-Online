@@ -8,6 +8,7 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Player
 import com.yahtzee.online.game.ScoreKey
+import com.yahtzee.online.game.SavedSoloGame
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
@@ -24,7 +25,9 @@ class LocalGameEngine(
     botCount: Int,
     humanColor: Int = 0,
     private val cardCount: Int = 1,
-    private val botSkill: AppSettings.BotSkill = AppSettings.BotSkill.HARD
+    private val botSkill: AppSettings.BotSkill = AppSettings.BotSkill.HARD,
+    /** A game in progress to rebuild instead of dealing a new one. */
+    restored: SavedSoloGame? = null
 ) {
 
     private companion object {
@@ -58,11 +61,11 @@ class LocalGameEngine(
         }
     }
 
-    val humanPlayerId: String = UUID.randomUUID().toString()
-    private val botIds: List<String> = List(botCount) { UUID.randomUUID().toString() }
+    val humanPlayerId: String = restored?.humanPlayerId ?: UUID.randomUUID().toString()
+    private val botIds: List<String> = restored?.botIds ?: List(botCount) { UUID.randomUUID().toString() }
     private val roller = DiceRoller()
 
-    var state: GameState = run {
+    var state: GameState = restored?.state ?: run {
         val human = Player(
             id = humanPlayerId,
             name = humanName,

@@ -60,6 +60,7 @@
     <string name="back">Back</string>
     <string name="name_prompt">What should we call you?</string>
     <string name="continue_label">Continue</string>
+    <string name="continue_game">Continue game</string>
     <string name="name_required">Enter a name to continue</string>
     <string name="greeting">Playing as %1$s · tap to change</string>
     <string name="leaderboard">Leaderboard</string>

@@ -15,9 +15,11 @@ import com.yahtzee.online.R
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardEntry
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.lobby.LobbyActivity
 import com.yahtzee.online.update.UpdateChecker
 
@@ -100,6 +102,19 @@ class MainActivity : ImmersiveActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // Offered on return as well as on launch, so finishing a game or backing out of one
+        // updates the button rather than leaving a stale offer to resume something that is over.
+        val continueButton = findViewById<Button>(R.id.continueGameButton)
+        val resumable = SoloGameStore.load(this)
+        continueButton.visibility = if (resumable != null) Button.VISIBLE else Button.GONE
+        continueButton.setOnClickListener {
+            startActivity(
+                Intent(this, SoloGameActivity::class.java)
+                    .putExtra(SoloGameActivity.EXTRA_RESUME, true)
+                    .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, playerName())
+            )
+        }
         // Re-read on resume so a name changed on the name page shows immediately on return.
         findViewById<TextView>(R.id.greetingText).text =
             getString(R.string.greeting, playerName())

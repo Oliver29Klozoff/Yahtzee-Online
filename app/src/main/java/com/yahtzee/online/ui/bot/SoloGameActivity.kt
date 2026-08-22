@@ -18,6 +18,8 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.SavedSoloGame
+import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.LeaderboardRepository
@@ -35,6 +37,7 @@ class SoloGameActivity : ImmersiveActivity() {
         const val EXTRA_PLAYER_NAME = "player_name"
         const val EXTRA_BOT_COUNT = "bot_count"
         const val EXTRA_CARD_COUNT = "card_count"
+        const val EXTRA_RESUME = "resume"
         private const val ROLL_SETTLE_DELAY_MS = 1300L
     }
 
@@ -59,12 +62,15 @@ class SoloGameActivity : ImmersiveActivity() {
         val name = intent.getStringExtra(EXTRA_PLAYER_NAME) ?: "You"
         val botCount = intent.getIntExtra(EXTRA_BOT_COUNT, 1).coerceIn(1, 4)
         val cardCount = intent.getIntExtra(EXTRA_CARD_COUNT, 1).coerceIn(1, 6)
+        // Resume a game in progress if there is one, rather than dealing over the top of it.
+        val saved = if (intent.getBooleanExtra(EXTRA_RESUME, false)) SoloGameStore.load(this) else null
         engine = LocalGameEngine(
             name,
-            botCount,
+            saved?.botIds?.size ?: botCount,
             DicePreferences.getColor(this),
-            cardCount,
-            AppSettings.botSkill(this)
+            saved?.cardCount ?: cardCount,
+            saved?.botSkill ?: AppSettings.botSkill(this),
+            saved
         )
 
         // Solo games have no turn timer / no timer UI needed.
@@ -96,7 +102,11 @@ class SoloGameActivity : ImmersiveActivity() {
             engine.rollDice()
         }
 
-        engine.setOnChangeListener { render(engine.state) }
+        engine.setOnChangeListener {
+            persistGame()
+            render(engine.state)
+        }
+        persistGame()
         render(engine.state)
     }
 
@@ -243,6 +253,28 @@ class SoloGameActivity : ImmersiveActivity() {
         startActivity(intent)
         finish()
         overridePendingTransition(0, 0)
+    }
+
+    /**
+     * Writes the game out after every move. Saving on a lifecycle callback instead would miss
+     * the case that matters most — the process being killed in the background with no warning.
+     */
+    private fun persistGame() {
+        val state = engine.state
+        if (state.status == GameState.STATUS_FINISHED) {
+            SoloGameStore.clear(this)
+            return
+        }
+        SoloGameStore.save(
+            this,
+            SavedSoloGame(
+                humanPlayerId = engine.humanPlayerId,
+                botIds = state.playerOrder.filterNot { it == engine.humanPlayerId },
+                cardCount = state.cardCount,
+                botSkill = AppSettings.botSkill(this),
+                state = state
+            )
+        )
     }
 
     private fun showGameOver(state: GameState) {
