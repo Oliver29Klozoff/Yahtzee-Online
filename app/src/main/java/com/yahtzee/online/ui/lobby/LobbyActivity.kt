@@ -23,7 +23,6 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.GameRepository
-import com.yahtzee.online.ui.ColorContrast
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.game.GameActivity
@@ -355,7 +354,10 @@ class LobbyActivity : ImmersiveActivity() {
                 setTextColor(
                     when {
                         awaitingReroll -> resources.getColor(R.color.timer_warn, theme)
-                        isLeader -> ColorContrast.readableOn(color, resources.getColor(R.color.background, theme))
+                        // The leader is picked out in plain white rather than their dice colour,
+                        // which would be unreadable for anyone playing a dark one. The die
+                        // beside it already carries the colour.
+                        isLeader -> resources.getColor(R.color.text_dark, theme)
                         else -> resources.getColor(R.color.text_muted, theme)
                     }
                 )

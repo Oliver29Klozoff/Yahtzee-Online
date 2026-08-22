@@ -279,14 +279,7 @@ class GameActivity : ImmersiveActivity() {
             val chip = Button(this)
             chip.text = value.toString()
             chip.isSelected = state.held.getOrNull(index) == true
-            chip.setBackgroundColor(
-                if (chip.isSelected) resources.getColor(R.color.die_held, theme)
-                else resources.getColor(R.color.die_normal, theme)
-            )
-            chip.setTextColor(
-                if (chip.isSelected) resources.getColor(R.color.background, theme)
-                else resources.getColor(R.color.text_dark, theme)
-            )
+            styleHoldChip(chip, chip.isSelected, activeDiceColorOf(state))
             val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             params.marginStart = 8
             params.marginEnd = 8

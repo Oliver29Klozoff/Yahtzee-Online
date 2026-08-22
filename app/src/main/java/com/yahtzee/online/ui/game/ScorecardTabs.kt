@@ -46,13 +46,13 @@ object ScorecardTabs {
 
             // Tint each tab with that player's own dice colour, so the colour reads as their
             // identity at the table rather than only showing up on the dice during their turn.
-            val rawColor = player.diceColor.takeIf { it != 0 }
+            // The player's colour is used exactly as chosen, for the fill when this tab is
+            // selected and for its outline otherwise. The label never takes the colour: it picks
+            // black or white by what it is sitting on, so the name stays readable even against a
+            // black die without the colour itself being altered.
+            val playerColor = player.diceColor.takeIf { it != 0 }
                 ?: context.resources.getColor(R.color.brand_primary, context.theme)
-            // Nudged until it can actually be read: a near-black die would otherwise print a
-            // black name on a black tab, and light it up as a black-on-black background when
-            // selected.
             val surface = context.resources.getColor(R.color.surface, context.theme)
-            val playerColor = ColorContrast.readableOn(rawColor, surface)
 
             val tab = TextView(context).apply {
                 text = label
@@ -64,12 +64,13 @@ object ScorecardTabs {
                 )
                 setTextColor(
                     if (isViewing) ColorContrast.textOn(playerColor)
-                    else playerColor
+                    else ColorContrast.textOn(surface)
                 )
-                setBackgroundColor(
-                    if (isViewing) playerColor
-                    else context.resources.getColor(R.color.surface, context.theme)
-                )
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    setColor(if (isViewing) playerColor else surface)
+                    setStroke((2 * density).toInt(), playerColor)
+                }
                 setOnClickListener { onSelect(id) }
             }
             tab.layoutParams = LinearLayout.LayoutParams(
