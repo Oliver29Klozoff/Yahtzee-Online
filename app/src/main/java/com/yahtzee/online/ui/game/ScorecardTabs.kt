@@ -7,6 +7,7 @@ import android.widget.TextView
 import com.yahtzee.online.R
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.ui.ColorContrast
 
 /**
  * The row of per-player tabs sitting above the scorecard, so a player can switch which
@@ -45,8 +46,13 @@ object ScorecardTabs {
 
             // Tint each tab with that player's own dice colour, so the colour reads as their
             // identity at the table rather than only showing up on the dice during their turn.
-            val playerColor = player.diceColor.takeIf { it != 0 }
+            val rawColor = player.diceColor.takeIf { it != 0 }
                 ?: context.resources.getColor(R.color.brand_primary, context.theme)
+            // Nudged until it can actually be read: a near-black die would otherwise print a
+            // black name on a black tab, and light it up as a black-on-black background when
+            // selected.
+            val surface = context.resources.getColor(R.color.surface, context.theme)
+            val playerColor = ColorContrast.readableOn(rawColor, surface)
 
             val tab = TextView(context).apply {
                 text = label
@@ -57,7 +63,7 @@ object ScorecardTabs {
                     (14 * density).toInt(), (8 * density).toInt()
                 )
                 setTextColor(
-                    if (isViewing) context.resources.getColor(R.color.background, context.theme)
+                    if (isViewing) ColorContrast.textOn(playerColor)
                     else playerColor
                 )
                 setBackgroundColor(
