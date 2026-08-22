@@ -42,6 +42,9 @@ class SoloGameActivity : ImmersiveActivity() {
         const val EXTRA_CARD_COUNT = "card_count"
         const val EXTRA_RESUME = "resume"
         private const val ROLL_SETTLE_DELAY_MS = 1300L
+
+        /** How long the finished roll-off is held before play begins. */
+        private const val ROLL_OFF_REVEAL_MS = 4000L
     }
 
     private lateinit var engine: LocalGameEngine
@@ -58,6 +61,7 @@ class SoloGameActivity : ImmersiveActivity() {
     private val scoreConfirm by lazy { ScoreConfirm(this) }
     private var rollOffDiceShown = false
     private var botRollOffScheduled = false
+    private var rollOffFinishScheduled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -162,6 +166,10 @@ class SoloGameActivity : ImmersiveActivity() {
             scheduleBotRollOff()
         }
 
+        // Covers the case where the player rolled last: nothing is left to schedule, so the
+        // hold has to be started from here.
+        if (engine.rollOffReady()) scheduleRollOffFinish()
+
         // Bots roll on their own once the player has, or straight away if the tie left them
         // rolling without the player.
         if (myRoll != null || !myTurnToRoll) scheduleBotRollOff()
@@ -170,7 +178,11 @@ class SoloGameActivity : ImmersiveActivity() {
 
     private fun scheduleBotRollOff() {
         if (botRollOffScheduled) return
-        val next = engine.rollOffPending().firstOrNull { it != engine.humanPlayerId } ?: return
+        val next = engine.rollOffPending().firstOrNull { it != engine.humanPlayerId }
+        if (next == null) {
+            scheduleRollOffFinish()
+            return
+        }
         botRollOffScheduled = true
         botHandler.postDelayed({
             botRollOffScheduled = false
@@ -178,6 +190,19 @@ class SoloGameActivity : ImmersiveActivity() {
             animateRollOffDie(next, value)
             scheduleBotRollOff()
         }, ROLL_SETTLE_DELAY_MS)
+    }
+
+    /**
+     * Holds the completed row on screen before play begins, so the last roll — almost always a
+     * bot's — is actually seen rather than flashing past as the game opens.
+     */
+    private fun scheduleRollOffFinish() {
+        if (!engine.rollOffReady() || rollOffFinishScheduled) return
+        rollOffFinishScheduled = true
+        botHandler.postDelayed({
+            rollOffFinishScheduled = false
+            engine.finishRollOff()
+        }, ROLL_OFF_REVEAL_MS)
     }
 
     private fun animateRollOffDie(playerId: String, value: Int) {
@@ -372,6 +397,7 @@ class SoloGameActivity : ImmersiveActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        botHandler.removeCallbacksAndMessages(null)
         sound.release()
         botHandler.removeCallbacksAndMessages(null)
     }

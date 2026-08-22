@@ -128,9 +128,22 @@ class LocalGameEngine(
         val value = Random.nextInt(1, 7)
         state = state.copy(openingRolls = state.openingRolls + (playerId to value))
         onChange?.invoke()
-
-        if (rollOffPending().isEmpty()) resolveRollOff()
         return value
+    }
+
+    /** True once everyone eligible has rolled and the result is only waiting to be applied. */
+    fun rollOffReady(): Boolean =
+        state.status == GameState.STATUS_ROLL_OFF && rollOffPending().isEmpty()
+
+    /**
+     * Applies the roll-off result. Deliberately separate from [rollForFirst] rather than
+     * happening inside it: resolving on the same call that recorded the final roll flipped the
+     * game into play in the same breath, so the last die — usually a bot's — was never seen.
+     * The caller now holds the finished row on screen first and then calls this.
+     */
+    fun finishRollOff() {
+        if (!rollOffReady()) return
+        resolveRollOff()
     }
 
     private fun resolveRollOff() {
