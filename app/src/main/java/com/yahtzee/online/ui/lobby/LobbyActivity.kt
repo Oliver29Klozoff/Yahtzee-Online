@@ -26,6 +26,7 @@ import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.game.GameActivity
+import com.yahtzee.online.ui.game.RollOffRow
 
 class LobbyActivity : ImmersiveActivity() {
 
@@ -311,62 +312,15 @@ class LobbyActivity : ImmersiveActivity() {
         order: List<String> = state.playerOrder,
         winnerId: String? = null
     ) {
-        val row = findViewById<LinearLayout>(R.id.rollOffRow)
-        row.removeAllViews()
-        val density = resources.displayMetrics.density
-        val dieSize = (winnerId?.let { 64 } ?: 54) * density
-        val tied = state.openingRollTied.toSet()
-        val darkPips = DicePreferences.useDarkPips(this)
-        val highest = rolls.values.maxOrNull()
-
-        order.forEach { id ->
-            val player = state.players[id] ?: return@forEach
-            val roll = rolls[id]
-            val color = player.diceColor.takeIf { it != 0 } ?: DieTextureAtlas.DEFAULT_COLOR
-
-            val cell = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                setPadding((8 * density).toInt(), 0, (8 * density).toInt(), 0)
-            }
-
-            // During the reveal the winner's die is shown at full strength and the rest dimmed,
-            // so the result is obvious at a glance.
-            val dieView = ImageView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dieSize.toInt(), dieSize.toInt())
-                setImageBitmap(DieTextureAtlas.face(color, roll ?: 1, darkPips))
-                alpha = when {
-                    roll == null -> 0.18f
-                    winnerId != null && id != winnerId -> 0.45f
-                    else -> 1f
-                }
-            }
-
-            val awaitingReroll = id in tied
-            val isLeader = if (winnerId != null) id == winnerId else roll != null && roll == highest
-
-            val label = TextView(this).apply {
-                text = if (id == playerId) getString(R.string.you_label) else player.name
-                textSize = 12f
-                maxLines = 1
-                gravity = Gravity.CENTER
-                setPadding(0, (5 * density).toInt(), 0, 0)
-                setTextColor(
-                    when {
-                        awaitingReroll -> resources.getColor(R.color.timer_warn, theme)
-                        // The leader is picked out in plain white rather than their dice colour,
-                        // which would be unreadable for anyone playing a dark one. The die
-                        // beside it already carries the colour.
-                        isLeader -> resources.getColor(R.color.text_dark, theme)
-                        else -> resources.getColor(R.color.text_muted, theme)
-                    }
-                )
-            }
-
-            cell.addView(dieView)
-            cell.addView(label)
-            row.addView(cell)
-        }
+        RollOffRow.render(
+            context = this,
+            row = findViewById(R.id.rollOffRow),
+            state = state,
+            localPlayerId = playerId,
+            rolls = rolls,
+            order = order,
+            winnerId = winnerId
+        )
     }
 
     private fun renderPlayers(state: GameState) {

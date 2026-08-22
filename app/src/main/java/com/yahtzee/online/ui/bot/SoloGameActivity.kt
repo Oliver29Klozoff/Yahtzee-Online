@@ -28,6 +28,7 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
+import com.yahtzee.online.ui.game.RollOffRow
 import com.yahtzee.online.ui.game.ScoreConfirm
 import com.yahtzee.online.ui.game.ScorecardTabs
 import com.yahtzee.online.ui.game.activeDiceColorOf
@@ -120,7 +121,8 @@ class SoloGameActivity : ImmersiveActivity() {
      */
     private fun renderRollOff(state: GameState): Boolean {
         val inRollOff = state.status == GameState.STATUS_ROLL_OFF
-        findViewById<View>(R.id.holdRow).visibility = if (inRollOff) View.GONE else View.VISIBLE
+        // The hold row is idle during the roll-off, so it carries everyone's dice instead.
+        findViewById<View>(R.id.holdRow).visibility = View.VISIBLE
         findViewById<View>(R.id.scorecardList).visibility = if (inRollOff) View.GONE else View.VISIBLE
         if (!inRollOff) {
             if (rollOffDiceShown) {
@@ -141,7 +143,13 @@ class SoloGameActivity : ImmersiveActivity() {
             getString(R.string.roll_off_tied) + " "
         } else ""
         findViewById<TextView>(R.id.turnStatusText).text = tieNotice + getString(R.string.roll_off_title)
-        findViewById<TextView>(R.id.rollsLeftText).text = rollOffSummary(state)
+        findViewById<TextView>(R.id.rollsLeftText).text = ""
+        RollOffRow.render(
+            context = this,
+            row = findViewById(R.id.holdRow),
+            state = state,
+            localPlayerId = engine.humanPlayerId
+        )
 
         val rollButton = findViewById<Button>(R.id.rollButton)
         val myTurnToRoll = engine.humanPlayerId in pending
@@ -159,14 +167,6 @@ class SoloGameActivity : ImmersiveActivity() {
         if (myRoll != null || !myTurnToRoll) scheduleBotRollOff()
         return true
     }
-
-    /** "You 4 · Ada 2 · Hugo —" so the results read at a glance while they come in. */
-    private fun rollOffSummary(state: GameState): String =
-        state.playerOrder.joinToString("  ·  ") { id ->
-            val name = if (id == engine.humanPlayerId) getString(R.string.you_label)
-            else state.players[id]?.name.orEmpty()
-            "$name ${state.openingRolls[id]?.toString() ?: "—"}"
-        }
 
     private fun scheduleBotRollOff() {
         if (botRollOffScheduled) return
