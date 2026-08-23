@@ -26,7 +26,11 @@ class Dice3DView @JvmOverloads constructor(
     init {
         setEGLContextClientVersion(2)
         populate(DEFAULT_DIE_COUNT)
-        renderer = DiceRenderer(world, onAllSettled = { notifySettled() })
+        renderer = DiceRenderer(
+            world,
+            context.applicationContext,
+            onAllSettled = { notifySettled() }
+        )
         setRenderer(renderer)
         renderMode = RENDERMODE_CONTINUOUSLY
     }

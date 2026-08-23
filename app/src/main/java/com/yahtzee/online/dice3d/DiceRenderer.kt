@@ -11,6 +11,8 @@ import javax.microedition.khronos.opengles.GL10
 
 class DiceRenderer(
     val world: DicePhysicsWorld,
+    /** Application context — used once, to decode the artwork printed on the felt. */
+    private val context: android.content.Context,
     private val onAllSettled: () -> Unit
 ) : GLSurfaceView.Renderer {
 
@@ -21,6 +23,7 @@ class DiceRenderer(
     private lateinit var tableShader: TableShader
     private lateinit var glowShader: GlowShader
     private var textureId = 0
+    private var logoTextureId = 0
 
     private val projectionMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
@@ -90,6 +93,7 @@ class DiceRenderer(
         glowShader = GlowShader()
         textureId = createTexture()
         uploadAtlas()
+        uploadLogo()
 
         updateCamera()
     }
@@ -113,6 +117,31 @@ class DiceRenderer(
             0f, 0f, 0f,
             0f, 1f, 0f
         )
+    }
+
+    /**
+     * Uploads the app artwork onto its own texture unit. Decoded once at surface creation and
+     * recycled straight away — it never changes, unlike the dice atlas, which is rebuilt every
+     * time the active player's colour does.
+     */
+    private fun uploadLogo() {
+        val options = android.graphics.BitmapFactory.Options().apply {
+            inSampleSize = LOGO_SAMPLE_SIZE
+        }
+        val bitmap = runCatching {
+            android.graphics.BitmapFactory.decodeResource(
+                context.resources,
+                com.yahtzee.online.R.drawable.splash_full,
+                options
+            )
+        }.getOrNull() ?: return
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + LOGO_TEXTURE_UNIT)
+        logoTextureId = createTexture()
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
+        bitmap.recycle()
+        // Back to unit 0, which everything else assumes is the one that is active.
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
     }
 
     private fun uploadAtlas() {
@@ -197,11 +226,26 @@ class DiceRenderer(
             1f
         )
 
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + LOGO_TEXTURE_UNIT)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, logoTextureId)
+        GLES20.glUniform1i(tableShader.uTexture, LOGO_TEXTURE_UNIT)
+        // Nothing to add if the artwork failed to decode, leaving plain felt rather than
+        // whatever happens to be bound on that unit.
+        GLES20.glUniform1f(
+            tableShader.uLogoStrength,
+            if (logoTextureId != 0) LOGO_STRENGTH else 0f
+        )
+
         tableMesh.vertexBuffer.position(0)
+        tableMesh.texCoordBuffer.position(0)
         GLES20.glEnableVertexAttribArray(tableShader.aPosition)
+        GLES20.glEnableVertexAttribArray(tableShader.aTexCoord)
         GLES20.glVertexAttribPointer(tableShader.aPosition, 3, GLES20.GL_FLOAT, false, 0, tableMesh.vertexBuffer)
+        GLES20.glVertexAttribPointer(tableShader.aTexCoord, 2, GLES20.GL_FLOAT, false, 0, tableMesh.texCoordBuffer)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, tableMesh.vertexCount)
+        GLES20.glDisableVertexAttribArray(tableShader.aTexCoord)
         GLES20.glDisableVertexAttribArray(tableShader.aPosition)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
     }
 
     private fun drawGlow(die: DieBody) {
@@ -291,5 +335,18 @@ class DiceRenderer(
         const val GLOW_RADIUS = 0.95f
         const val GLOW_HEIGHT = 0.012f
         const val GLOW_STRENGTH = 0.30f
+
+        /**
+         * How strongly the app artwork shows through the felt. Low enough that it reads as
+         * printed into the surface rather than as a picture laid on top of it, and that the real
+         * dice rolling over it stay the thing being looked at.
+         */
+        const val LOGO_STRENGTH = 0.28f
+
+        /** Ample for a table graphic, and a quarter of the memory of the full-size artwork. */
+        const val LOGO_SAMPLE_SIZE = 2
+
+        /** Texture unit for the felt artwork, leaving unit 0 to the dice atlas. */
+        const val LOGO_TEXTURE_UNIT = 1
     }
 }
