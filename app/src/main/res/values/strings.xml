@@ -76,4 +76,36 @@
     <string name="choose_card_count">How many scorecards?</string>
     <string name="one_card">1 card (classic)</string>
     <string name="n_cards">%1$d cards</string>
+
+    <!-- Daily challenge -->
+    <string name="daily_challenge">Daily Challenge</string>
+    <string name="daily_subtitle">Same dice for everyone, once a day</string>
+    <string name="daily_played">Today\'s score: %1$d</string>
+    <string name="daily_complete">Challenge complete</string>
+    <string name="daily_result">You scored %1$d on the %2$s challenge.</string>
+    <string name="daily_share_text">Yahtzee Daily %1$s — %2$d points. Same dice for everyone. Beat that.</string>
+    <string name="daily_board">Today\'s board</string>
+    <string name="daily_board_empty">Nobody has posted a score yet today.</string>
+    <string name="share_result">Share result</string>
+    <string name="done">Done</string>
+    <string name="daily_replaces_game">You have a solo game in progress. Starting today\'s challenge will discard it.</string>
+    <string name="daily_start_anyway">Start challenge</string>
+
+    <!-- Stats -->
+    <string name="stats">Your stats</string>
+    <string name="stats_empty">No games yet. Play a game and your record shows up here — best and average score, which categories you score well, and which ones you keep throwing away.</string>
+    <string name="stats_by_category">BY CATEGORY</string>
+    <string name="stats_recent">RECENT GAMES</string>
+    <string name="stats_reset">Reset stats</string>
+    <string name="stats_reset_confirm">This clears your whole record on this device. Leaderboard scores are not affected.</string>
+    <string name="stat_best">Best score</string>
+    <string name="stat_average">Average</string>
+    <string name="stat_played">Games</string>
+    <string name="stat_win_rate">Win rate</string>
+    <string name="stat_yahtzees">Yahtzees</string>
+    <string name="stat_upper_bonus">Upper bonus</string>
+    <string name="stat_avg_value">%1$.1f</string>
+    <string name="stat_zero_value">%1$d%% zero</string>
+    <string name="mode_online">Online</string>
+    <string name="mode_solo">Solo</string>
 </resources>

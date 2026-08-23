@@ -1,5 +1,6 @@
 package com.yahtzee.online.ui.bot
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -16,8 +17,10 @@ import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.AppSettings
+import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.SavedSoloGame
 import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.game.grandTotalAllCards
@@ -41,6 +44,14 @@ class SoloGameActivity : ImmersiveActivity() {
         const val EXTRA_BOT_COUNT = "bot_count"
         const val EXTRA_CARD_COUNT = "card_count"
         const val EXTRA_RESUME = "resume"
+
+        /**
+         * The day id when this is a daily challenge. Daily games run through this same screen:
+         * they are a solo game with no opponents, one card, and the day's tape supplying the
+         * dice, so everything else here — the scorecard, the hold row, the 3D dice — is already
+         * exactly what is wanted.
+         */
+        const val EXTRA_DAILY_ID = "daily_id"
         private const val ROLL_SETTLE_DELAY_MS = 1300L
 
         /** How long the finished roll-off is held before play begins. */
@@ -66,6 +77,9 @@ class SoloGameActivity : ImmersiveActivity() {
     private var botRollOffScheduled = false
     private var rollOffFinishScheduled = false
 
+    /** Non-null when this is a daily challenge, holding the day whose tape is in play. */
+    private var dailyId: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
@@ -74,14 +88,20 @@ class SoloGameActivity : ImmersiveActivity() {
         val botCount = intent.getIntExtra(EXTRA_BOT_COUNT, 1).coerceIn(1, 4)
         val cardCount = intent.getIntExtra(EXTRA_CARD_COUNT, 1).coerceIn(1, 6)
         // Resume a game in progress if there is one, rather than dealing over the top of it.
-        val saved = if (intent.getBooleanExtra(EXTRA_RESUME, false)) SoloGameStore.load(this) else null
+        val saved = if (intent.getBooleanExtra(EXTRA_RESUME, false)) SoloGameStore.loadResumable(this) else null
+        // A resumed daily keeps its own day, so a game left open overnight finishes against the
+        // tape it was started on rather than silently switching to today's dice mid-game.
+        dailyId = saved?.dailyId ?: intent.getStringExtra(EXTRA_DAILY_ID)
+        val daily = dailyId != null
+
         engine = LocalGameEngine(
             name,
-            saved?.botIds?.size ?: botCount,
+            if (daily) 0 else saved?.botIds?.size ?: botCount,
             DicePreferences.getColor(this),
-            saved?.cardCount ?: cardCount,
+            if (daily) 1 else saved?.cardCount ?: cardCount,
             saved?.botSkill ?: AppSettings.botSkill(this),
-            saved
+            saved,
+            dailyId?.let { DailyChallenge.tapeFor(it) }
         )
 
         // Solo games have no turn timer / no timer UI needed.
@@ -385,21 +405,42 @@ class SoloGameActivity : ImmersiveActivity() {
                 botIds = state.playerOrder.filterNot { it == engine.humanPlayerId },
                 cardCount = state.cardCount,
                 botSkill = AppSettings.botSkill(this),
-                state = state
+                state = state,
+                dailyId = dailyId
             )
         )
     }
 
     private fun showGameOver(state: GameState) {
         sound.play(SoundEngine.Sound.WIN)
-        // Solo results count too — the board ranks people, not game modes.
-        state.players[engine.humanPlayerId]?.let { me ->
+        val me = state.players[engine.humanPlayerId]
+        val score = me?.grandTotalAllCards(state.cardCount) ?: 0
+        val day = dailyId
+
+        if (me != null) {
+            // Solo results count too — the board ranks people, not game modes.
             LeaderboardRepository().submitScore(
                 playerId = PlayerProfile.getId(this),
                 name = PlayerProfile.getName(this).ifEmpty { me.name },
-                score = me.grandTotalAllCards(state.cardCount)
+                score = score
+            )
+            PlayerStats.record(
+                context = this,
+                player = me,
+                cardCount = state.cardCount,
+                mode = if (day != null) PlayerStats.Mode.DAILY else PlayerStats.Mode.SOLO,
+                // A daily challenge has nobody to beat, so it is never counted as a win — it
+                // would otherwise inflate the win rate with games that had no opponent.
+                won = day == null && state.winnerId == engine.humanPlayerId,
+                opponents = state.playerOrder.size - 1
             )
         }
+
+        if (day != null) {
+            showDailyResult(day, score)
+            return
+        }
+
         val winnerName = state.players[state.winnerId]?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
@@ -408,6 +449,42 @@ class SoloGameActivity : ImmersiveActivity() {
             .setNegativeButton(R.string.leave_game) { _, _ -> finish() }
             .setCancelable(false)
             .show()
+    }
+
+    /**
+     * The daily result: posted to the day's board, marked played so it cannot be re-rolled for a
+     * better number, and offered as something to share. No "play again" — that is the whole point.
+     */
+    private fun showDailyResult(day: String, score: Int) {
+        DailyChallenge.recordToday(this, score)
+        SoloGameStore.clear(this)
+        LeaderboardRepository().submitDailyScore(
+            dayId = day,
+            playerId = PlayerProfile.getId(this),
+            name = PlayerProfile.getName(this).ifEmpty { "Player" },
+            score = score
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.daily_complete)
+            .setMessage(getString(R.string.daily_result, score, day))
+            .setPositiveButton(R.string.share_result) { _, _ -> shareDailyResult(day, score) }
+            .setNegativeButton(R.string.done) { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun shareDailyResult(day: String, score: Int) {
+        val text = getString(R.string.daily_share_text, day, score)
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, text),
+                getString(R.string.share_result)
+            )
+        )
+        finish()
     }
 
     override fun onDestroy() {

@@ -3,6 +3,7 @@ package com.yahtzee.online.bot
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DiceRoller
+import com.yahtzee.online.game.DiceTape
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -28,7 +29,13 @@ class LocalGameEngine(
     private val cardCount: Int = 1,
     private val botSkill: AppSettings.BotSkill = AppSettings.BotSkill.HARD,
     /** A game in progress to rebuild instead of dealing a new one. */
-    restored: SavedSoloGame? = null
+    restored: SavedSoloGame? = null,
+    /**
+     * The day's fixed dice, when this is a daily challenge. With a tape in hand every roll is
+     * read from it rather than generated, which is what makes the day's puzzle identical for
+     * everyone playing it. Null for an ordinary game, which rolls freely.
+     */
+    private val tape: DiceTape? = null
 ) {
 
     private companion object {
@@ -89,7 +96,9 @@ class LocalGameEngine(
         GameState(
             roomCode = "SOLO",
             hostId = humanPlayerId,
-            status = GameState.STATUS_ROLL_OFF,
+            // Nobody to roll off against in a daily challenge, so it opens straight into play
+            // rather than staging a one-player contest for first turn.
+            status = if (botCount == 0) GameState.STATUS_PLAYING else GameState.STATUS_ROLL_OFF,
             playerOrder = order,
             players = (listOf(humanPlayerId to human) + bots).toMap(),
             dice = List(5) { 1 },
@@ -168,10 +177,18 @@ class LocalGameEngine(
         onChange?.invoke()
     }
 
+    /**
+     * Which turn the human is on, counted from how many boxes they have filled. Only meaningful
+     * in a daily challenge, where they play alone on one card and so the count and the turn
+     * number are the same thing — it indexes the day's tape.
+     */
+    private fun humanTurnNumber(): Int = state.players[humanPlayerId]?.scores?.size ?: 0
+
     fun rollDice() {
         if (state.rollsUsed >= MAX_ROLLS_PER_TURN) return
         val heldSet = state.held.mapIndexedNotNull { i, isHeld -> if (isHeld) i else null }.toSet()
-        val newDice = roller.reroll(state.dice, heldSet)
+        val newDice = tape?.apply(humanTurnNumber(), state.rollsUsed, state.dice, heldSet)
+            ?: roller.reroll(state.dice, heldSet)
         state = state.copy(dice = newDice, rollsUsed = state.rollsUsed + 1)
         onChange?.invoke()
     }

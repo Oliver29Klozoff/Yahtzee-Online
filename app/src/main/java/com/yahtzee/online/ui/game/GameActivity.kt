@@ -24,6 +24,7 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.seatAngle
@@ -326,14 +327,23 @@ class GameActivity : ImmersiveActivity() {
     /** Records this player's own final score on the global board — never an opponent's. */
     private fun submitToLeaderboard(state: GameState) {
         val me = state.players[playerId] ?: return
-        val byCategory = me.scores
-            .mapNotNull { (name, value) -> runCatching { Category.valueOf(name) to value }.getOrNull() }
-            .toMap()
-        val total = Scoring.grandTotal(byCategory, me.yahtzeeBonusCount)
+        // grandTotalAllCards rather than reading the score map directly: the keys are
+        // "card:CATEGORY", so parsing them as bare category names — as this did — matched
+        // nothing, and every online game posted a total of zero (silently dropped by the
+        // repository's own score <= 0 guard) or, with a Yahtzee bonus, just the bonus.
+        val total = me.grandTotalAllCards(state.cardCount)
         LeaderboardRepository().submitScore(
             playerId = PlayerProfile.getId(this),
             name = PlayerProfile.getName(this).ifEmpty { me.name },
             score = total
+        )
+        PlayerStats.record(
+            context = this,
+            player = me,
+            cardCount = state.cardCount,
+            mode = PlayerStats.Mode.ONLINE,
+            won = state.winnerId == playerId,
+            opponents = state.playerOrder.size - 1
         )
     }
 

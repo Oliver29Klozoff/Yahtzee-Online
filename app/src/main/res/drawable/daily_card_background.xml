@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Outlined rather than filled so the daily challenge reads as the feature of the menu without
+    competing with the primary buttons below it, which are solid.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/surface" />
+    <stroke android:width="1dp" android:color="@color/brand_primary" />
+    <corners android:radius="16dp" />
+</shape>

@@ -3,6 +3,7 @@ package com.yahtzee.online.ui
 import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -12,6 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
@@ -40,6 +42,13 @@ class MainActivity : ImmersiveActivity() {
     private val leaderboard = LeaderboardRepository()
     private var leaderboardListener: ValueEventListener? = null
 
+    /** The daily board is a separate query, so it needs its own handle to detach. */
+    private var dailyQuery: com.google.firebase.database.Query? = null
+    private var dailyListener: ValueEventListener? = null
+
+    /** Which board the leaderboard section is currently showing. */
+    private var showingDaily = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -59,6 +68,17 @@ class MainActivity : ImmersiveActivity() {
 
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        findViewById<ImageButton>(R.id.statsButton).setOnClickListener {
+            startActivity(Intent(this, StatsActivity::class.java))
+        }
+
+        findViewById<View>(R.id.dailyCard).setOnClickListener { startDailyChallenge() }
+
+        findViewById<Button>(R.id.leaderboardToggle).setOnClickListener {
+            showingDaily = !showingDaily
+            observeLeaderboard()
         }
 
         // Cold boot: sweep any APK left behind by a previous update, then quietly look for a new
@@ -106,7 +126,7 @@ class MainActivity : ImmersiveActivity() {
         // Offered on return as well as on launch, so finishing a game or backing out of one
         // updates the button rather than leaving a stale offer to resume something that is over.
         val continueButton = findViewById<Button>(R.id.continueGameButton)
-        val resumable = SoloGameStore.load(this)
+        val resumable = SoloGameStore.loadResumable(this)
         continueButton.visibility = if (resumable != null) Button.VISIBLE else Button.GONE
         continueButton.setOnClickListener {
             startActivity(
@@ -119,15 +139,99 @@ class MainActivity : ImmersiveActivity() {
         findViewById<TextView>(R.id.greetingText).text =
             getString(R.string.greeting, playerName())
 
-        leaderboardListener = leaderboard.observeTop(LEADERBOARD_SIZE) { entries ->
-            runOnUiThread { renderLeaderboard(entries) }
-        }
+        renderDailyCard()
+        observeLeaderboard()
     }
 
     override fun onPause() {
         super.onPause()
+        detachLeaderboard()
+    }
+
+    /**
+     * The daily card doubles as its own status line: before playing it explains the format, and
+     * afterwards it reports the score and stops offering a game, since there is only one attempt.
+     */
+    private fun renderDailyCard() {
+        val played = DailyChallenge.todayScore(this)
+        val card = findViewById<View>(R.id.dailyCard)
+        findViewById<TextView>(R.id.dailyStatus).text = when (played) {
+            null -> getString(R.string.daily_subtitle)
+            else -> getString(R.string.daily_played, played)
+        }
+        card.isEnabled = played == null
+        card.alpha = if (played == null) 1f else 0.55f
+    }
+
+    /**
+     * Opens today's challenge, unless a different solo game is already saved — that game would be
+     * overwritten by the daily's own save, and losing a game in progress to a menu tap is exactly
+     * the complaint that put the continue button there in the first place.
+     */
+    private fun startDailyChallenge() {
+        if (DailyChallenge.playedToday(this)) return
+
+        val saved = SoloGameStore.loadResumable(this)
+        if (saved != null && saved.dailyId == null) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.daily_challenge)
+                .setMessage(R.string.daily_replaces_game)
+                .setPositiveButton(R.string.daily_start_anyway) { _, _ ->
+                    SoloGameStore.clear(this)
+                    launchDaily()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+        launchDaily()
+    }
+
+    private fun launchDaily() {
+        startActivity(
+            Intent(this, SoloGameActivity::class.java)
+                .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, playerName())
+                .putExtra(SoloGameActivity.EXTRA_DAILY_ID, DailyChallenge.todayId())
+                // A daily left half-played resumes rather than restarting, so the tape is not
+                // replayed from the top with the boxes already filled.
+                .putExtra(SoloGameActivity.EXTRA_RESUME, true)
+        )
+    }
+
+    private fun observeLeaderboard() {
+        detachLeaderboard()
+        findViewById<TextView>(R.id.leaderboardHeading).setText(
+            if (showingDaily) R.string.daily_board else R.string.leaderboard
+        )
+        findViewById<Button>(R.id.leaderboardToggle).setText(
+            if (showingDaily) R.string.leaderboard else R.string.daily_board
+        )
+        findViewById<TextView>(R.id.leaderboardEmpty).setText(
+            if (showingDaily) R.string.daily_board_empty else R.string.leaderboard_empty
+        )
+
+        if (showingDaily) {
+            val (query, listener) = leaderboard.observeDailyTop(
+                DailyChallenge.todayId(),
+                LEADERBOARD_SIZE
+            ) { entries -> runOnUiThread { renderLeaderboard(entries) } }
+            dailyQuery = query
+            dailyListener = listener
+        } else {
+            leaderboardListener = leaderboard.observeTop(LEADERBOARD_SIZE) { entries ->
+                runOnUiThread { renderLeaderboard(entries) }
+            }
+        }
+    }
+
+    private fun detachLeaderboard() {
         leaderboardListener?.let { leaderboard.removeListener(it) }
         leaderboardListener = null
+        // Removed from the query it was added to, not from the board root — a listener attached
+        // to an ordered query is not detached by clearing the parent reference.
+        dailyListener?.let { dailyQuery?.removeEventListener(it) }
+        dailyListener = null
+        dailyQuery = null
     }
 
     /**

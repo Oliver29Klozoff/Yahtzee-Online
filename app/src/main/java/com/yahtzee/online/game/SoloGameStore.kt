@@ -10,7 +10,13 @@ data class SavedSoloGame(
     val botIds: List<String>,
     val cardCount: Int,
     val botSkill: AppSettings.BotSkill,
-    val state: GameState
+    val state: GameState,
+    /**
+     * The day this is a challenge for, or null for an ordinary solo game. Stored so a daily left
+     * open overnight resumes against the tape it was dealt from — picking up today's dice halfway
+     * through would score the player against a hand nobody else played.
+     */
+    val dailyId: String? = null
 )
 
 /**
@@ -35,6 +41,24 @@ object SoloGameStore {
     fun load(context: Context): SavedSoloGame? {
         val raw = prefs(context).getString(KEY_GAME, null) ?: return null
         return runCatching { decode(JSONObject(raw)) }.getOrNull()
+    }
+
+    /**
+     * The saved game, but only if it is still worth resuming.
+     *
+     * A daily challenge left unfinished from an earlier day is not: its board has closed, and
+     * finishing it now would post yesterday's puzzle against today, or count today as played
+     * without today's dice having been touched. Discarded outright rather than offered, so the
+     * continue button never opens a game that cannot be scored.
+     */
+    fun loadResumable(context: Context): SavedSoloGame? {
+        val saved = load(context) ?: return null
+        val stale = saved.dailyId != null && saved.dailyId != DailyChallenge.todayId()
+        if (stale) {
+            clear(context)
+            return null
+        }
+        return saved
     }
 
     fun hasGame(context: Context): Boolean = load(context) != null
@@ -64,6 +88,7 @@ object SoloGameStore {
             .put("botIds", JSONArray(game.botIds))
             .put("cardCount", game.cardCount)
             .put("botSkill", game.botSkill.name)
+            .put("dailyId", game.dailyId)
             .put("status", state.status)
             .put("playerOrder", JSONArray(state.playerOrder))
             .put("players", players)
@@ -129,7 +154,8 @@ object SoloGameStore {
             botSkill = runCatching {
                 AppSettings.BotSkill.valueOf(json.optString("botSkill"))
             }.getOrDefault(AppSettings.BotSkill.HARD),
-            state = state
+            state = state,
+            dailyId = json.optString("dailyId").takeIf { it.isNotEmpty() && it != "null" }
         )
     }
 

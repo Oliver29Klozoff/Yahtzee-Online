@@ -37,6 +37,34 @@
                 android:paddingBottom="6dp"
                 android:layout_marginBottom="26dp" />
 
+            <LinearLayout
+                android:id="@+id/dailyCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/daily_card_background"
+                android:foreground="?attr/selectableItemBackground"
+                android:padding="18dp"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/daily_challenge"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_dark" />
+
+                <TextView
+                    android:id="@+id/dailyStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/daily_subtitle"
+                    android:textSize="13sp"
+                    android:textColor="@color/text_muted"
+                    android:paddingTop="3dp" />
+            </LinearLayout>
+
             <Button
                 android:id="@+id/continueGameButton"
                 android:layout_width="match_parent"
@@ -76,16 +104,40 @@
                 android:layout_marginTop="28dp"
                 android:layout_marginBottom="18dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/leaderboard"
-                android:textAllCaps="true"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.08"
-                android:textColor="@color/text_muted"
-                android:layout_marginBottom="10dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:id="@+id/leaderboardHeading"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/leaderboard"
+                    android:textAllCaps="true"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.08"
+                    android:textColor="@color/text_muted" />
+
+                <!-- One button that swaps which board is shown, rather than a tab strip: there
+                     are only two, and the label always names the one you would switch to. -->
+                <Button
+                    android:id="@+id/leaderboardToggle"
+                    style="@style/Widget.AppCompat.Button.Borderless"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:text="@string/daily_board"
+                    android:textSize="12sp"
+                    android:textColor="@color/brand_primary" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/leaderboardList"
@@ -107,15 +159,30 @@
 
     </ScrollView>
 
-    <ImageButton
-        android:id="@+id/settingsButton"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_gravity="top|end"
         android:layout_margin="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_settings"
-        android:contentDescription="@string/settings"
-        android:padding="10dp" />
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/statsButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_stats"
+            android:contentDescription="@string/stats"
+            android:padding="12dp" />
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_settings"
+            android:contentDescription="@string/settings"
+            android:padding="10dp" />
+    </LinearLayout>
 
 </FrameLayout>
