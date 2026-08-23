@@ -148,11 +148,22 @@ class DiceRenderer(
             settledNotified = false
         }
 
+        // The whole view is the felt, not a table quad floating on black. Set every frame rather
+        // than once at creation so a colour picked in Settings takes effect on the preview
+        // immediately, the same reason the camera is rebuilt here.
+        GLES20.glClearColor(
+            Color.red(tableColor) / 255f,
+            Color.green(tableColor) / 255f,
+            Color.blue(tableColor) / 255f,
+            1f
+        )
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         updateCamera()
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
 
-        // 1. Table.
+        // 1. Table. Now the same colour as the cleared background, so it is not visible as a
+        //    shape in its own right — it is drawn anyway to lay the ground plane into the depth
+        //    buffer, which the glow pooling below tests against.
         drawTable()
 
         // 2. Additive halo pooling on the surface under each die. Depth writes are off so the
