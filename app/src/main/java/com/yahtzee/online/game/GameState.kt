@@ -112,6 +112,58 @@ fun Player.scoresForCard(card: Int): Map<Category, Int> =
         ScoreKey.categoryOf(key)?.let { it to value }
     }.toMap()
 
+/** True once this player has a Yahtzee banked as a Yahtzee — 50 in the box, on any card. */
+fun Player.hasScoredYahtzee(cardCount: Int): Boolean =
+    (0 until cardCount.coerceAtLeast(1)).any {
+        scores[ScoreKey.of(it, Category.YAHTZEE)] == 50
+    }
+
+/** Whether the dice currently on the table are five of a kind. */
+fun GameState.diceAreYahtzee(): Boolean =
+    dice.size == DICE_COUNT && dice.groupBy { it }.values.any { it.size == DICE_COUNT }
+
+/**
+ * What a Yahtzee sitting on the table is worth to [playerId] right now.
+ *
+ * The bonus is applied automatically when the roll is scored, so without something saying it is
+ * there a player has no way to know: scoring five 3s into Sixes shows a 0 in the cell while a
+ * hundred points go into the total unannounced. Worse, the bonus depends on a decision made
+ * turns earlier — it is only ever payable if the Yahtzee box already holds 50 — so a player who
+ * spent their first Yahtzee as a Chance can roll four more and never earn a thing.
+ */
+enum class YahtzeeState {
+    /** Nothing special on the table. */
+    NONE,
+
+    /** A Yahtzee, with the box still open — taking 50 here is what unlocks later bonuses. */
+    FIRST,
+
+    /** A Yahtzee with 50 already banked: worth +100 in whichever box it is scored. */
+    BONUS,
+
+    /**
+     * A Yahtzee, but the box holds a zero rather than 50, so no bonus can ever be earned. Called
+     * out rather than passed over silently, since the alternative is a player waiting all game
+     * for a bonus that cannot arrive.
+     */
+    FORFEITED
+}
+
+/**
+ * How the table currently stands for [playerId]. Rolls not yet taken this turn read as [NONE]:
+ * the dice keep the previous turn's faces until the first roll, and a Yahtzee left showing from
+ * the last turn is not one this player has rolled.
+ */
+fun GameState.yahtzeeStateFor(playerId: String): YahtzeeState {
+    val player = players[playerId] ?: return YahtzeeState.NONE
+    if (rollsUsed == 0 || !diceAreYahtzee()) return YahtzeeState.NONE
+    if (player.hasScoredYahtzee(cardCount)) return YahtzeeState.BONUS
+
+    val cards = cardCount.coerceAtLeast(1)
+    val everyBoxFilled = (0 until cards).all { player.scores.containsKey(ScoreKey.of(it, Category.YAHTZEE)) }
+    return if (everyBoxFilled) YahtzeeState.FORFEITED else YahtzeeState.FIRST
+}
+
 /**
  * Score across every card, including upper-section bonuses earned per card. The Yahtzee bonus is
  * tracked once per player rather than per card, so it is added a single time here.

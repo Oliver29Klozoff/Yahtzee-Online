@@ -11,7 +11,9 @@ import com.yahtzee.online.game.Player
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.SavedSoloGame
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.hasScoredYahtzee
 import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
 import kotlin.random.Random
@@ -208,11 +210,8 @@ class LocalGameEngine(
 
         val points = Scoring.score(category, state.dice)
         // With several cards in play the qualifying Yahtzee may sit on any of them.
-        val alreadyHadYahtzee = (0 until cardCount).any {
-            player.scores[ScoreKey.of(it, Category.YAHTZEE)] == 50
-        }
         val bonusEarned = category != Category.YAHTZEE &&
-            state.dice.groupBy { it }.values.any { it.size == 5 } && alreadyHadYahtzee
+            state.diceAreYahtzee() && player.hasScoredYahtzee(cardCount)
 
         val updatedPlayer = player.copy(
             scores = player.scores + (key to points),

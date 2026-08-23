@@ -9,6 +9,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
@@ -24,7 +25,9 @@ import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.SavedSoloGame
 import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.seatAngle
+import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -34,6 +37,7 @@ import com.yahtzee.online.ui.game.ScorecardAdapter
 import com.yahtzee.online.ui.game.RollOffRow
 import com.yahtzee.online.ui.game.ScoreConfirm
 import com.yahtzee.online.ui.game.ScorecardTabs
+import com.yahtzee.online.ui.game.YahtzeeBanner
 import com.yahtzee.online.ui.game.activeDiceColorOf
 import com.yahtzee.online.ui.game.styleHoldChip
 
@@ -128,7 +132,12 @@ class SoloGameActivity : ImmersiveActivity() {
         scorecardAdapter = ScorecardAdapter(this) { card, category ->
             if (scoreConfirm.consumesTap(card, category)) return@ScorecardAdapter
             sound.play(SoundEngine.Sound.SCORE)
+            // Read before submitting: scoring is what consumes the Yahtzee, so afterwards there
+            // is no longer anything on the table to tell the player what they just earned.
+            val earnedBonus = engine.state.yahtzeeStateFor(engine.humanPlayerId) == YahtzeeState.BONUS &&
+                category != Category.YAHTZEE
             engine.submitScore(category, card)
+            if (earnedBonus) announceYahtzeeBonus()
         }
         findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
 
@@ -277,6 +286,14 @@ class SoloGameActivity : ImmersiveActivity() {
 
         renderDice(state)
         renderHoldRow(state, myTurn)
+        YahtzeeBanner.render(
+            context = this,
+            banner = findViewById(R.id.yahtzeeBanner),
+            state = state,
+            playerId = engine.humanPlayerId,
+            isMyTurn = myTurn,
+            suppress = diceRolling
+        )
 
         // The scorecard follows whoever's turn it is, so you watch each bot's card fill in as
         // it plays. Tapping a tab overrides that for the rest of the current turn; the override
@@ -409,6 +426,15 @@ class SoloGameActivity : ImmersiveActivity() {
                 dailyId = dailyId
             )
         )
+    }
+
+    /**
+     * Called out with the win sound rather than the ordinary scoring click: a hundred points is
+     * the largest single thing that happens in a game of Yahtzee and used to happen in silence.
+     */
+    private fun announceYahtzeeBonus() {
+        sound.play(SoundEngine.Sound.WIN)
+        Toast.makeText(this, R.string.yahtzee_bonus_awarded, Toast.LENGTH_LONG).show()
     }
 
     private fun showGameOver(state: GameState) {

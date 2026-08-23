@@ -14,7 +14,9 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.scoresForCard
+import com.yahtzee.online.game.yahtzeeStateFor
 
 private sealed class Row {
     data class Header(val title: String) : Row()
@@ -132,12 +134,20 @@ class ScorecardAdapter(
         view.findViewById<TextView>(R.id.bonusLabel).text = "Yahtzee bonus (+100 each)"
 
         val count = state?.players?.get(playerId)?.yahtzeeBonusCount ?: 0
+        // A bonus waiting on the table is called out here too, so the row a player looks at to
+        // find their bonus is the one that tells them another is currently on offer.
+        val pending = state?.yahtzeeStateFor(playerId) == YahtzeeState.BONUS
         val cells = view.findViewById<LinearLayout>(R.id.bonusCells)
         cells.removeAllViews()
         cells.addView(
             textCell(
-                text = if (count > 0) "$count × 100 = ${count * 100}" else "–",
-                colorRes = if (count > 0) R.color.score_badge_available_text else R.color.text_muted,
+                text = when {
+                    pending && count > 0 -> "$count × 100  ·  +100 ready"
+                    pending -> "+100 ready"
+                    count > 0 -> "$count × 100 = ${count * 100}"
+                    else -> "–"
+                },
+                colorRes = if (pending || count > 0) R.color.score_badge_available_text else R.color.text_muted,
                 wide = true
             )
         )

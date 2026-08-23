@@ -64,6 +64,11 @@ class StatsActivity : ImmersiveActivity() {
             if (contested) add(getString(R.string.stat_win_rate) to "${totals.winRate}%")
             add(getString(R.string.stat_yahtzees) to totals.yahtzees.toString())
             add(getString(R.string.stat_upper_bonus) to "${totals.upperBonusRate}%")
+            // Only once one has been earned — a permanent zero here reads as a broken feature
+            // rather than as a rare event that has not happened yet.
+            if (totals.yahtzeeBonuses > 0) {
+                add(getString(R.string.stat_yahtzee_bonuses) to totals.yahtzeeBonuses.toString())
+            }
         }
 
         // Two to a row, so the numbers stay large enough to read at a glance on a phone.

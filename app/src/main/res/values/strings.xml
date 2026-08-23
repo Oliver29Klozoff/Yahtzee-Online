@@ -77,6 +77,13 @@
     <string name="one_card">1 card (classic)</string>
     <string name="n_cards">%1$d cards</string>
 
+    <!-- Yahtzee bonus -->
+    <string name="yahtzee_first">YAHTZEE! Score it in the Yahtzee box — that\'s what unlocks +100 for every one after.</string>
+    <string name="yahtzee_bonus_ready">YAHTZEE BONUS! +100 added wherever you score this.</string>
+    <string name="yahtzee_forfeited">Another Yahtzee — but your Yahtzee box is a zero, so no bonus is payable.</string>
+    <string name="yahtzee_bonus_awarded">+100 Yahtzee bonus!</string>
+    <string name="stat_yahtzee_bonuses">Bonuses</string>
+
     <!-- Daily challenge -->
     <string name="daily_challenge">Daily Challenge</string>
     <string name="daily_subtitle">Same dice for everyone, once a day</string>

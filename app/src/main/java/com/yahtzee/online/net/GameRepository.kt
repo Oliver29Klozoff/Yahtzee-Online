@@ -12,7 +12,9 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.Player
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.hasScoredYahtzee
 import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
 import kotlin.random.Random
@@ -193,17 +195,14 @@ class GameRepository {
 
         val points = Scoring.score(category, state.dice)
         val ref = roomRef(code)
-        // A Yahtzee bonus is earned only if a Yahtzee has already been scored as one somewhere;
-        // with several cards in play that can be on any of them.
-        val alreadyHadYahtzee = (0 until state.cardCount.coerceAtLeast(1)).any { card ->
-            player.scores[ScoreKey.of(card, Category.YAHTZEE)] == 50
-        }
         ref.child("players").child(playerId).child("scores").child(key).setValue(points)
 
-        // Every extra Yahtzee after the box holds 50 is worth another 100 points.
+        // Every extra Yahtzee after the box holds 50 is worth another 100 points. A bonus is
+        // earned only if a Yahtzee is already banked as one somewhere; with several cards in
+        // play that can be on any of them.
         val earnedBonus = category != Category.YAHTZEE &&
-            state.dice.groupBy { it }.values.any { it.size == 5 } &&
-            alreadyHadYahtzee
+            state.diceAreYahtzee() &&
+            player.hasScoredYahtzee(state.cardCount)
         if (earnedBonus) {
             ref.child("players").child(playerId).child("yahtzeeBonusCount")
                 .setValue(player.yahtzeeBonusCount + 1)

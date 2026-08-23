@@ -67,6 +67,25 @@
         android:layout_marginTop="12dp"
         android:layout_marginBottom="12dp" />
 
+    <!--
+        Says what a Yahtzee on the table is actually worth. The bonus applies itself when the
+        roll is scored, so without this the player sees only whatever the chosen box paid — a 0,
+        often — and never learns the 100 was added.
+    -->
+    <TextView
+        android:id="@+id/yahtzeeBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="10dp"
+        android:padding="10dp"
+        android:gravity="center"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:background="@drawable/yahtzee_banner_background"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/holdRow"
         android:paddingStart="16dp"

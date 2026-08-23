@@ -27,7 +27,9 @@ import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
+import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.seatAngle
+import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -258,6 +260,14 @@ class GameActivity : ImmersiveActivity() {
         lastRollsUsed = state.rollsUsed
 
         renderHoldRow(state, myTurn)
+        YahtzeeBanner.render(
+            context = this,
+            banner = findViewById(R.id.yahtzeeBanner),
+            state = state,
+            playerId = playerId,
+            isMyTurn = myTurn,
+            suppress = diceRolling
+        )
     }
 
     private fun renderHoldRow(state: GameState, myTurn: Boolean) {
@@ -303,7 +313,15 @@ class GameActivity : ImmersiveActivity() {
         // Scoring cannot be undone, so an optional second tap guards against a mis-tap.
         if (scoreConfirm.consumesTap(card, category)) return
         sound.play(SoundEngine.Sound.SCORE)
+        // Read before submitting: scoring consumes the Yahtzee, so once the write lands there is
+        // nothing left on the table to say what it was worth.
+        val earnedBonus = state.yahtzeeStateFor(playerId) == YahtzeeState.BONUS &&
+            category != Category.YAHTZEE
         repository.submitScore(roomCode, state, category, playerId, card)
+        if (earnedBonus) {
+            sound.play(SoundEngine.Sound.WIN)
+            Toast.makeText(this, R.string.yahtzee_bonus_awarded, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun showGameOver(state: GameState) {
