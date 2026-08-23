@@ -116,6 +116,46 @@ class GameRepository(private val context: android.content.Context) {
     }
 
     /**
+     * Invites [targetPlayerId] to [code].
+     *
+     * Written to a node the invited player's own device polls, rather than pushed. That inverts
+     * the usual problem: an invite cannot be delivered without a server to send it, but the
+     * turn-check job is already visiting Firebase on a timer, so an invite left where that job
+     * will find it arrives on exactly the same footing as a turn — no push, no billing, no
+     * second mechanism.
+     */
+    fun invitePlayer(targetPlayerId: String, code: String, fromName: String) {
+        if (targetPlayerId.isEmpty() || code.isEmpty()) return
+        db.getReference("invites").child(targetPlayerId).child(code).setValue(
+            mapOf(
+                "fromName" to fromName,
+                "fromId" to localPlayerId,
+                "createdAt" to System.currentTimeMillis()
+            )
+        )
+    }
+
+    /** Invites waiting for this device, as room code to inviter's name. */
+    fun readInvites(onResult: (Map<String, String>) -> Unit) {
+        db.getReference("invites").child(localPlayerId).get()
+            .addOnSuccessListener { snapshot ->
+                onResult(
+                    snapshot.children.mapNotNull { child ->
+                        val code = child.key ?: return@mapNotNull null
+                        val from = child.child("fromName").getValue(String::class.java).orEmpty()
+                        code to from
+                    }.toMap()
+                )
+            }
+            .addOnFailureListener { onResult(emptyMap()) }
+    }
+
+    /** Clears one invite once it has been acted on, so it is not announced twice. */
+    fun clearInvite(code: String) {
+        db.getReference("invites").child(localPlayerId).child(code).removeValue()
+    }
+
+    /**
      * Reads a room once and stops.
      *
      * [listenToRoom] holds an open subscription, which is right for a board on screen and wrong

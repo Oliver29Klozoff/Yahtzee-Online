@@ -22,6 +22,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+                Invite links. The app's own scheme rather than https: making an https link open
+                the app directly requires a website serving an assetlinks file to vouch for it,
+                and this app has no site. Shared messages carry the room code in plain text too,
+                for wherever a custom scheme is not made tappable.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="yahtzee" android:host="join" />
+            </intent-filter>
         </activity>
 
         <activity android:name=".ui.NameActivity" android:exported="false" />

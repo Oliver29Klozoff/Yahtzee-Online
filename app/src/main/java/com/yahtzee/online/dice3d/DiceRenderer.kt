@@ -2,6 +2,7 @@ package com.yahtzee.online.dice3d
 
 import android.graphics.Color
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.TableLogoStore
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.opengl.GLUtils
@@ -80,6 +81,25 @@ class DiceRenderer(
     @Volatile
     var tableColor: Int = 0xFF000000.toInt()
 
+    /**
+     * What is printed on the felt. Like [diceColor] this is written from the UI thread and acted
+     * on in [onDrawFrame], since decoding and uploading a texture is only legal on the GL thread.
+     */
+    @Volatile
+    var tableLogo: TableLogoStore.Mode = TableLogoStore.Mode.ARTWORK
+        set(value) {
+            if (field != value) {
+                field = value
+                logoDirty = true
+            }
+        }
+
+    @Volatile
+    private var logoDirty = false
+
+    /** Set at upload time from whichever source was loaded, so the shader blends it correctly. */
+    private var logoIsPhoto = false
+
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
@@ -125,19 +145,42 @@ class DiceRenderer(
      * time the active player's colour does.
      */
     private fun uploadLogo() {
-        val options = android.graphics.BitmapFactory.Options().apply {
-            inSampleSize = LOGO_SAMPLE_SIZE
+        logoDirty = false
+        val mode = tableLogo
+
+        if (mode == TableLogoStore.Mode.NONE) {
+            logoTextureId = 0
+            return
         }
+
+        val custom = mode == TableLogoStore.Mode.CUSTOM
         val bitmap = runCatching {
-            android.graphics.BitmapFactory.decodeResource(
-                context.resources,
-                com.yahtzee.online.R.drawable.splash_full,
-                options
-            )
-        }.getOrNull() ?: return
+            if (custom) {
+                android.graphics.BitmapFactory.decodeFile(
+                    TableLogoStore.customFile(context).absolutePath
+                )
+            } else {
+                android.graphics.BitmapFactory.decodeResource(
+                    context.resources,
+                    com.yahtzee.online.R.drawable.splash_full,
+                    android.graphics.BitmapFactory.Options().apply {
+                        inSampleSize = LOGO_SAMPLE_SIZE
+                    }
+                )
+            }
+        }.getOrNull()
+
+        if (bitmap == null) {
+            logoTextureId = 0
+            return
+        }
+        logoIsPhoto = custom
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + LOGO_TEXTURE_UNIT)
-        logoTextureId = createTexture()
+        // Reuses the handle once one exists: re-generating on every change would leak a texture
+        // per switch for as long as the surface lives.
+        if (logoTextureId == 0) logoTextureId = createTexture()
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, logoTextureId)
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         bitmap.recycle()
         // Back to unit 0, which everything else assumes is the one that is active.
@@ -162,6 +205,7 @@ class DiceRenderer(
             textureDirty = false
             uploadAtlas()
         }
+        if (logoDirty) uploadLogo()
 
         val now = System.nanoTime()
         val dt = if (lastFrameNanos == 0L) 1f / 60f else ((now - lastFrameNanos) / 1_000_000_000f).coerceAtMost(1f / 30f)
@@ -233,8 +277,15 @@ class DiceRenderer(
         // whatever happens to be bound on that unit.
         GLES20.glUniform1f(
             tableShader.uLogoStrength,
-            if (logoTextureId != 0) LOGO_STRENGTH else 0f
+            when {
+                logoTextureId == 0 -> 0f
+                // A photo replaces some of the felt rather than being added to it, so it needs
+                // to be laid on more strongly than the artwork to read at all.
+                logoIsPhoto -> PHOTO_STRENGTH
+                else -> LOGO_STRENGTH
+            }
         )
+        GLES20.glUniform1f(tableShader.uLogoMix, if (logoIsPhoto) 1f else 0f)
 
         tableMesh.vertexBuffer.position(0)
         tableMesh.texCoordBuffer.position(0)
@@ -342,6 +393,13 @@ class DiceRenderer(
          * dice rolling over it stay the thing being looked at.
          */
         const val LOGO_STRENGTH = 0.28f
+
+        /**
+         * A player's own picture is mixed into the felt rather than added, so it needs a heavier
+         * hand to be visible — but stays well under half, so the table still reads as felt with
+         * something printed on it rather than as a photo with dice on top.
+         */
+        const val PHOTO_STRENGTH = 0.40f
 
         /** Ample for a table graphic, and a quarter of the memory of the full-size artwork. */
         const val LOGO_SAMPLE_SIZE = 2

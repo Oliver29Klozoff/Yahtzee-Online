@@ -18,6 +18,7 @@ import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.AppSettings
+import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
@@ -115,6 +116,7 @@ class SoloGameActivity : ImmersiveActivity() {
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setPipStyle(DicePreferences.pipStyle(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
+        dice3DView.setTableLogo(TableLogoStore.mode(this))
         dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)
         // The dice report their own landing, so the knock lands with the visual, not the throw.
         dice3DView.setOnSettledListener {

@@ -85,6 +85,33 @@ object TurnNotifier {
         }
     }
 
+    fun notifyInvite(context: Context, roomCode: String, fromName: String) {
+        if (!canNotify(context)) return
+        ensureChannel(context)
+
+        val intent = Intent(context, SplashActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val pending = PendingIntent.getActivity(
+            context,
+            notificationId(roomCode),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stats)
+            .setContentTitle(context.getString(R.string.notify_invite_title, fromName))
+            .setContentText(context.getString(R.string.notify_invite_text, roomCode))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+
+        runCatching {
+            NotificationManagerCompat.from(context).notify(notificationId(roomCode), notification)
+        }
+    }
+
     fun clear(context: Context, roomCode: String) {
         runCatching {
             NotificationManagerCompat.from(context).cancel(notificationId(roomCode))

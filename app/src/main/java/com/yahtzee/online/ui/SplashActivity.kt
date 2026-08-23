@@ -36,6 +36,16 @@ class SplashActivity : ImmersiveActivity() {
         findViewById<TextView>(R.id.splashVersion).text =
             version?.let { getString(R.string.version_label, it) }.orEmpty()
 
+        // yahtzee://join/ABCD — carried through to the menu, which does the joining once a name
+        // is known. Read here rather than acted on here: a player following an invite on a fresh
+        // install still has to be asked who they are first.
+        val invitedRoom = intent?.data
+            ?.takeIf { it.scheme == "yahtzee" && it.host == "join" }
+            ?.lastPathSegment
+            ?.trim()
+            ?.uppercase()
+            ?.takeIf { it.isNotEmpty() }
+
         handler.postDelayed({
             // First launch goes to the name page; afterwards the saved name is used and the
             // start screen opens directly.
@@ -44,7 +54,11 @@ class SplashActivity : ImmersiveActivity() {
             } else {
                 NameActivity::class.java
             }
-            startActivity(Intent(this, next))
+            startActivity(
+                Intent(this, next).apply {
+                    if (invitedRoom != null) putExtra(MainActivity.EXTRA_JOIN_ROOM, invitedRoom)
+                }
+            )
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
             finish()
         }, SPLASH_DURATION_MS)

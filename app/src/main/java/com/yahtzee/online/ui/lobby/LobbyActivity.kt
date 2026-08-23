@@ -12,15 +12,18 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.AppSettings
+import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.RecentPlayersStore
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -87,6 +90,7 @@ class LobbyActivity : ImmersiveActivity() {
             setPipStyle(DicePreferences.pipStyle(this@LobbyActivity))
             setCameraScale(ROLL_OFF_CAMERA_SCALE)
             setTableColor(AppSettings.tableColor(this@LobbyActivity))
+            setTableLogo(TableLogoStore.mode(this@LobbyActivity))
             setMotionScale(AppSettings.diceMotion(this@LobbyActivity).durationScale)
         }
 
@@ -96,6 +100,8 @@ class LobbyActivity : ImmersiveActivity() {
         }
 
         findViewById<Button>(R.id.playBotsInsteadButton).setOnClickListener { startBotGame() }
+        findViewById<Button>(R.id.shareInviteButton).setOnClickListener { shareInvite() }
+        findViewById<Button>(R.id.inviteRecentButton).setOnClickListener { inviteRecent() }
 
         val rollForFirstButton = findViewById<Button>(R.id.rollForFirstButton)
         rollForFirstButton.setOnClickListener {
@@ -132,6 +138,14 @@ class LobbyActivity : ImmersiveActivity() {
             val isHost = state.hostId == playerId
             val inLobby = state.status == GameState.STATUS_LOBBY
             renderBotFallback(state, isHost, inLobby)
+
+            // Inviting is only useful while there is still a seat to fill.
+            findViewById<View>(R.id.inviteRow).visibility = if (inLobby) View.VISIBLE else View.GONE
+            // Everyone who actually sat down, recorded once play begins rather than on joining,
+            // so a room someone glanced at and left does not put them in the list.
+            if (state.status != GameState.STATUS_LOBBY) {
+                RecentPlayersStore.remember(this, state.players.values, playerId)
+            }
             startButton.visibility = if (isHost && inLobby && state.players.size >= 1) View.VISIBLE else View.GONE
             findViewById<TextView>(R.id.waitingText).visibility =
                 if (isHost && inLobby) View.GONE else if (inLobby) View.VISIBLE else View.GONE
@@ -146,6 +160,61 @@ class LobbyActivity : ImmersiveActivity() {
     }
 
     private var lastState: GameState? = null
+
+    /**
+     * Shares an invite as text.
+     *
+     * The link uses the app's own scheme rather than an https address: making https open the app
+     * directly needs a website serving an assetlinks file to vouch for it, and without one
+     * Android would show a browser chooser instead. The room code is spelled out alongside it so
+     * the message still works wherever the link is not tappable — which, for a custom scheme, is
+     * plenty of places.
+     */
+    private fun shareInvite() {
+        val text = getString(R.string.invite_share_text, roomCode, "yahtzee://join/$roomCode")
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, text),
+                getString(R.string.share_invite)
+            )
+        )
+    }
+
+    /**
+     * Invites someone this device has played before. The invite is left in Firebase for their own
+     * app to find on its next turn check, so it reaches them without a server to push it — at the
+     * cost of arriving on that job's schedule rather than instantly.
+     */
+    private fun inviteRecent() {
+        val recent = RecentPlayersStore.all(this)
+            .filterNot { it.id in (lastState?.players?.keys ?: emptySet()) }
+
+        if (recent.isEmpty()) {
+            Toast.makeText(this, R.string.invite_recent_empty, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val names = recent.map { it.name }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.invite_recent)
+            .setItems(names) { _, which ->
+                val player = recent[which]
+                repository.invitePlayer(
+                    player.id,
+                    roomCode,
+                    PlayerProfile.getName(this).ifEmpty { "A player" }
+                )
+                Toast.makeText(
+                    this,
+                    getString(R.string.invite_sent, player.name),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
 
     private fun renderRollOff(state: GameState) {
         // Once the reveal is up it owns these views until it finishes. Resolving the roll-off

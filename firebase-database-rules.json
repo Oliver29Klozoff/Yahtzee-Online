@@ -44,6 +44,28 @@
       }
     },
 
+    "invites": {
+      "$profileId": {
+        ".read": true,
+        ".write": true,
+        "$roomCode": {
+          ".validate": "newData.hasChildren(['fromName', 'fromId'])",
+          "fromName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+          },
+          "fromId": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+
     "games": {
       "$roomCode": {
         ".read": true,

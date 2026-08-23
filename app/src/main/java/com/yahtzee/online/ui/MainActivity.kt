@@ -32,15 +32,18 @@ import com.yahtzee.online.update.UpdateChecker
 
 class MainActivity : ImmersiveActivity() {
 
-    private companion object {
+    companion object {
+        /** Room code from a followed invite link, joined as soon as this screen opens. */
+        const val EXTRA_JOIN_ROOM = "join_room"
+
         /**
          * Process-scoped, so the launch check runs once per cold boot. MainActivity is recreated
          * every time the player backs out of a game, and without this the prompt would reappear
          * each time they returned to the menu.
          */
-        var checkedThisLaunch = false
+        private var checkedThisLaunch = false
 
-        const val LEADERBOARD_SIZE = 10
+        private const val LEADERBOARD_SIZE = 10
     }
 
     private val repository by lazy { GameRepository(this) }
@@ -90,6 +93,13 @@ class MainActivity : ImmersiveActivity() {
 
         findViewById<View>(R.id.dailyCard).setOnClickListener { startDailyChallenge() }
 
+        // Followed an invite link: join straight away rather than making them retype the code
+        // that was in the link they just tapped.
+        intent.getStringExtra(EXTRA_JOIN_ROOM)?.let { code ->
+            intent.removeExtra(EXTRA_JOIN_ROOM)
+            joinRoomByCode(code)
+        }
+
         findViewById<Button>(R.id.leaderboardToggle).setOnClickListener {
             showingDaily = !showingDaily
             observeLeaderboard()
@@ -122,15 +132,20 @@ class MainActivity : ImmersiveActivity() {
                 Toast.makeText(this, R.string.room_code, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            joinButton.isEnabled = false
-            repository.joinRoom(code, playerName(), DicePreferences.getColor(this)) { success ->
-                joinButton.isEnabled = true
-                if (success) {
-                    trackGame(code)
-                    openLobby(code)
-                } else {
-                    Toast.makeText(this, "Room not found", Toast.LENGTH_SHORT).show()
-                }
+            joinRoomByCode(code)
+        }
+    }
+
+    private fun joinRoomByCode(code: String) {
+        val joinButton = findViewById<Button>(R.id.joinRoomButton)
+        joinButton.isEnabled = false
+        repository.joinRoom(code, playerName(), DicePreferences.getColor(this)) { success ->
+            joinButton.isEnabled = true
+            if (success) {
+                trackGame(code)
+                openLobby(code)
+            } else {
+                Toast.makeText(this, R.string.room_not_found, Toast.LENGTH_SHORT).show()
             }
         }
     }

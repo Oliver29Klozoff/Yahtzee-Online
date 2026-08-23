@@ -77,6 +77,21 @@
     <string name="one_card">1 card (classic)</string>
     <string name="n_cards">%1$d cards</string>
 
+    <!-- Invites -->
+    <string name="share_invite">Share invite</string>
+    <string name="invite_recent">Invite a player</string>
+    <string name="invite_recent_empty">Nobody to invite yet — anyone you finish a game with shows up here afterwards.</string>
+    <string name="invite_sent">Invite sent to %1$s. They\'ll see it next time their app checks.</string>
+    <string name="invite_share_text">Join my Yahtzee game — room code %1$s\n%2$s</string>
+    <string name="notify_invite_title">%1$s invited you to a game</string>
+    <string name="notify_invite_text">Room %1$s is waiting in Your games.</string>
+    <string name="room_not_found">Room not found</string>
+
+    <!-- Table logo -->
+    <string name="table_logo">Printed on the felt</string>
+    <string name="table_logo_choose">Choose a picture…</string>
+    <string name="table_logo_failed">That image could not be read.</string>
+
     <!-- Turn notifications -->
     <string name="channel_your_turn">Your turn</string>
     <string name="channel_your_turn_description">Tells you when it is your turn in a game you left running.</string>

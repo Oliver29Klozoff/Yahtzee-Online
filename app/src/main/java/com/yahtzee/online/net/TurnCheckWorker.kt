@@ -65,6 +65,13 @@ class TurnCheckWorker(
     }
 
     override suspend fun doWork(): Result {
+        val repository = GameRepository(applicationContext)
+        val myId = repository.localPlayerId
+
+        // Invites first, so a game someone just opened is picked up on the same sweep that would
+        // otherwise have found nothing to do and stood the job down.
+        collectInvites(repository)
+
         val tracked = ActiveGamesStore.all(applicationContext)
         if (tracked.isEmpty()) {
             // Nothing left to watch: stand the job down rather than waking every quarter hour to
@@ -73,9 +80,6 @@ class TurnCheckWorker(
             return Result.success()
         }
         if (!TurnNotifier.canNotify(applicationContext)) return Result.success()
-
-        val repository = GameRepository(applicationContext)
-        val myId = repository.localPlayerId
 
         for (game in tracked) {
             val state = readRoom(repository, game.roomCode) ?: continue
@@ -104,6 +108,27 @@ class TurnCheckWorker(
             ActiveGamesStore.markNotified(applicationContext, game.roomCode, turnKey)
         }
         return Result.success()
+    }
+
+    /**
+     * Turns any waiting invites into tracked games, announcing each once.
+     *
+     * The invite is cleared as soon as it is taken up: it has done its job by putting the room
+     * in the player's list, and leaving it would have every later sweep offer the same game
+     * again. Tracking is what matters — the notification is only how they hear about it.
+     */
+    private suspend fun collectInvites(repository: GameRepository) {
+        val invites = suspendCancellableCoroutine<Map<String, String>> { continuation ->
+            repository.readInvites { if (continuation.isActive) continuation.resume(it) }
+        }
+        val alreadyTracked = ActiveGamesStore.all(applicationContext).map { it.roomCode }.toSet()
+
+        invites.forEach { (code, fromName) ->
+            repository.clearInvite(code)
+            if (code in alreadyTracked) return@forEach
+            ActiveGamesStore.track(applicationContext, code)
+            TurnNotifier.notifyInvite(applicationContext, code, fromName.ifEmpty { "Someone" })
+        }
     }
 
     private suspend fun readRoom(repository: GameRepository, code: String): GameState? =

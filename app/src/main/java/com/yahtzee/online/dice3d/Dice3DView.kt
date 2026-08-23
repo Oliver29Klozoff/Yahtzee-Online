@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.TableLogoStore
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -81,6 +82,11 @@ class Dice3DView @JvmOverloads constructor(
     /** Table felt colour behind the dice. */
     fun setTableColor(color: Int) {
         renderer.tableColor = color
+    }
+
+    /** What is printed on the felt: the app artwork, the player's own picture, or nothing. */
+    fun setTableLogo(mode: TableLogoStore.Mode) {
+        renderer.tableLogo = mode
     }
 
     /**

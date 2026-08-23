@@ -12,6 +12,8 @@ import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
@@ -19,6 +21,7 @@ import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.update.UpdateChecker
 
 class SettingsActivity : ImmersiveActivity() {
@@ -31,6 +34,25 @@ class SettingsActivity : ImmersiveActivity() {
 
     /** Guards the sliders while they are being set from a preset, so they do not feed back. */
     private var syncingSliders = false
+
+    /** Set once the logo control is built, so the picker result can refresh it. */
+    private var refreshTableLogo: (() -> Unit)? = null
+
+    /**
+     * The system photo picker, which needs no storage permission and shows only what the player
+     * chooses to hand over — the app never gets access to the rest of their gallery.
+     */
+    private val pickLogo = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        if (TableLogoStore.saveCustom(this, uri)) {
+            refreshTableLogo?.invoke()
+            dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
+        } else {
+            Toast.makeText(this, R.string.table_logo_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,6 +126,7 @@ class SettingsActivity : ImmersiveActivity() {
         ) { AppSettings.setBotSkill(this, it) }
 
         findViewById<Button>(R.id.saveDiceButton).setOnClickListener { promptSaveDice() }
+        setUpTableLogo()
 
         renderSwatches()
         renderTableColors()
@@ -284,6 +307,37 @@ class SettingsActivity : ImmersiveActivity() {
     }
 
     /** Simple on/off button, since a Switch would need a Material theme this app does not use. */
+    /**
+     * What is printed on the felt. "Your picture" is only offered once one has been chosen, so
+     * the cycler never lands on an option that would show blank felt.
+     */
+    private fun setUpTableLogo() {
+        val button = findViewById<Button>(R.id.tableLogoButton)
+
+        fun refresh() {
+            button.text = TableLogoStore.mode(this).label
+            dicePreview.setTableLogo(TableLogoStore.mode(this))
+        }
+
+        button.setOnClickListener {
+            val options = TableLogoStore.Mode.values().filter {
+                it != TableLogoStore.Mode.CUSTOM || TableLogoStore.hasCustom(this)
+            }
+            val next = options[(options.indexOf(TableLogoStore.mode(this)) + 1) % options.size]
+            TableLogoStore.setMode(this, next)
+            refresh()
+        }
+
+        findViewById<Button>(R.id.chooseLogoButton).setOnClickListener {
+            pickLogo.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
+
+        refreshTableLogo = ::refresh
+        refresh()
+    }
+
     private fun setUpToggle(buttonId: Int, initial: Boolean, onChange: (Boolean) -> Unit) {
         val button = findViewById<Button>(buttonId)
         var value = initial

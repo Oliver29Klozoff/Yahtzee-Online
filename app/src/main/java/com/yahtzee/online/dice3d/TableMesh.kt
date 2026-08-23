@@ -85,10 +85,14 @@ private const val TABLE_FRAGMENT_SHADER = """
     uniform vec4 uColor;
     uniform sampler2D uTexture;
     uniform float uLogoStrength;
+    uniform float uLogoMix;
     varying vec2 vTexCoord;
     void main() {
+        vec3 felt = uColor.rgb;
         vec3 logo = texture2D(uTexture, vTexCoord).rgb;
-        gl_FragColor = vec4(uColor.rgb + logo * uLogoStrength, 1.0);
+        vec3 added = felt + logo * uLogoStrength;
+        vec3 blended = mix(felt, logo, uLogoStrength);
+        gl_FragColor = vec4(mix(added, blended, uLogoMix), 1.0);
     }
 """
 
@@ -100,6 +104,7 @@ class TableShader {
     val uColor: Int
     val uTexture: Int
     val uLogoStrength: Int
+    val uLogoMix: Int
 
     init {
         val vs = android.opengl.GLES20.glCreateShader(android.opengl.GLES20.GL_VERTEX_SHADER).also {
@@ -121,5 +126,6 @@ class TableShader {
         uColor = android.opengl.GLES20.glGetUniformLocation(program, "uColor")
         uTexture = android.opengl.GLES20.glGetUniformLocation(program, "uTexture")
         uLogoStrength = android.opengl.GLES20.glGetUniformLocation(program, "uLogoStrength")
+        uLogoMix = android.opengl.GLES20.glGetUniformLocation(program, "uLogoMix")
     }
 }
