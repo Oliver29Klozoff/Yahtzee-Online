@@ -4,6 +4,12 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 
+/**
+ * How large the felt artwork is, as a fraction of the table's depth. One square edge to edge;
+ * lower values make it a smaller badge tucked into the right-hand corner.
+ */
+private const val LOGO_SCALE = 1f
+
 class TableMesh(halfWidth: Float, halfDepth: Float) {
     val vertexBuffer: FloatBuffer
     val texCoordBuffer: FloatBuffer
@@ -20,12 +26,16 @@ class TableMesh(halfWidth: Float, halfDepth: Float) {
             halfWidth, y, -halfDepth
         )
 
-        // The artwork printed on the felt is square, so it is fitted to the table's shorter
+        // The artwork printed on the felt is square, so it is sized against the table's shorter
         // dimension — its depth — rather than stretched across a surface that is wider than it
-        // is deep. Past the edges of that square the coordinates run outside 0..1 and clamp,
-        // which costs nothing: the artwork's own border is black, and black adds nothing to the
-        // felt under the additive blend the table shader uses.
-        fun u(x: Float) = x / (2f * halfDepth) + 0.5f
+        // is deep, and it is anchored against the right-hand edge rather than centred. Past the
+        // edges of that square the coordinates run outside 0..1 and clamp, which costs nothing:
+        // the artwork's own border is black, and black adds nothing to the felt under the
+        // additive blend the table shader uses.
+        val logoSize = 2f * halfDepth * LOGO_SCALE
+        val logoLeft = halfWidth - logoSize
+
+        fun u(x: Float) = (x - logoLeft) / logoSize
         // Row 0 of the bitmap uploads at v = 0, so v = 0 is put at the far edge of the table.
         // The camera looks down the -Z axis, which stands the wordmark up the right way round
         // from where the player is sitting rather than upside down across the table.
