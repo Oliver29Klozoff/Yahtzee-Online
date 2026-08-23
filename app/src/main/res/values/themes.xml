@@ -8,6 +8,41 @@
         <item name="android:textColor">@color/text_dark</item>
     </style>
 
+    <!--
+        One theme per accent. Only the three brand colours differ; everything else is inherited,
+        so a change to the base theme reaches all of them. These exist as styles because a theme
+        is what reaches the parts of a Button the platform draws itself.
+    -->
+    <style name="Theme.YahtzeeOnline.Emerald">
+        <item name="colorPrimary">@color/accent_emerald</item>
+        <item name="colorPrimaryDark">@color/accent_emerald_dark</item>
+        <item name="colorAccent">@color/accent_emerald</item>
+    </style>
+
+    <style name="Theme.YahtzeeOnline.Amber">
+        <item name="colorPrimary">@color/accent_amber</item>
+        <item name="colorPrimaryDark">@color/accent_amber_dark</item>
+        <item name="colorAccent">@color/accent_amber</item>
+    </style>
+
+    <style name="Theme.YahtzeeOnline.Crimson">
+        <item name="colorPrimary">@color/accent_crimson</item>
+        <item name="colorPrimaryDark">@color/accent_crimson_dark</item>
+        <item name="colorAccent">@color/accent_crimson</item>
+    </style>
+
+    <style name="Theme.YahtzeeOnline.Amethyst">
+        <item name="colorPrimary">@color/accent_amethyst</item>
+        <item name="colorPrimaryDark">@color/accent_amethyst_dark</item>
+        <item name="colorAccent">@color/accent_amethyst</item>
+    </style>
+
+    <style name="Theme.YahtzeeOnline.Cyan">
+        <item name="colorPrimary">@color/accent_cyan</item>
+        <item name="colorPrimaryDark">@color/accent_cyan_dark</item>
+        <item name="colorAccent">@color/accent_cyan</item>
+    </style>
+
     <style name="Theme.YahtzeeOnline.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>

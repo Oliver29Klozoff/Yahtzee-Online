@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
+import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.PlayerStats
 import java.text.SimpleDateFormat
@@ -189,7 +190,7 @@ class StatsActivity : ImmersiveActivity() {
                 text = game.score.toString()
                 textSize = 15f
                 setTextColor(
-                    if (game.won) resources.getColor(R.color.brand_primary, theme)
+                    if (game.won) AccentColor.resolve(this@StatsActivity)
                     else resources.getColor(R.color.text_dark, theme)
                 )
             })

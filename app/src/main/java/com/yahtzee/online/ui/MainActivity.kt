@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.DicePreferences
@@ -251,10 +252,8 @@ class MainActivity : ImmersiveActivity() {
                     }
                     row.text = "${game.roomCode}   ·   $status"
                     row.setTextColor(
-                        resources.getColor(
-                            if (myTurn) R.color.brand_primary else R.color.text_muted,
-                            theme
-                        )
+                        if (myTurn) AccentColor.resolve(this)
+                        else resources.getColor(R.color.text_muted, theme)
                     )
                     // The player is looking at the game right now, so a pending notification
                     // about it is already answered.
@@ -409,7 +408,7 @@ class MainActivity : ImmersiveActivity() {
             }
             val isMe = entry.playerId == myId
             val nameColor = if (isMe) {
-                resources.getColor(R.color.brand_primary, theme)
+                AccentColor.resolve(this)
             } else {
                 resources.getColor(R.color.text_dark, theme)
             }

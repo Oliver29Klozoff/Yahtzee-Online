@@ -36,6 +36,15 @@ object PlayerProfile {
         return generated
     }
 
+    /**
+     * Adopts an id from a recovery code. Only [ProfileRecovery] should call this — every other
+     * caller wants [getId], and rewriting the id at any other time abandons the player's
+     * leaderboard row and their seat in every game they are part of.
+     */
+    fun setId(context: Context, id: String) {
+        prefs(context).edit().putString(KEY_ID, id).apply()
+    }
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

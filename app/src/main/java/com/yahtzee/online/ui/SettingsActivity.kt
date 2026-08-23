@@ -19,8 +19,10 @@ import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.ProfileRecovery
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.update.UpdateChecker
 
@@ -128,8 +130,10 @@ class SettingsActivity : ImmersiveActivity() {
         findViewById<Button>(R.id.saveDiceButton).setOnClickListener { promptSaveDice() }
         setUpTableLogo()
 
+        setUpProfileRecovery()
         renderSwatches()
         renderTableColors()
+        renderAccentColors()
         renderSavedDice()
     }
 
@@ -375,6 +379,96 @@ class SettingsActivity : ImmersiveActivity() {
             onChange(options[index])
             refresh()
         }
+    }
+
+    /**
+     * The app's own accent. Changing it recreates this screen, because the accent is carried by
+     * the theme and a theme only takes effect as a screen is built — everything already on
+     * screen would otherwise keep the old colour until it was navigated away from and back.
+     */
+    private fun renderAccentColors() {
+        val row = findViewById<LinearLayout>(R.id.accentColorRow)
+        row.removeAllViews()
+        val density = resources.displayMetrics.density
+        val size = (44 * density).toInt()
+        val current = AccentColor.current(this)
+
+        AccentColor.Accent.values().forEach { accent ->
+            val swatch = TextView(this).apply {
+                contentDescription = accent.label
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(accent.value)
+                    setStroke(
+                        (if (accent == current) 3 * density else 1 * density).toInt(),
+                        if (accent == current) Color.WHITE else Color.parseColor("#39404A")
+                    )
+                }
+                setOnClickListener {
+                    if (accent == current) return@setOnClickListener
+                    AccentColor.set(this@SettingsActivity, accent)
+                    recreate()
+                }
+            }
+            swatch.layoutParams = LinearLayout.LayoutParams(size, size)
+                .also { it.marginEnd = (12 * density).toInt() }
+            row.addView(swatch)
+        }
+    }
+
+    /**
+     * The recovery code, and the way back in from another device.
+     *
+     * Restoring is guarded by a confirmation naming what is given up: adopting another identity
+     * abandons this device's own leaderboard row and its seat in any game it is part of, and
+     * there is no code for the identity being replaced unless the player wrote it down first.
+     */
+    private fun setUpProfileRecovery() {
+        val codeView = findViewById<TextView>(R.id.recoveryCodeText)
+        codeView.text = ProfileRecovery.codeFor(this)
+
+        findViewById<Button>(R.id.copyRecoveryButton).setOnClickListener {
+            val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+            clipboard?.setPrimaryClip(
+                android.content.ClipData.newPlainText(
+                    getString(R.string.profile_recovery),
+                    codeView.text.toString()
+                )
+            )
+            Toast.makeText(this, R.string.code_copied, Toast.LENGTH_SHORT).show()
+        }
+
+        findViewById<Button>(R.id.restoreProfileButton).setOnClickListener { promptRestoreProfile() }
+    }
+
+    private fun promptRestoreProfile() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.paste_code)
+            setSingleLine()
+            setTextColor(resources.getColor(R.color.text_dark, theme))
+        }
+        val padding = (20 * resources.displayMetrics.density).toInt()
+        val frame = LinearLayout(this).apply {
+            setPadding(padding, padding / 2, padding, 0)
+            addView(input)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.restore_profile)
+            .setMessage(R.string.restore_profile_warning)
+            .setView(frame)
+            .setPositiveButton(R.string.restore) { _, _ ->
+                val code = input.text.toString().trim()
+                if (ProfileRecovery.restore(this, code)) {
+                    findViewById<TextView>(R.id.recoveryCodeText).text =
+                        ProfileRecovery.codeFor(this)
+                    Toast.makeText(this, R.string.profile_restored, Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this, R.string.code_invalid, Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun renderTableColors() {

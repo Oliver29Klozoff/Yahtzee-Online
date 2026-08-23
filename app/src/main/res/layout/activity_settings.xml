@@ -220,7 +220,7 @@
             style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/brand_primary" />
+            android:textColor="?attr/colorPrimary" />
     </LinearLayout>
 
     <Button
@@ -231,6 +231,91 @@
         android:text="@string/table_logo_choose"
         android:textSize="13sp"
         android:textColor="@color/text_muted" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_accent"
+        android:textAllCaps="true"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.08"
+        android:textColor="@color/text_muted"
+        android:layout_marginTop="22dp"
+        android:layout_marginBottom="10dp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/accentColorRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+
+    </HorizontalScrollView>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/profile_recovery"
+        android:textAllCaps="true"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.08"
+        android:textColor="@color/text_muted"
+        android:layout_marginTop="26dp"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/profile_recovery_explainer"
+        android:textSize="13sp"
+        android:lineSpacingExtra="3dp"
+        android:textColor="@color/text_muted"
+        android:layout_marginBottom="10dp" />
+
+    <TextView
+        android:id="@+id/recoveryCodeText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/scorecard_card_background"
+        android:padding="14dp"
+        android:gravity="center"
+        android:textIsSelectable="true"
+        android:fontFamily="monospace"
+        android:textSize="14sp"
+        android:letterSpacing="0.04"
+        android:textColor="@color/text_dark" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/copyRecoveryButton"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="@string/copy_code"
+            android:textSize="13sp"
+            android:textColor="?attr/colorPrimary" />
+
+        <Button
+            android:id="@+id/restoreProfileButton"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="@string/restore_profile"
+            android:textSize="13sp"
+            android:textColor="@color/text_muted" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"

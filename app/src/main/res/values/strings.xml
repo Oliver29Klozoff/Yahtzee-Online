@@ -77,6 +77,19 @@
     <string name="one_card">1 card (classic)</string>
     <string name="n_cards">%1$d cards</string>
 
+    <!-- Accent and profile recovery -->
+    <string name="app_accent">App accent</string>
+    <string name="profile_recovery">Profile recovery</string>
+    <string name="profile_recovery_explainer">This code is your identity: your leaderboard place, your daily results and your seat in every unfinished game. Save it somewhere, and you can pick all of it up on another phone.</string>
+    <string name="copy_code">Copy code</string>
+    <string name="restore_profile">Use a code</string>
+    <string name="restore_profile_warning">Entering a code replaces this phone\'s identity with the one it belongs to. Whatever this phone has now — its leaderboard place and its seat in any game — is left behind unless you saved its code first.</string>
+    <string name="restore">Restore</string>
+    <string name="paste_code">Paste your code</string>
+    <string name="code_copied">Code copied</string>
+    <string name="code_invalid">That code isn\'t valid — check it and try again.</string>
+    <string name="profile_restored">Profile restored. Your leaderboard place and games follow this code.</string>
+
     <!-- Invites -->
     <string name="share_invite">Share invite</string>
     <string name="invite_recent">Invite a player</string>

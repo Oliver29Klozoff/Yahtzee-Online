@@ -1,10 +1,12 @@
 package com.yahtzee.online.ui
 
 import android.os.Build
+import android.os.Bundle
 import android.view.View
 import android.view.WindowInsets
 import androidx.appcompat.app.AppCompatActivity
 import com.yahtzee.online.R
+import com.yahtzee.online.game.AccentColor
 
 /**
  * Base for every screen in the app: hides the system status bar (where notification icons/
@@ -14,6 +16,16 @@ import com.yahtzee.online.R
  * of view while this activity is on screen, not real Do-Not-Disturb suppression.
  */
 abstract class ImmersiveActivity : AppCompatActivity() {
+
+    /**
+     * Applies the chosen accent before anything is inflated. It has to happen here rather than in
+     * each screen: a theme set after the content view is built reaches nothing already drawn, and
+     * every screen in the app passes through this class on its way up.
+     */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(AccentColor.current(this).theme)
+        super.onCreate(savedInstanceState)
+    }
 
     /**
      * Wires up the standard back arrow for any layout that includes a view with id

@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.yahtzee.online.R
+import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.ui.ColorContrast
@@ -51,7 +52,7 @@ object ScorecardTabs {
             // black or white by what it is sitting on, so the name stays readable even against a
             // black die without the colour itself being altered.
             val playerColor = player.diceColor.takeIf { it != 0 }
-                ?: context.resources.getColor(R.color.brand_primary, context.theme)
+                ?: AccentColor.resolve(context)
             val surface = context.resources.getColor(R.color.surface, context.theme)
 
             val tab = TextView(context).apply {

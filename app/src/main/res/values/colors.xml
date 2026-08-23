@@ -2,6 +2,18 @@
     <color name="brand_primary">#3D7FFF</color>
     <color name="brand_primary_dark">#2358C9</color>
     <color name="brand_accent">#3D7FFF</color>
+
+    <!-- Selectable app accents. Each pairs with a theme in themes.xml. -->
+    <color name="accent_emerald">#16B972</color>
+    <color name="accent_emerald_dark">#0E8552</color>
+    <color name="accent_amber">#F5A524</color>
+    <color name="accent_amber_dark">#B8760F</color>
+    <color name="accent_crimson">#E23D4B</color>
+    <color name="accent_crimson_dark">#A82230</color>
+    <color name="accent_amethyst">#9B5DE5</color>
+    <color name="accent_amethyst_dark">#6E3AAF</color>
+    <color name="accent_cyan">#12C2D8</color>
+    <color name="accent_cyan_dark">#0A8B9C</color>
     <color name="background">#000000</color>
     <color name="surface">#121417</color>
     <color name="surface_border">#23262C</color>

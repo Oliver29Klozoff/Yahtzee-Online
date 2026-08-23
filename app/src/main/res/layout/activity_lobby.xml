@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:textSize="48sp"
         android:textStyle="bold"
-        android:textColor="@color/brand_primary"
+        android:textColor="?attr/colorPrimary"
         android:letterSpacing="0.2"
         android:layout_marginBottom="24dp" />
 
@@ -71,7 +71,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="@string/share_invite"
-            android:textColor="@color/brand_primary" />
+            android:textColor="?attr/colorPrimary" />
 
         <Button
             android:id="@+id/inviteRecentButton"
@@ -80,7 +80,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="@string/invite_recent"
-            android:textColor="@color/brand_primary" />
+            android:textColor="?attr/colorPrimary" />
     </LinearLayout>
 
     <Button
@@ -106,7 +106,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/play_bots_instead"
-        android:textColor="@color/brand_primary"
+        android:textColor="?attr/colorPrimary"
         android:visibility="gone" />
 
     <com.yahtzee.online.dice3d.Dice3DView
