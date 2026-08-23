@@ -1,9 +1,11 @@
 package com.yahtzee.online.ui
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -13,6 +15,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
@@ -21,6 +24,8 @@ import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardEntry
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.TurnCheckWorker
+import com.yahtzee.online.net.TurnNotifier
 import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.lobby.LobbyActivity
 import com.yahtzee.online.update.UpdateChecker
@@ -38,7 +43,7 @@ class MainActivity : ImmersiveActivity() {
         const val LEADERBOARD_SIZE = 10
     }
 
-    private val repository = GameRepository()
+    private val repository by lazy { GameRepository(this) }
     private val leaderboard = LeaderboardRepository()
     private var leaderboardListener: ValueEventListener? = null
 
@@ -48,6 +53,15 @@ class MainActivity : ImmersiveActivity() {
 
     /** Which board the leaderboard section is currently showing. */
     private var showingDaily = false
+
+    /** Asked at most once per launch, so declining does not re-prompt on every return here. */
+    private var askedForNotifications = false
+
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) TurnCheckWorker.schedule(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,6 +126,7 @@ class MainActivity : ImmersiveActivity() {
             repository.joinRoom(code, playerName(), DicePreferences.getColor(this)) { success ->
                 joinButton.isEnabled = true
                 if (success) {
+                    trackGame(code)
                     openLobby(code)
                 } else {
                     Toast.makeText(this, "Room not found", Toast.LENGTH_SHORT).show()
@@ -140,7 +155,98 @@ class MainActivity : ImmersiveActivity() {
             getString(R.string.greeting, playerName())
 
         renderDailyCard()
+        renderActiveGames()
         observeLeaderboard()
+    }
+
+    /**
+     * Starts watching for turns, asking for notification permission the first time there is
+     * actually a game to watch — rather than on first launch, when the request would arrive with
+     * nothing to justify it and be refused out of hand.
+     */
+    private fun trackGame(code: String) {
+        ActiveGamesStore.track(this, code)
+        TurnNotifier.ensureChannel(this)
+        TurnCheckWorker.schedule(this)
+        requestNotificationPermissionIfNeeded()
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (TurnNotifier.canNotify(this)) return
+        if (askedForNotifications) return
+        askedForNotifications = true
+
+        AlertDialog.Builder(this)
+            .setMessage(R.string.notify_permission_rationale)
+            .setPositiveButton(R.string.notify_permission_allow) { _, _ ->
+                notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            .setNegativeButton(R.string.not_now, null)
+            .show()
+    }
+
+    /**
+     * The games this device is sitting in, each showing whose move it is. Rooms are read one at a
+     * time and the row is filled in as each answers, so a slow room does not hold up the rest.
+     */
+    private fun renderActiveGames() {
+        val section = findViewById<View>(R.id.activeGamesSection)
+        val list = findViewById<LinearLayout>(R.id.activeGamesList)
+        val tracked = ActiveGamesStore.all(this)
+
+        section.visibility = if (tracked.isEmpty()) View.GONE else View.VISIBLE
+        list.removeAllViews()
+        if (tracked.isEmpty()) return
+
+        // Any tracked game means the watch should be running: it stands itself down when the
+        // list empties, so this is what starts it again after that.
+        TurnCheckWorker.schedule(this)
+
+        val density = resources.displayMetrics.density
+        tracked.forEach { game ->
+            val row = TextView(this).apply {
+                text = game.roomCode
+                textSize = 15f
+                setTextColor(resources.getColor(R.color.text_dark, theme))
+                setPadding(0, (10 * density).toInt(), 0, (10 * density).toInt())
+                background = resources.getDrawable(
+                    android.R.drawable.list_selector_background, theme
+                )
+                setOnClickListener { openLobby(game.roomCode) }
+            }
+            list.addView(row)
+
+            repository.readRoomOnce(game.roomCode) { state ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (state == null || state.status == GameState.STATUS_FINISHED) {
+                        ActiveGamesStore.untrack(this, game.roomCode)
+                        row.visibility = View.GONE
+                        return@runOnUiThread
+                    }
+                    val myTurn = state.currentPlayerId == repository.localPlayerId
+                    val status = when {
+                        state.status != GameState.STATUS_PLAYING -> getString(R.string.game_in_lobby)
+                        myTurn -> getString(R.string.game_waiting_on_you)
+                        else -> getString(
+                            R.string.game_waiting_on_other,
+                            state.players[state.currentPlayerId]?.name.orEmpty()
+                        )
+                    }
+                    row.text = "${game.roomCode}   ·   $status"
+                    row.setTextColor(
+                        resources.getColor(
+                            if (myTurn) R.color.brand_primary else R.color.text_muted,
+                            theme
+                        )
+                    )
+                    // The player is looking at the game right now, so a pending notification
+                    // about it is already answered.
+                    if (myTurn) TurnNotifier.clear(this, game.roomCode)
+                }
+            }
+        }
     }
 
     override fun onPause() {
@@ -260,6 +366,7 @@ class MainActivity : ImmersiveActivity() {
                     GameState.TURN_SECOND_OPTIONS[which]
                 ) { code ->
                     createButton.isEnabled = true
+                    trackGame(code)
                     openLobby(code)
                 }
             }

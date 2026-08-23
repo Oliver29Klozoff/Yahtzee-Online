@@ -17,6 +17,7 @@ import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
@@ -32,6 +33,7 @@ import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.TurnNotifier
 import com.yahtzee.online.ui.ImmersiveActivity
 
 class GameActivity : ImmersiveActivity() {
@@ -44,7 +46,7 @@ class GameActivity : ImmersiveActivity() {
         private const val AUTO_ACTION_INTERVAL_MS = 1500L
     }
 
-    private val repository = GameRepository()
+    private val repository by lazy { GameRepository(this) }
     private lateinit var roomCode: String
     private lateinit var playerId: String
     private var listener: ValueEventListener? = null
@@ -78,6 +80,9 @@ class GameActivity : ImmersiveActivity() {
 
         roomCode = intent.getStringExtra(EXTRA_ROOM_CODE) ?: ""
         playerId = intent.getStringExtra(EXTRA_PLAYER_ID) ?: ""
+
+        // The board is open, so any standing "it's your turn" nudge for it has served its purpose.
+        TurnNotifier.clear(this, roomCode)
 
         applyDisplaySettings()
 
@@ -337,7 +342,13 @@ class GameActivity : ImmersiveActivity() {
                 repository.rematch(roomCode, state)
                 finish()
             }
-            .setNegativeButton(R.string.leave_game) { _, _ -> finish() }
+            .setNegativeButton(R.string.leave_game) { _, _ ->
+                // Only leaving stops the watch. A rematch keeps the same room going, so the
+                // game stays tracked and the next turn still raises a notification.
+                ActiveGamesStore.untrack(this, roomCode)
+                TurnNotifier.clear(this, roomCode)
+                finish()
+            }
             .setCancelable(false)
             .show()
     }

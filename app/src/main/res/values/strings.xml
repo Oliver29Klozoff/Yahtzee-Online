@@ -35,7 +35,7 @@
     <string name="turn_seconds">%1$d seconds</string>
     <string name="turn_minutes">%1$d minute</string>
     <string name="turn_minutes_seconds">%1$dm %2$ds</string>
-    <string name="no_time_limit">No time limit</string>
+    <string name="no_time_limit">No time limit — play a turn at a time</string>
     <string name="confirm_score">Tap %1$s again to score it</string>
     <string name="table_colour">Table</string>
     <string name="keep_screen_on">Keep screen on during a game</string>
@@ -76,6 +76,19 @@
     <string name="choose_card_count">How many scorecards?</string>
     <string name="one_card">1 card (classic)</string>
     <string name="n_cards">%1$d cards</string>
+
+    <!-- Turn notifications -->
+    <string name="channel_your_turn">Your turn</string>
+    <string name="channel_your_turn_description">Tells you when it is your turn in a game you left running.</string>
+    <string name="notify_your_turn_title">It\'s your turn</string>
+    <string name="notify_your_turn_text">Room %1$s · %2$d other player(s) waiting</string>
+    <string name="your_games">YOUR GAMES</string>
+    <string name="game_waiting_on_you">Your turn</string>
+    <string name="game_waiting_on_other">Waiting on %1$s</string>
+    <string name="game_in_lobby">In the lobby</string>
+    <string name="notify_permission_rationale">Allow notifications and the app will tell you when it\'s your turn in a game you left running.</string>
+    <string name="notify_permission_allow">Turn on</string>
+    <string name="not_now">Not now</string>
 
     <!-- Yahtzee bonus -->
     <string name="yahtzee_first">YAHTZEE! Score it in the Yahtzee box — that\'s what unlocks +100 for every one after.</string>

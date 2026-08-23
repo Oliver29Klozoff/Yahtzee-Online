@@ -17,13 +17,24 @@ import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.hasScoredYahtzee
 import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
+import com.yahtzee.online.game.PlayerProfile
 import kotlin.random.Random
 
-class GameRepository {
+class GameRepository(private val context: android.content.Context) {
 
     private val db = FirebaseDatabase.getInstance()
     private val roller = DiceRoller()
-    val localPlayerId: String = UUID.randomUUID().toString()
+    /**
+     * This device's seat at any table, stable for as long as the app is installed.
+     *
+     * Was a fresh [UUID] per repository instance, which only worked because the id was handed
+     * from screen to screen through intent extras: the moment the process died, the player's
+     * identity died with it, and reopening a game in progress would have seated them as a
+     * stranger alongside their own abandoned player. Reusing the profile id — already persisted
+     * for the leaderboard — means a game can be left and come back to, which is the whole
+     * premise of playing a turn at a time.
+     */
+    val localPlayerId: String = PlayerProfile.getId(context)
 
     private fun roomRef(code: String) = db.getReference("games").child(code)
 
@@ -61,13 +72,25 @@ class GameRepository {
                 onResult(false)
                 return@addOnSuccessListener
             }
-            val player = Player(
-                id = localPlayerId,
-                name = playerName,
-                joinedAt = System.currentTimeMillis(),
-                diceColor = diceColor
-            )
-            ref.child("players").child(localPlayerId).setValue(player)
+            // Rejoining is not the same as joining. Now that the player id is stable across
+            // launches, writing a fresh Player over the top would blank the scorecard of anyone
+            // reopening a game they are already in — which is the ordinary way to take a turn in
+            // a game played over days. An existing seat therefore keeps its scores and only has
+            // the details that may legitimately have changed refreshed on it.
+            val existing = snapshot.child("players").child(localPlayerId)
+            if (existing.exists()) {
+                ref.child("players").child(localPlayerId).child("name").setValue(playerName)
+                ref.child("players").child(localPlayerId).child("diceColor").setValue(diceColor)
+            } else {
+                ref.child("players").child(localPlayerId).setValue(
+                    Player(
+                        id = localPlayerId,
+                        name = playerName,
+                        joinedAt = System.currentTimeMillis(),
+                        diceColor = diceColor
+                    )
+                )
+            }
             ref.child("playerOrder").get().addOnSuccessListener { orderSnap ->
                 val order = orderSnap.children.mapNotNull { it.getValue(String::class.java) }.toMutableList()
                 if (localPlayerId !in order) {
@@ -90,6 +113,19 @@ class GameRepository {
         }
         roomRef(code).addValueEventListener(listener)
         return listener
+    }
+
+    /**
+     * Reads a room once and stops.
+     *
+     * [listenToRoom] holds an open subscription, which is right for a board on screen and wrong
+     * for a background sweep that wants a snapshot of several rooms and then wants to go back to
+     * sleep.
+     */
+    fun readRoomOnce(code: String, onResult: (GameState?) -> Unit) {
+        roomRef(code).get()
+            .addOnSuccessListener { onResult(it.toGameState()) }
+            .addOnFailureListener { onResult(null) }
     }
 
     fun stopListening(code: String, listener: ValueEventListener) {

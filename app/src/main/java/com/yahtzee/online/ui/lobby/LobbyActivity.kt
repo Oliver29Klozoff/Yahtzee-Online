@@ -50,7 +50,7 @@ class LobbyActivity : ImmersiveActivity() {
         private const val NOBODY_JOINED_PROMPT_MS = 30_000L
     }
 
-    private val repository = GameRepository()
+    private val repository by lazy { GameRepository(this) }
     private lateinit var roomCode: String
     private lateinit var playerId: String
     private var listener: ValueEventListener? = null
