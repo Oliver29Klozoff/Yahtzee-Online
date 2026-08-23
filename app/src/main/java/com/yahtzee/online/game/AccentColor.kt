@@ -61,6 +61,23 @@ object AccentColor {
         }
     }
 
+    /**
+     * The accent laid faintly over the card surface, for the filled badge behind a score that is
+     * still available.
+     *
+     * Derived rather than listed per accent: a fixed pair of badge colours per theme would be
+     * twelve more entries to keep in step with the six accents, and blending gets the same
+     * result for any accent — including one added later.
+     */
+    fun badgeBackground(context: Context): Int = androidx.core.graphics.ColorUtils.blendARGB(
+        context.getColor(R.color.surface),
+        resolve(context),
+        BADGE_BLEND
+    )
+
+    /** How much accent is mixed into the badge: enough to read as tinted, not as a coloured tile. */
+    private const val BADGE_BLEND = 0.16f
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

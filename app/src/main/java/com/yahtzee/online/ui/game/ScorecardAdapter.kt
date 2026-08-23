@@ -10,6 +10,7 @@ import android.widget.BaseAdapter
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.yahtzee.online.R
+import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.ScoreKey
@@ -117,7 +118,7 @@ class ScorecardAdapter(
             cells.addView(
                 textCell(
                     text = if (earned) "+35" else "$upperTotal/63",
-                    colorRes = if (earned) R.color.score_badge_available_text else R.color.text_muted
+                    color = if (earned) AccentColor.resolve(context) else muted()
                 )
             )
         }
@@ -147,7 +148,7 @@ class ScorecardAdapter(
                     count > 0 -> "$count × 100 = ${count * 100}"
                     else -> "–"
                 },
-                colorRes = if (pending || count > 0) R.color.score_badge_available_text else R.color.text_muted,
+                color = if (pending || count > 0) AccentColor.resolve(context) else muted(),
                 wide = true
             )
         )
@@ -193,18 +194,18 @@ class ScorecardAdapter(
             when {
                 existing != null -> {
                     cell.text = existing.toString()
-                    cell.background = badge(R.color.score_badge_filled_bg)
+                    cell.background = badge(context.resources.getColor(R.color.score_badge_filled_bg, context.theme))
                     cell.setTextColor(context.resources.getColor(R.color.score_badge_filled_text, context.theme))
                 }
                 currentState != null && canScore -> {
                     cell.text = Scoring.score(category, currentState.dice).toString()
-                    cell.background = badge(R.color.score_badge_available_bg)
-                    cell.setTextColor(context.resources.getColor(R.color.score_badge_available_text, context.theme))
+                    cell.background = badge(AccentColor.badgeBackground(context))
+                    cell.setTextColor(AccentColor.resolve(context))
                     cell.setOnClickListener { onScore(card, category) }
                 }
                 else -> {
                     cell.text = "–"
-                    cell.background = badge(R.color.score_badge_filled_bg)
+                    cell.background = badge(context.resources.getColor(R.color.score_badge_filled_bg, context.theme))
                     cell.setTextColor(context.resources.getColor(R.color.text_muted, context.theme))
                 }
             }
@@ -213,18 +214,21 @@ class ScorecardAdapter(
         return view
     }
 
-    private fun badge(colorRes: Int) = GradientDrawable().apply {
+    /** Takes a resolved colour rather than a resource, so accent-derived values can be passed. */
+    private fun muted() = context.resources.getColor(R.color.text_muted, context.theme)
+
+    private fun badge(color: Int) = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
         cornerRadius = 10f * context.resources.displayMetrics.density
-        setColor(context.resources.getColor(colorRes, context.theme))
+        setColor(color)
     }
 
-    private fun textCell(text: String, colorRes: Int, wide: Boolean = false) = TextView(context).apply {
+    private fun textCell(text: String, color: Int, wide: Boolean = false) = TextView(context).apply {
         this.text = text
         gravity = Gravity.CENTER
         textSize = 13f
         setTypeface(typeface, android.graphics.Typeface.BOLD)
-        setTextColor(context.resources.getColor(colorRes, context.theme))
+        setTextColor(color)
         val density = context.resources.displayMetrics.density
         layoutParams = LinearLayout.LayoutParams(
             if (wide) LinearLayout.LayoutParams.WRAP_CONTENT else (34 * density).toInt(),

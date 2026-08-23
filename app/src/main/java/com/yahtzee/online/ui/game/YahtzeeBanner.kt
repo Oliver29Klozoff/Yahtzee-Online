@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.View
 import android.widget.TextView
 import com.yahtzee.online.R
+import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.yahtzeeStateFor
@@ -47,14 +48,17 @@ object YahtzeeBanner {
 
         banner.visibility = View.VISIBLE
         banner.setText(text)
+        // A forfeited Yahtzee is a warning, not an opportunity, so it stays amber rather than
+        // being dressed up in the accent like a bonus that is actually payable.
+        val forfeited = yahtzee == YahtzeeState.FORFEITED
         banner.setTextColor(
-            context.resources.getColor(
-                // A forfeited Yahtzee is a warning, not an opportunity, so it is not dressed up
-                // in the same inviting blue as a bonus that is actually payable.
-                if (yahtzee == YahtzeeState.FORFEITED) R.color.timer_warn
-                else R.color.score_badge_available_text,
-                context.theme
-            )
+            if (forfeited) context.resources.getColor(R.color.timer_warn, context.theme)
+            else AccentColor.resolve(context)
         )
+        banner.background = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 10f * context.resources.displayMetrics.density
+            setColor(AccentColor.badgeBackground(context))
+        }
     }
 }

@@ -17,6 +17,7 @@ import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.TableLogoStore
@@ -145,12 +146,13 @@ class GameActivity : ImmersiveActivity() {
 
         // Colour ramps with urgency, so the timer is readable at a glance without having to
         // parse the number.
-        val colorRes = when {
-            remainingSeconds <= 5f -> R.color.timer_urgent
-            remainingSeconds <= 10f -> R.color.timer_warn
-            else -> R.color.timer_ok
+        // Warning and urgent stay amber and red whatever the accent — they mean something, and a
+        // player who picked a red accent should not have a calm timer that already looks urgent.
+        val color = when {
+            remainingSeconds <= 5f -> resources.getColor(R.color.timer_urgent, theme)
+            remainingSeconds <= 10f -> resources.getColor(R.color.timer_warn, theme)
+            else -> AccentColor.resolve(this)
         }
-        val color = resources.getColor(colorRes, theme)
 
         timerText.visibility = View.VISIBLE
         timerText.text = getString(R.string.turn_timer, remainingSeconds.toInt() + 1)

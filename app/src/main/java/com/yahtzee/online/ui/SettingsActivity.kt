@@ -3,6 +3,7 @@ package com.yahtzee.online.ui
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.View
 import android.view.Gravity
 import android.widget.Button
 import android.widget.EditText
@@ -425,7 +426,18 @@ class SettingsActivity : ImmersiveActivity() {
      */
     private fun setUpProfileRecovery() {
         val codeView = findViewById<TextView>(R.id.recoveryCodeText)
+        val body = findViewById<LinearLayout>(R.id.recoveryBody)
+        val chevron = findViewById<TextView>(R.id.recoveryChevron)
         codeView.text = ProfileRecovery.codeFor(this)
+
+        // Kept collapsed between visits rather than remembered: this is something a player opens
+        // deliberately, and a section left standing open puts the code on screen for anyone who
+        // happens to be looking next time Settings is opened.
+        findViewById<View>(R.id.recoveryHeader).setOnClickListener {
+            val opening = body.visibility != View.VISIBLE
+            body.visibility = if (opening) View.VISIBLE else View.GONE
+            chevron.setText(if (opening) R.string.collapse_chevron else R.string.expand_chevron)
+        }
 
         findViewById<Button>(R.id.copyRecoveryButton).setOnClickListener {
             val clipboard = getSystemService(android.content.ClipboardManager::class.java)

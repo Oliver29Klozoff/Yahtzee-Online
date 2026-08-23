@@ -81,6 +81,8 @@
     <string name="app_accent">App accent</string>
     <string name="profile_recovery">Profile recovery</string>
     <string name="profile_recovery_explainer">This code is your identity: your leaderboard place, your daily results and your seat in every unfinished game. Save it somewhere, and you can pick all of it up on another phone.</string>
+    <string name="expand_chevron">Show</string>
+    <string name="collapse_chevron">Hide</string>
     <string name="copy_code">Copy code</string>
     <string name="restore_profile">Use a code</string>
     <string name="restore_profile_warning">Entering a code replaces this phone\'s identity with the one it belongs to. Whatever this phone has now — its leaderboard place and its seat in any game — is left behind unless you saved its code first.</string>
