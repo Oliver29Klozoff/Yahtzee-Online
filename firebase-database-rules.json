@@ -10,7 +10,7 @@
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
         },
         "bestScore": {
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6000"
         },
         "updatedAt": {
           ".validate": "newData.isNumber()"
@@ -32,7 +32,7 @@
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
           },
           "bestScore": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6000"
           },
           "updatedAt": {
             ".validate": "newData.isNumber()"
@@ -71,6 +71,9 @@
         },
         "cardCount": {
           ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+        },
+        "turnSeconds": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 300"
         },
         "dice": {
           "$index": {
