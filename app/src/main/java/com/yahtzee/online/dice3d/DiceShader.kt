@@ -53,9 +53,6 @@ private const val FRAGMENT_SHADER = """
     uniform vec3 uCameraPos;
     uniform vec3 uDiceColor;
     uniform float uDim;
-    // 1 = thick coloured glass, 0 = solid moulded plastic. Every glass term below is scaled
-    // by it, so the two finishes are one material rather than two shaders to keep in step.
-    uniform float uGloss;
 
     void main() {
         vec4 texColor = texture2D(uTexture, vTexCoord);
@@ -64,62 +61,20 @@ private const val FRAGMENT_SHADER = """
         vec3 toCamera = normalize(uCameraPos - vWorldPos);
 
         float diffuse = max(dot(normal, toLight), 0.0);
-        float ndotv = max(dot(normal, toCamera), 0.0);
 
-        float maxC = max(max(texColor.r, texColor.g), texColor.b);
-        float minC = min(min(texColor.r, texColor.g), texColor.b);
-        float saturation = (maxC - minC) / max(maxC, 0.001);
-        float glassness = clamp(saturation * 1.7, 0.0, 1.0) * uGloss;
+        // A moulded die gets its form from plain light and shadow across the face — no depth
+        // gradient through the body, no ignited edge, nothing shining through from behind. The
+        // spread is wide enough that a face turned away still reads as the same colour rather
+        // than going black.
+        vec3 color = texColor.rgb * (0.82 + 0.42 * diffuse);
 
-        // Interior depth is kept light. The reference dice are vivid electric glass, not dark
-        // blocks; darkening the core any further buries the far-side detail that clarity
-        // depends on.
-        vec3 deepCore = uDiceColor * 0.42;
-        float depth = clamp(0.28 - 0.20 * ndotv - 0.08 * diffuse, 0.0, 0.28) * glassness;
-        vec3 color = mix(texColor.rgb, deepCore, depth);
-
-        vec3 litTint = mix(uDiceColor, vec3(1.0), 0.45);
-        color = mix(color, litTint, diffuse * 0.30 * glassness);
-        // A solid body leans harder on plain diffuse shading, which is what gives it form once
-        // the depth gradient and edge ignition are gone.
-        color *= (mix(0.82, 0.94, uGloss) + mix(0.42, 0.24, uGloss) * diffuse);
-
+        // One soft highlight, the size a matte plastic surface would give. Wide and weak
+        // deliberately: a tight bright catch is what makes a surface look wet or glazed.
         vec3 halfVec = normalize(toLight + toCamera);
         float specAngle = max(dot(normal, halfVec), 0.0);
-        float tightSpec = pow(specAngle, mix(60.0, 120.0, uGloss)) * mix(0.12, 0.38, uGloss);
-        float sheen = pow(specAngle, 20.0) * mix(0.03, 0.06, uGloss);
+        float highlight = pow(specAngle, 60.0) * 0.12 + pow(specAngle, 20.0) * 0.03;
 
-        vec3 oppositeLight = reflect(toLight, normal);
-        float secondary = pow(max(dot(-oppositeLight, toCamera), 0.0), 12.0) * 0.05;
-
-        // Procedural studio environment: a broad overhead softbox with a weaker bounce from
-        // below-front, sampled through the reflection vector so it slides as the die rotates.
-        vec3 refl = reflect(-toCamera, normal);
-        float softbox = smoothstep(0.30, 0.95, refl.y);
-        float bounce = smoothstep(0.15, 0.85, -refl.y) * 0.10;
-        float env = (softbox * 0.14 + bounce) * glassness;
-
-        float fresnel = pow(1.0 - ndotv, 3.2);
-        // Tinted rather than near-white: the edge should read as the material lighting up,
-        // not as a white outline drawn around the die.
-        vec3 edgeColor = mix(uDiceColor, vec3(1.0), 0.42);
-        float edge = fresnel * 0.50 * glassness;
-
-        float transmission = pow(1.0 - ndotv, 1.6) * 0.30 * glassness;
-
-        vec3 shaded = color
-            + uDiceColor * transmission
-            + edgeColor * edge
-            + edgeColor * env
-            + vec3(1.0) * tightSpec
-            + mix(uDiceColor, vec3(1.0), 0.7) * (sheen + secondary);
-
-        // The body stays fully opaque. Literal transparency was tried and looked wrong: against
-        // a black table, alpha blending is multiplicative, so a see-through die reads as dim
-        // and washed out rather than as glass. The glass impression comes from the ignited
-        // edges, the specular and environment reflections, and the depth gradient through the
-        // body — all of which survive at full opacity.
-        gl_FragColor = vec4(shaded * uDim, texColor.a);
+        gl_FragColor = vec4((color + vec3(highlight)) * uDim, texColor.a);
     }
 """
 
@@ -135,7 +90,6 @@ class DiceShader {
     val uCameraPos: Int
     val uDiceColor: Int
     val uDim: Int
-    val uGloss: Int
 
     init {
         val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER)
@@ -162,7 +116,6 @@ class DiceShader {
         uCameraPos = GLES20.glGetUniformLocation(program, "uCameraPos")
         uDiceColor = GLES20.glGetUniformLocation(program, "uDiceColor")
         uDim = GLES20.glGetUniformLocation(program, "uDim")
-        uGloss = GLES20.glGetUniformLocation(program, "uGloss")
     }
 
     /**

@@ -84,11 +84,6 @@ class Dice3DView @JvmOverloads constructor(
         renderer.tableColor = color
     }
 
-    /** Glass or solid dice. Takes effect on the next frame; nothing is regenerated. */
-    fun setDiceFinish(finish: DicePreferences.DiceFinish) {
-        renderer.diceFinish = finish
-    }
-
     /** What is printed on the felt: the app artwork, the player's own picture, or nothing. */
     fun setTableLogo(mode: TableLogoStore.Mode) {
         renderer.tableLogo = mode

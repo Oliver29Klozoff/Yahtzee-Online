@@ -17,28 +17,29 @@ import kotlin.math.min
  * while giving each face four times the pixels of the old 256px cells so the pips stay
  * smooth instead of visibly stepped.
  *
- * Cells are drawn FULL-BLEED, with no rounded corners and no transparent margin: [CubeMesh] now
+ * Cells are drawn FULL-BLEED, with no rounded corners and no transparent margin: [CubeMesh]
  * carries genuine rounded geometry, and its bevel band samples this cell's outer edge. Anything
  * transparent out there would punch holes along every edge of the die.
  *
- * Layers, back to front:
- *   1. A radial body gradient, deepest at the centre and brightening toward the rim — light
- *      escaping where the glass block is thinnest, which is what conveys thickness.
- *   2. A bright edge band at the cell border, which the bevel geometry maps onto, so the
- *      rounded edges read as ignited.
- *   3. A soft diagonal streak, faking light scattering inside the material.
- *   4. Per pip: bright cavity lip, dark domed body, specular pinpoint.
+ * These are ordinary moulded dice. There was a glass material here too — a deep saturated core
+ * brightening to a bleached rim, a streak of light scattering through the body, and pips built
+ * as jewelled cavities with a bright lip and a specular catch. It looked striking in a single
+ * vivid colour and wrong everywhere else: the core read as grime in the middle of the face, the
+ * rim drained the colour out of the edges, and the pips came out as grey blobs wearing haloes
+ * rather than dots. What is left is what a die actually looks like — one colour through to the
+ * edge, and pips printed flat on the surface.
  *
- * Every glass tone derives from [baseColor], so the dice can be recoloured at runtime; the pips
- * stay neutral at any hue, which is also what lets the shader separate them from the body
- * by saturation.
+ * Layers, back to front:
+ *   1. A near-uniform body, lifting slightly at the rim.
+ *   2. A faint edge band at the cell border, which the bevel geometry maps onto.
+ *   3. Per pip: one flat filled circle.
  */
 object DieTextureAtlas {
 
     const val DEFAULT_COLOR = 0xFF3D7FFF.toInt()
 
-    /** Printed pips sit a little larger than moulded ones, as they do on a real die. */
-    private const val FLAT_PIP_SCALE = 1.18f
+    /** Pips as printed on a real die: a shade larger than a moulded dimple would be. */
+    private const val PIP_SCALE = 1.18f
 
     private val pipLayouts: Map<Int, List<Pair<Float, Float>>> = mapOf(
         1 to listOf(0.5f to 0.5f),
@@ -52,7 +53,6 @@ object DieTextureAtlas {
     fun build(
         baseColor: Int = DEFAULT_COLOR,
         darkPips: Boolean = true,
-        flatPips: Boolean = false,
         cellSize: Int = CubeMesh.CELL_PX
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(
@@ -61,13 +61,13 @@ object DieTextureAtlas {
             Bitmap.Config.ARGB_8888
         )
         val canvas = Canvas(bitmap)
-        val palette = Palette.from(baseColor, flatPips)
+        val palette = Palette.from(baseColor)
 
         for (value in 1..6) {
             val cell = value - 1
             val left = (cell % CubeMesh.ATLAS_COLS) * cellSize
             val top = (cell / CubeMesh.ATLAS_COLS) * cellSize
-            drawFace(canvas, left, top, cellSize, value, palette, darkPips, flatPips)
+            drawFace(canvas, left, top, cellSize, value, palette, darkPips)
         }
         return bitmap
     }
@@ -77,50 +77,33 @@ object DieTextureAtlas {
      * for instance. Uses the same drawing as the atlas, so a die shown in a list matches the
      * ones on the table, in whatever colour that player chose.
      */
-    fun face(baseColor: Int, value: Int, darkPips: Boolean = true, flatPips: Boolean = false, cellSize: Int = 128): Bitmap {
+    fun face(baseColor: Int, value: Int, darkPips: Boolean = true, cellSize: Int = 128): Bitmap {
         val bitmap = Bitmap.createBitmap(cellSize, cellSize, Bitmap.Config.ARGB_8888)
-        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor, flatPips), darkPips, flatPips)
+        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPips)
         return bitmap
     }
 
-    /** Tones derived from one base colour, so any hue yields a coherent material. */
-    private class Palette(val deep: Int, val base: Int, val rim: Int, val edge: Int) {
+    /**
+     * Tones derived from one base colour, so any hue yields a coherent die.
+     *
+     * The edge keeps its hue and lifts only slightly in brightness. Draining colour toward the
+     * rim is how glass reads — light escaping where the block is thinnest — and doing it to
+     * moulded plastic simply bleaches the edges.
+     */
+    private class Palette(val base: Int, val rim: Int, val edge: Int) {
         companion object {
-            fun from(baseColor: Int, flat: Boolean = false): Palette {
+            fun from(baseColor: Int): Palette {
                 val hsv = FloatArray(3)
                 Color.colorToHSV(baseColor, hsv)
-
-                // A solid die is one colour all over. Glass earns its rim by brightening and
-                // draining colour toward the edge — light escaping where the block is thinnest —
-                // and doing that to moulded plastic just bleaches its edges, which is what left a
-                // solid red die looking like washed pink glass. Here the edge only catches a
-                // little more light and keeps its hue, so the die reads as one piece of colour
-                // the way the white one does.
-                if (flat) {
-                    return Palette(
-                        deep = Color.HSVToColor(floatArrayOf(hsv[0], hsv[1], hsv[2] * 0.92f)),
-                        base = baseColor,
-                        rim = Color.HSVToColor(
-                            floatArrayOf(hsv[0], hsv[1] * 0.94f, min(1f, hsv[2] + 0.05f))
-                        ),
-                        edge = Color.HSVToColor(
-                            floatArrayOf(hsv[0], hsv[1] * 0.90f, min(1f, hsv[2] + 0.08f))
-                        )
+                return Palette(
+                    base = baseColor,
+                    rim = Color.HSVToColor(
+                        floatArrayOf(hsv[0], hsv[1] * 0.94f, min(1f, hsv[2] + 0.05f))
+                    ),
+                    edge = Color.HSVToColor(
+                        floatArrayOf(hsv[0], hsv[1] * 0.90f, min(1f, hsv[2] + 0.08f))
                     )
-                }
-
-                val deep = Color.HSVToColor(
-                    floatArrayOf(hsv[0], min(1f, hsv[1] * 1.18f), hsv[2] * 0.32f)
                 )
-                val rim = Color.HSVToColor(
-                    floatArrayOf(hsv[0], hsv[1] * 0.58f, min(1f, hsv[2] + 0.26f))
-                )
-                // Keeps a good deal of its colour instead of washing out to near-white, so the
-                // bevel band the geometry samples glows in the dice colour rather than glaring.
-                val edge = Color.HSVToColor(
-                    floatArrayOf(hsv[0], hsv[1] * 0.42f, min(1f, hsv[2] + 0.28f))
-                )
-                return Palette(deep, baseColor, rim, edge)
             }
         }
     }
@@ -132,38 +115,26 @@ object DieTextureAtlas {
         size: Int,
         value: Int,
         palette: Palette,
-        darkPips: Boolean,
-        flatPips: Boolean
+        darkPips: Boolean
     ) {
         val rect = RectF(left.toFloat(), top.toFloat(), (left + size).toFloat(), (top + size).toFloat())
         val cx = left + size / 2f
         val cy = top + size / 2f
 
-        // 1. Body. Glass gets a deep saturated core brightening toward the rim, which is what
-        //    conveys thickness. A solid die must not: that core reads as grime in the middle of
-        //    the face, and on a white one it turns the whole die grey. Its face is near uniform,
-        //    lifting only slightly at the very edge.
+        // 1. Body — one colour, lifting only at the very edge.
         val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = if (flatPips) {
-                RadialGradient(
-                    cx, cy, size * 0.74f,
-                    intArrayOf(palette.base, palette.base, palette.rim),
-                    floatArrayOf(0f, 0.78f, 1f),
-                    Shader.TileMode.CLAMP
-                )
-            } else {
-                RadialGradient(
-                    cx, cy, size * 0.74f,
-                    intArrayOf(palette.deep, palette.base, palette.rim),
-                    floatArrayOf(0f, 0.6f, 1f),
-                    Shader.TileMode.CLAMP
-                )
-            }
+            shader = RadialGradient(
+                cx, cy, size * 0.74f,
+                intArrayOf(palette.base, palette.base, palette.rim),
+                floatArrayOf(0f, 0.78f, 1f),
+                Shader.TileMode.CLAMP
+            )
         }
         canvas.drawRect(rect, bodyPaint)
 
         // 2. Edge band — the outermost texels, which the rounded bevel geometry samples. Drawn
-        //    as a stroke sitting exactly on the cell border so the bevel reads as ignited.
+        //    as a stroke sitting exactly on the cell border, so the rounded edge catches a
+        //    little more light than the flat of the face rather than lighting up.
         val bandWidth = size * 0.11f
         val bandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
@@ -180,138 +151,13 @@ object DieTextureAtlas {
             bandPaint
         )
 
-        // 3. Internal streak — scattered light travelling through the body. Nothing travels
-        //    through solid plastic, and on a light die the streak shows as a smear across the
-        //    face, so it is skipped entirely there.
-        if (flatPips) return drawPips(canvas, left, top, size, value, darkPips, flatPips)
-
-        val streakPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(
-                left + size * 0.1f, top + size * 0.05f, left + size * 0.75f, top + size * 0.7f,
-                intArrayOf(
-                    Color.argb(0, 255, 255, 255),
-                    Color.argb(24, 226, 240, 255),
-                    Color.argb(0, 255, 255, 255)
-                ),
-                floatArrayOf(0.26f, 0.42f, 0.6f),
-                Shader.TileMode.CLAMP
-            )
+        // 3. Pips.
+        val pipRadius = size * 0.086f * PIP_SCALE
+        val pipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (darkPips) Color.rgb(18, 18, 20) else Color.rgb(250, 250, 250)
         }
-        canvas.drawRect(rect, streakPaint)
-
-        drawPips(canvas, left, top, size, value, darkPips, flatPips)
-    }
-
-    /** 4. Pips. Split out so the solid path can reach them without the glass layers above. */
-    private fun drawPips(
-        canvas: Canvas,
-        left: Int,
-        top: Int,
-        size: Int,
-        value: Int,
-        darkPips: Boolean,
-        flatPips: Boolean
-    ) {
-        val pipRadius = size * 0.086f
         pipLayouts[value]?.forEach { (fx, fy) ->
-            drawPip(canvas, left + fx * size, top + fy * size, pipRadius, darkPips, flatPips)
+            canvas.drawCircle(left + fx * size, top + fy * size, pipRadius, pipPaint)
         }
-    }
-
-    /**
-     * One polished black pip: a bright glass lip around the cavity, a dark domed body, and a
-     * specular pinpoint.
-     *
-     * Black needs the opposite treatment to white. A white pip separated itself from the blue
-     * body by being brighter, so it only needed a soft recess behind it; a dark pip would
-     * otherwise read as a flat hole punched in the face, so the definition has to come from a
-     * bright lit lip around it and from a strong highlight on the dome. Both stay neutral in
-     * hue, which is what keeps the shader classifying them as pips rather than glass — that
-     * test is saturation-based, so black qualifies exactly as white did.
-     */
-    private fun drawPip(
-        canvas: Canvas,
-        px: Float,
-        py: Float,
-        radius: Float,
-        dark: Boolean,
-        flat: Boolean
-    ) {
-        // A printed pip, for a solid die. Everything below this makes a pip look like a jewelled
-        // cavity in glass — a bright lip around it, a dome gradient, a specular catch — which is
-        // right on a coloured glass die and wrong on an ordinary one, where it reads as a small
-        // grey blob wearing a halo rather than a crisp black dot. An ordinary die's pips are
-        // painted on: flat, solid, and a touch larger.
-        if (flat) {
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = if (dark) Color.rgb(18, 18, 20) else Color.rgb(250, 250, 250)
-            }
-            canvas.drawCircle(px, py, radius * FLAT_PIP_SCALE, paint)
-            return
-        }
-
-        // Cavity lip. A dark pip needs a bright lip to stop it reading as a hole punched in the
-        // face; a pale pip already separates itself by being brighter than the body, so its lip
-        // is a soft shadow that sets it into the surface instead.
-        val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeWidth = radius * 0.2f
-            shader = if (dark) {
-                LinearGradient(
-                    px - radius, py - radius, px + radius, py + radius,
-                    intArrayOf(Color.argb(240, 236, 244, 255), Color.argb(120, 150, 178, 220)),
-                    floatArrayOf(0f, 1f),
-                    Shader.TileMode.CLAMP
-                )
-            } else {
-                LinearGradient(
-                    px - radius, py - radius, px + radius, py + radius,
-                    intArrayOf(Color.argb(150, 6, 14, 32), Color.argb(60, 20, 36, 70)),
-                    floatArrayOf(0f, 1f),
-                    Shader.TileMode.CLAMP
-                )
-            }
-        }
-        canvas.drawCircle(px, py, radius * 1.12f, rimPaint)
-
-        // Dome: the highlight sits up-left and the limb falls away to the lower-right, which is
-        // what makes a flat disc read as a sphere in either colour.
-        val domeStops = if (dark) {
-            intArrayOf(
-                Color.rgb(92, 100, 114),
-                Color.rgb(42, 47, 56),
-                Color.rgb(16, 19, 24),
-                Color.rgb(4, 5, 8)
-            )
-        } else {
-            intArrayOf(
-                Color.rgb(255, 255, 255),
-                Color.rgb(242, 246, 253),
-                Color.rgb(200, 212, 231),
-                Color.rgb(148, 164, 190)
-            )
-        }
-        val domePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                px - radius * 0.34f, py - radius * 0.36f, radius * 1.5f,
-                domeStops,
-                floatArrayOf(0f, 0.38f, 0.72f, 1f),
-                Shader.TileMode.CLAMP
-            )
-        }
-        canvas.drawCircle(px, py, radius, domePaint)
-
-        val specPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                px - radius * 0.36f, py - radius * 0.4f, radius * 0.32f,
-                intArrayOf(
-                    Color.argb(if (dark) 215 else 240, 255, 255, 255),
-                    Color.argb(0, 255, 255, 255)
-                ),
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP
-            )
-        }
-        canvas.drawCircle(px - radius * 0.36f, py - radius * 0.4f, radius * 0.32f, specPaint)
     }
 }

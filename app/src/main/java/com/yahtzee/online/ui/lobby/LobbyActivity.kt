@@ -88,7 +88,6 @@ class LobbyActivity : ImmersiveActivity() {
         findViewById<Dice3DView>(R.id.rollOffDice).apply {
             setDieCount(1)
             setPipStyle(DicePreferences.pipStyle(this@LobbyActivity))
-            setDiceFinish(DicePreferences.diceFinish(this@LobbyActivity))
             setCameraScale(ROLL_OFF_CAMERA_SCALE)
             setTableColor(AppSettings.tableColor(this@LobbyActivity))
             setTableLogo(TableLogoStore.mode(this@LobbyActivity))

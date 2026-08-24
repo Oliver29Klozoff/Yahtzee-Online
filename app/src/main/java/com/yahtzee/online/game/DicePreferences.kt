@@ -16,18 +16,15 @@ object DicePreferences {
     private const val PREFS = "dice_prefs"
     private const val KEY_COLOR = "dice_color"
     private const val KEY_PIP_STYLE = "pip_style"
-    private const val KEY_FINISH = "dice_finish"
     private const val KEY_SAVED = "saved_dice"
     private const val MAX_SAVED = 12
 
     /**
      * Selectable colours, paired with the label shown in Settings.
      *
-     * Classic comes first because it is the die everyone already knows, and because it needs no
-     * special handling to look right: the shader works out how glassy a die is from how saturated
-     * it is, so a white one has no glass in it at all and renders as plain moulded plastic —
-     * while Auto pips read its brightness and come out black. The ordinary white die falls out of
-     * the rules already there rather than being a case bolted on beside them.
+     * Classic comes first because it is the die everyone already knows. It needs nothing special
+     * beyond the colour: every die is moulded plastic now, and Auto pips read its brightness and
+     * come out black.
      *
      * Bone rather than pure white, which glares against a dark table and leaves no room for the
      * highlight to show.
@@ -131,28 +128,6 @@ object DicePreferences {
             // because a mid-tone die still reads better with light pips against a dark table.
             AUTO -> ColorUtils.calculateLuminance(diceColor) > 0.42
         }
-    }
-
-    /**
-     * How the dice are made.
-     *
-     * [GLASS] is the original look — thick coloured glass, lit from the edges. [SOLID] is a
-     * moulded plastic die: the same colour, shaded by plain light and shadow, with a soft
-     * highlight instead of ignited edges. One shader draws both, with [gloss] scaling every
-     * glass term, so they cannot drift apart.
-     */
-    enum class DiceFinish(val label: String, val gloss: Float) {
-        GLASS("Glass", 1f),
-        SOLID("Solid", 0f)
-    }
-
-    fun diceFinish(context: Context): DiceFinish {
-        val name = prefs(context).getString(KEY_FINISH, DiceFinish.GLASS.name)
-        return runCatching { DiceFinish.valueOf(name!!) }.getOrDefault(DiceFinish.GLASS)
-    }
-
-    fun setDiceFinish(context: Context, finish: DiceFinish) {
-        prefs(context).edit().putString(KEY_FINISH, finish.name).apply()
     }
 
     fun pipStyle(context: Context): PipStyle {

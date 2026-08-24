@@ -109,7 +109,6 @@ class SettingsActivity : ImmersiveActivity() {
         dicePreview = findViewById(R.id.dicePreview)
         dicePreview.setDiceColor(selectedColor)
         dicePreview.setPipStyle(pipStyle)
-        dicePreview.setDiceFinish(DicePreferences.diceFinish(this))
 
         dicePreview.setTableColor(AppSettings.tableColor(this))
 
@@ -151,7 +150,6 @@ class SettingsActivity : ImmersiveActivity() {
 
         findViewById<Button>(R.id.saveDiceButton).setOnClickListener { promptSaveDice() }
         setUpTableLogo()
-        setUpDiceFinish()
         setUpAccentSliders()
 
         setUpProfileRecovery()
@@ -516,19 +514,6 @@ class SettingsActivity : ImmersiveActivity() {
         AccentColor.setColor(this, color)
         AccentColor.retint(findViewById(android.R.id.content), shownAccent, color)
         shownAccent = color
-    }
-
-    /** Glass or solid. Only the lighting changes, so the preview updates without a reroll. */
-    private fun setUpDiceFinish() {
-        setUpCycler(
-            R.id.diceFinishButton,
-            DicePreferences.DiceFinish.values().toList(),
-            DicePreferences.diceFinish(this),
-            { it.label }
-        ) { finish ->
-            DicePreferences.setDiceFinish(this, finish)
-            dicePreview.setDiceFinish(finish)
-        }
     }
 
     /**
