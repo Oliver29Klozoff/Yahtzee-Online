@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The television's view of a game. Nothing here is interactive: a TV has no touch and the whole
+    point is that the phones do the playing, so every control lives on the phones and this shows
+    only what is happening. Laid out for a room's-width viewing distance — the join panel stays
+    put on the left so a latecomer can always scan in, with the table filling the rest.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="@color/background"
+    android:padding="32dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="0.34"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textSize="34sp"
+            android:textStyle="bold"
+            android:tag="accentText"
+            android:textColor="?attr/colorPrimary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_scan_to_play"
+            android:textSize="15sp"
+            android:textColor="@color/text_muted"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="18dp" />
+
+        <ImageView
+            android:id="@+id/tableQr"
+            android:layout_width="260dp"
+            android:layout_height="260dp"
+            android:padding="10dp"
+            android:background="@android:color/white"
+            android:contentDescription="@string/tv_scan_to_play" />
+
+        <TextView
+            android:id="@+id/tableRoomCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="40sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.25"
+            android:layout_marginTop="14dp"
+            android:tag="accentText"
+            android:textColor="?attr/colorPrimary" />
+
+        <TextView
+            android:id="@+id/tableHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/text_muted"
+            android:layout_marginTop="10dp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="0.66"
+        android:orientation="vertical"
+        android:paddingStart="28dp">
+
+        <TextView
+            android:id="@+id/tableTurnText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark"
+            android:layout_marginBottom="6dp" />
+
+        <com.yahtzee.online.dice3d.Dice3DView
+            android:id="@+id/tableDice"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <LinearLayout
+            android:id="@+id/tableScores"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

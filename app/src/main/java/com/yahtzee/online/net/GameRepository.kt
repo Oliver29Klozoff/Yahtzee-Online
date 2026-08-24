@@ -66,6 +66,31 @@ class GameRepository(private val context: android.content.Context) {
         ref.setValue(state.toMap()).addOnSuccessListener { onResult(code) }
     }
 
+    /**
+     * Opens a room that the creator watches rather than plays.
+     *
+     * The television is the table, not a player: it holds the room open and shows what is
+     * happening on it, while every seat belongs to a phone. So this creates the room with nobody
+     * in it — no player entry, and an empty turn order that fills as people scan in. The host id
+     * still points at the screen, since something has to own the room, but nothing ever looks up
+     * a seat for it.
+     */
+    fun createSpectatorRoom(cardCount: Int = 1, onResult: (String) -> Unit) {
+        val code = generateRoomCode()
+        val state = GameState(
+            roomCode = code,
+            hostId = localPlayerId,
+            status = GameState.STATUS_LOBBY,
+            playerOrder = emptyList(),
+            players = emptyMap(),
+            cardCount = cardCount,
+            // A shared screen is the one place a clock makes no sense: everyone can see whose
+            // turn it is, and nobody is waiting on a phone that fell asleep in a pocket.
+            turnSeconds = 0
+        )
+        roomRef(code).setValue(state.toMap()).addOnSuccessListener { onResult(code) }
+    }
+
     fun joinRoom(code: String, playerName: String, diceColor: Int, onResult: (Boolean) -> Unit) {
         val ref = roomRef(code)
         ref.get().addOnSuccessListener { snapshot ->

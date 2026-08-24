@@ -96,6 +96,14 @@
     <string name="new_identity_warning">This phone becomes a different player. Its leaderboard place, its daily results and its seat in any unfinished game stay with the old identity — save the code above first if you may want it back.</string>
     <string name="new_identity_done">New identity created. This phone is now a separate player.</string>
 
+    <!-- Television table -->
+    <string name="tv_scan_to_play">Scan to play on your phone</string>
+    <string name="tv_waiting">Point a phone camera at the code to take a seat. Everyone plays on their own phone; this screen is the table.</string>
+    <string name="tv_start_on_phone">Start the game from the host\x27s phone when everyone is in.</string>
+    <string name="tv_scan_to_join_late">Still open — scan to join.</string>
+    <string name="tv_finished">Open a new room to play again.</string>
+    <string name="tv_turn_of">%1$s to roll</string>
+
     <!-- Invites -->
     <string name="scan_to_join">Scan to join</string>
     <string name="reaction_from">%1$s %2$s</string>
@@ -190,4 +198,8 @@
     <string name="stat_zero_value">%1$d%% zero</string>
     <string name="mode_online">Online</string>
     <string name="mode_solo">Solo</string>
+    <plurals name="tv_players_joined">
+        <item quantity="one">%1$d player in</item>
+        <item quantity="other">%1$d players in</item>
+    </plurals>
 </resources>
