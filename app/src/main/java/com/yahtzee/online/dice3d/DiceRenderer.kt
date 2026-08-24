@@ -80,6 +80,14 @@ class DiceRenderer(
     /** Glass or solid. Only changes how the die is lit, so no texture rebuild is needed. */
     @Volatile
     var diceFinish: DicePreferences.DiceFinish = DicePreferences.DiceFinish.GLASS
+        set(value) {
+            if (field != value) {
+                field = value
+                // Pips and the face gradient differ between finishes, so the atlas is rebuilt
+                // rather than only the lighting changing.
+                textureDirty = true
+            }
+        }
 
     /** Table felt colour, a local look preference. */
     @Volatile
@@ -192,7 +200,11 @@ class DiceRenderer(
     }
 
     private fun uploadAtlas() {
-        val bitmap = DieTextureAtlas.build(diceColor, pipStyle.darkFor(diceColor))
+        val bitmap = DieTextureAtlas.build(
+            diceColor,
+            pipStyle.darkFor(diceColor),
+            diceFinish == DicePreferences.DiceFinish.SOLID
+        )
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         bitmap.recycle()

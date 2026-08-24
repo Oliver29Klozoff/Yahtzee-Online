@@ -37,6 +37,9 @@ object DieTextureAtlas {
 
     const val DEFAULT_COLOR = 0xFF3D7FFF.toInt()
 
+    /** Printed pips sit a little larger than moulded ones, as they do on a real die. */
+    private const val FLAT_PIP_SCALE = 1.18f
+
     private val pipLayouts: Map<Int, List<Pair<Float, Float>>> = mapOf(
         1 to listOf(0.5f to 0.5f),
         2 to listOf(0.28f to 0.28f, 0.72f to 0.72f),
@@ -49,6 +52,7 @@ object DieTextureAtlas {
     fun build(
         baseColor: Int = DEFAULT_COLOR,
         darkPips: Boolean = true,
+        flatPips: Boolean = false,
         cellSize: Int = CubeMesh.CELL_PX
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(
@@ -63,7 +67,7 @@ object DieTextureAtlas {
             val cell = value - 1
             val left = (cell % CubeMesh.ATLAS_COLS) * cellSize
             val top = (cell / CubeMesh.ATLAS_COLS) * cellSize
-            drawFace(canvas, left, top, cellSize, value, palette, darkPips)
+            drawFace(canvas, left, top, cellSize, value, palette, darkPips, flatPips)
         }
         return bitmap
     }
@@ -73,9 +77,9 @@ object DieTextureAtlas {
      * for instance. Uses the same drawing as the atlas, so a die shown in a list matches the
      * ones on the table, in whatever colour that player chose.
      */
-    fun face(baseColor: Int, value: Int, darkPips: Boolean = true, cellSize: Int = 128): Bitmap {
+    fun face(baseColor: Int, value: Int, darkPips: Boolean = true, flatPips: Boolean = false, cellSize: Int = 128): Bitmap {
         val bitmap = Bitmap.createBitmap(cellSize, cellSize, Bitmap.Config.ARGB_8888)
-        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPips)
+        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPips, flatPips)
         return bitmap
     }
 
@@ -108,20 +112,33 @@ object DieTextureAtlas {
         size: Int,
         value: Int,
         palette: Palette,
-        darkPips: Boolean
+        darkPips: Boolean,
+        flatPips: Boolean
     ) {
         val rect = RectF(left.toFloat(), top.toFloat(), (left + size).toFloat(), (top + size).toFloat())
         val cx = left + size / 2f
         val cy = top + size / 2f
 
-        // 1. Body — deep saturated core brightening toward the rim.
+        // 1. Body. Glass gets a deep saturated core brightening toward the rim, which is what
+        //    conveys thickness. A solid die must not: that core reads as grime in the middle of
+        //    the face, and on a white one it turns the whole die grey. Its face is near uniform,
+        //    lifting only slightly at the very edge.
         val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                cx, cy, size * 0.74f,
-                intArrayOf(palette.deep, palette.base, palette.rim),
-                floatArrayOf(0f, 0.6f, 1f),
-                Shader.TileMode.CLAMP
-            )
+            shader = if (flatPips) {
+                RadialGradient(
+                    cx, cy, size * 0.74f,
+                    intArrayOf(palette.base, palette.base, palette.rim),
+                    floatArrayOf(0f, 0.78f, 1f),
+                    Shader.TileMode.CLAMP
+                )
+            } else {
+                RadialGradient(
+                    cx, cy, size * 0.74f,
+                    intArrayOf(palette.deep, palette.base, palette.rim),
+                    floatArrayOf(0f, 0.6f, 1f),
+                    Shader.TileMode.CLAMP
+                )
+            }
         }
         canvas.drawRect(rect, bodyPaint)
 
@@ -161,7 +178,7 @@ object DieTextureAtlas {
         // 4. Pips.
         val pipRadius = size * 0.086f
         pipLayouts[value]?.forEach { (fx, fy) ->
-            drawPip(canvas, left + fx * size, top + fy * size, pipRadius, darkPips)
+            drawPip(canvas, left + fx * size, top + fy * size, pipRadius, darkPips, flatPips)
         }
     }
 
@@ -176,7 +193,27 @@ object DieTextureAtlas {
      * hue, which is what keeps the shader classifying them as pips rather than glass — that
      * test is saturation-based, so black qualifies exactly as white did.
      */
-    private fun drawPip(canvas: Canvas, px: Float, py: Float, radius: Float, dark: Boolean) {
+    private fun drawPip(
+        canvas: Canvas,
+        px: Float,
+        py: Float,
+        radius: Float,
+        dark: Boolean,
+        flat: Boolean
+    ) {
+        // A printed pip, for a solid die. Everything below this makes a pip look like a jewelled
+        // cavity in glass — a bright lip around it, a dome gradient, a specular catch — which is
+        // right on a coloured glass die and wrong on an ordinary one, where it reads as a small
+        // grey blob wearing a halo rather than a crisp black dot. An ordinary die's pips are
+        // painted on: flat, solid, and a touch larger.
+        if (flat) {
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = if (dark) Color.rgb(18, 18, 20) else Color.rgb(250, 250, 250)
+            }
+            canvas.drawCircle(px, py, radius * FLAT_PIP_SCALE, paint)
+            return
+        }
+
         // Cavity lip. A dark pip needs a bright lip to stop it reading as a hole punched in the
         // face; a pale pip already separates itself by being brighter than the body, so its lip
         // is a soft shadow that sets it into the surface instead.
