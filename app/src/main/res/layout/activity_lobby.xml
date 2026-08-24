@@ -122,6 +122,20 @@
         android:backgroundTint="?attr/colorPrimary"
         android:visibility="gone" />
 
+    <!--
+        Offered only to whoever currently holds the room, and only once there is somebody to hand
+        it to. Under the start button because giving the game away is the rarer thing to want.
+    -->
+    <Button
+        android:id="@+id/passControlButton"
+        style="?android:attr/borderlessButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pass_control"
+        android:textSize="13sp"
+        android:textColor="@color/text_muted"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/rollOffStatusText"
         android:layout_width="match_parent"

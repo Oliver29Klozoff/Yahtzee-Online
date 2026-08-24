@@ -170,7 +170,13 @@ class TableActivity : ImmersiveActivity() {
             val isTurn = player.id == state.currentPlayerId
 
             row.addView(TextView(this).apply {
-                text = player.name
+                // Before the game starts, the room says who is holding it — the whole table can
+                // then see which phone has the Start button rather than guessing at it.
+                text = if (state.status == GameState.STATUS_LOBBY && player.id == state.hostId) {
+                    getString(R.string.tv_host_marker, player.name)
+                } else {
+                    player.name
+                }
                 textSize = 20f
                 maxLines = 1
                 // Whose turn it is, said in their own dice colour, so the table matches the

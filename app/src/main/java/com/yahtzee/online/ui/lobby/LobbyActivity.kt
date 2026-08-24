@@ -101,6 +101,7 @@ class LobbyActivity : ImmersiveActivity() {
         }
 
         findViewById<Button>(R.id.playBotsInsteadButton).setOnClickListener { startBotGame() }
+        findViewById<Button>(R.id.passControlButton).setOnClickListener { promptPassControl() }
         findViewById<Button>(R.id.shareInviteButton).setOnClickListener { shareInvite() }
         findViewById<Button>(R.id.inviteRecentButton).setOnClickListener { inviteRecent() }
 
@@ -149,6 +150,9 @@ class LobbyActivity : ImmersiveActivity() {
                 RecentPlayersStore.remember(this, state.players.values, playerId)
             }
             startButton.visibility = if (isHost && inLobby && state.players.size >= 1) View.VISIBLE else View.GONE
+            // Nothing to hand over unless you hold the room and somebody else is in it.
+            findViewById<Button>(R.id.passControlButton).visibility =
+                if (isHost && inLobby && state.players.size > 1) View.VISIBLE else View.GONE
             findViewById<TextView>(R.id.waitingText).visibility =
                 if (isHost && inLobby) View.GONE else if (inLobby) View.VISIBLE else View.GONE
 
@@ -188,6 +192,36 @@ class LobbyActivity : ImmersiveActivity() {
 
     /** The one link both the QR and the share sheet carry, so they cannot disagree. */
     private fun inviteLink(): String = "yahtzee://join/$roomCode"
+
+    /**
+     * Hands the room to another player.
+     *
+     * Whoever scanned in first ends up holding it, which is an accident of who was quickest with
+     * a camera rather than a decision anyone made — so it can be given away. Once passed, the
+     * start button simply appears on their phone and disappears from this one; there is nothing
+     * for them to accept.
+     */
+    private fun promptPassControl() {
+        val state = lastState ?: return
+        val others = state.playerOrder
+            .mapNotNull { state.players[it] }
+            .filterNot { it.id == playerId }
+        if (others.isEmpty()) return
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.pass_control)
+            .setItems(others.map { it.name }.toTypedArray()) { _, which ->
+                val chosen = others[which]
+                repository.transferHost(roomCode, chosen.id)
+                Toast.makeText(
+                    this,
+                    getString(R.string.pass_control_done, chosen.name),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
 
     /**
      * Shares an invite as text.

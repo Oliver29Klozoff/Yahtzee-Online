@@ -103,6 +103,9 @@
     <string name="tv_scan_to_join_late">Still open — scan to join.</string>
     <string name="tv_finished">Open a new room to play again.</string>
     <string name="tv_turn_of">%1$s to roll</string>
+    <string name="tv_host_marker">%1$s · starts the game</string>
+    <string name="pass_control">Pass control to another player</string>
+    <string name="pass_control_done">%1$s now controls the game.</string>
 
     <!-- Invites -->
     <string name="scan_to_join">Scan to join</string>

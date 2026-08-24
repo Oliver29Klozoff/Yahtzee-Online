@@ -219,6 +219,20 @@ class GameRepository(private val context: android.content.Context) {
     }
 
     /**
+     * Hands the room to another player.
+     *
+     * Being host is only the right to start the game and call a rematch, so this is not a
+     * transfer of anything precious — but the person who scanned in first is not necessarily the
+     * person who should be driving, and on a TV game they may not even be the one holding the
+     * remote conversation. Written to whoever is named rather than negotiated: the host is the
+     * only one who can offer it, so there is nothing to agree.
+     */
+    fun transferHost(code: String, toPlayerId: String) {
+        if (code.isEmpty() || toPlayerId.isEmpty()) return
+        roomRef(code).child("hostId").setValue(toPlayerId)
+    }
+
+    /**
      * Sends a reaction to everyone in the room.
      *
      * Written under the sender rather than appended to a list: a reaction is a moment, not a
