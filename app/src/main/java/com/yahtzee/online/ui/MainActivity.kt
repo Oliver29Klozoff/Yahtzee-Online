@@ -302,6 +302,16 @@ class MainActivity : ImmersiveActivity() {
         }
         card.isEnabled = played == null
         card.alpha = if (played == null) 1f else 0.55f
+
+        // The outline is a stroke inside a drawable, which the accent walk cannot reach — it only
+        // looks at text and tint, and a shape's stroke colour cannot even be read back. Set here
+        // instead, or the card keeps the nearest preset while the rest of the screen takes the
+        // exact colour. Mutated first, since a drawable inflated from a resource shares its state
+        // with every other view using it.
+        (card.background?.mutate() as? android.graphics.drawable.GradientDrawable)?.setStroke(
+            (resources.displayMetrics.density).toInt().coerceAtLeast(1),
+            AccentColor.resolve(this)
+        )
     }
 
     /**

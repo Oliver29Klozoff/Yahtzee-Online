@@ -43,6 +43,17 @@ class SettingsActivity : ImmersiveActivity() {
     /** Same guard for the accent sliders, which are set from a swatch as well as dragged. */
     private var syncingAccent = false
 
+    /** What the screen is currently painted in, so a live retint knows what to replace. */
+    private var shownAccent = 0
+
+    /** The preset theme in force, to notice when a drag has moved far enough to change it. */
+    private var appliedTheme = 0
+
+    private companion object {
+        /** Below this an accent used as text on a black page stops being readable. */
+        const val MIN_ACCENT_BRIGHTNESS = 35
+    }
+
     /** Set once the logo control is built, so the picker result can refresh it. */
     private var refreshTableLogo: (() -> Unit)? = null
 
@@ -65,6 +76,10 @@ class SettingsActivity : ImmersiveActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+
+        // The base class has already painted the stored accent on, so that is what is on screen.
+        shownAccent = AccentColor.getColor(this)
+        appliedTheme = AccentColor.themeFor(shownAccent)
 
         updateChecker = UpdateChecker(this)
 
@@ -413,7 +428,11 @@ class SettingsActivity : ImmersiveActivity() {
                         if (color == current) Color.WHITE else Color.parseColor("#39404A")
                     )
                 }
-                setOnClickListener { applyAccent(color) }
+                setOnClickListener {
+                    applyAccent(color)
+                    renderAccentColors()
+                    if (AccentColor.themeFor(color) != appliedTheme) recreate()
+                }
             }
             swatch.layoutParams = LinearLayout.LayoutParams(size, size)
                 .also { it.marginEnd = (12 * density).toInt() }
@@ -430,27 +449,47 @@ class SettingsActivity : ImmersiveActivity() {
      * dark. Full black is not a choice worth offering.
      */
     private fun setUpAccentSliders() {
-        val ids = listOf(R.id.accentHueSlider, R.id.accentSaturationSlider, R.id.accentBrightnessSlider)
-        ids.forEach { id ->
-            findViewById<SeekBar>(id).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
-                    if (!fromUser || syncingAccent) return
-                    applyAccent(accentFromSliders(), recreateNow = false)
-                }
-
-                // Recreating on every pixel of a drag would restart the screen continuously, so
-                // the colour is stored live and the repaint waits for the finger to lift.
-                override fun onStartTrackingTouch(bar: SeekBar) = Unit
-                override fun onStopTrackingTouch(bar: SeekBar) = recreate()
-            })
+        val brightness = findViewById<SeekBar>(R.id.accentBrightnessSlider)
+        // The floor is enforced by the control rather than silently applied to whatever it
+        // returns. Clamping the value instead left the bottom of the slider doing nothing and the
+        // thumb springing back to where it was, which reads as a broken control.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            brightness.min = MIN_ACCENT_BRIGHTNESS
         }
+
+        listOf(R.id.accentHueSlider, R.id.accentSaturationSlider, R.id.accentBrightnessSlider)
+            .forEach { id ->
+                findViewById<SeekBar>(id).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                        if (!fromUser || syncingAccent) return
+                        applyAccent(accentFromSliders())
+                    }
+
+                    override fun onStartTrackingTouch(bar: SeekBar) = Unit
+
+                    /**
+                     * The theme only decides what the platform draws for itself — a dialog's
+                     * buttons, a text cursor — and only the nearest preset of it at that, so it
+                     * is worth rebuilding for only when the drag has moved far enough to change
+                     * which preset is nearest. Rebuilding on every lift would throw the page back
+                     * to the top for a change nobody would see.
+                     */
+                    override fun onStopTrackingTouch(bar: SeekBar) {
+                        if (AccentColor.themeFor(AccentColor.getColor(this@SettingsActivity)) != appliedTheme) {
+                            recreate()
+                        }
+                    }
+                })
+            }
     }
 
     private fun accentFromSliders(): Int {
         val hue = findViewById<SeekBar>(R.id.accentHueSlider).progress.toFloat()
         val saturation = findViewById<SeekBar>(R.id.accentSaturationSlider).progress / 100f
         val brightness = findViewById<SeekBar>(R.id.accentBrightnessSlider).progress / 100f
-        return Color.HSVToColor(floatArrayOf(hue, saturation, brightness.coerceAtLeast(0.35f)))
+        return Color.HSVToColor(
+            floatArrayOf(hue, saturation, brightness.coerceAtLeast(MIN_ACCENT_BRIGHTNESS / 100f))
+        )
     }
 
     private fun syncAccentSliders(color: Int) {
@@ -463,11 +502,20 @@ class SettingsActivity : ImmersiveActivity() {
         syncingAccent = false
     }
 
-    private fun applyAccent(color: Int, recreateNow: Boolean = true) {
+    /**
+     * Stores the colour and repaints this screen with it immediately.
+     *
+     * Repainting live rather than rebuilding is what makes the sliders usable: a colour that only
+     * appears once the finger lifts gives nothing to aim with, and rebuilding on every change
+     * would throw the page back to the top mid-drag. [AccentColor.retint] is told what the screen
+     * is currently wearing so it can find and replace exactly that, which is why the shown colour
+     * is tracked rather than re-read from preferences.
+     */
+    private fun applyAccent(color: Int) {
         if (color == AccentColor.getColor(this)) return
         AccentColor.setColor(this, color)
-        // A theme only takes effect as a screen is built, so the page is rebuilt to show it.
-        if (recreateNow) recreate()
+        AccentColor.retint(findViewById(android.R.id.content), shownAccent, color)
+        shownAccent = color
     }
 
     /** Glass or solid. Only the lighting changes, so the preview updates without a reroll. */

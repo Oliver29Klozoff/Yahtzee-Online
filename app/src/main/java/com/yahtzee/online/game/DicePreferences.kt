@@ -20,8 +20,20 @@ object DicePreferences {
     private const val KEY_SAVED = "saved_dice"
     private const val MAX_SAVED = 12
 
-    /** Selectable colours, paired with the label shown in Settings. */
+    /**
+     * Selectable colours, paired with the label shown in Settings.
+     *
+     * Classic comes first because it is the die everyone already knows, and because it needs no
+     * special handling to look right: the shader works out how glassy a die is from how saturated
+     * it is, so a white one has no glass in it at all and renders as plain moulded plastic —
+     * while Auto pips read its brightness and come out black. The ordinary white die falls out of
+     * the rules already there rather than being a case bolted on beside them.
+     *
+     * Bone rather than pure white, which glares against a dark table and leaves no room for the
+     * highlight to show.
+     */
     val PALETTE: List<Pair<String, Int>> = listOf(
+        "Classic" to 0xFFF3F1EC.toInt(),
         "Cobalt" to 0xFF3D7FFF.toInt(),
         "Crimson" to 0xFFE23D4B.toInt(),
         "Emerald" to 0xFF16B972.toInt(),
