@@ -86,6 +86,26 @@
         android:background="@drawable/yahtzee_banner_background"
         android:visibility="gone" />
 
+    <!-- Reactions. Online only: there is nobody to react to in a solo game. -->
+    <LinearLayout
+        android:id="@+id/reactionRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="6dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/reactionPopup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="15sp"
+        android:textColor="@color/text_dark"
+        android:layout_marginBottom="4dp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/holdRow"
         android:paddingStart="16dp"

@@ -27,6 +27,7 @@ import com.yahtzee.online.game.RecentPlayersStore
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
+import com.yahtzee.online.ui.QrCode
 import com.yahtzee.online.ui.bot.SoloGameActivity
 import com.yahtzee.online.ui.game.GameActivity
 import com.yahtzee.online.ui.game.RollOffRow
@@ -141,6 +142,7 @@ class LobbyActivity : ImmersiveActivity() {
 
             // Inviting is only useful while there is still a seat to fill.
             findViewById<View>(R.id.inviteRow).visibility = if (inLobby) View.VISIBLE else View.GONE
+            renderRoomQr(inLobby)
             // Everyone who actually sat down, recorded once play begins rather than on joining,
             // so a room someone glanced at and left does not put them in the list.
             if (state.status != GameState.STATUS_LOBBY) {
@@ -161,6 +163,32 @@ class LobbyActivity : ImmersiveActivity() {
 
     private var lastState: GameState? = null
 
+    /** Drawn once — the code cannot change while this lobby is open. */
+    private var qrDrawn = false
+
+    /**
+     * The room's invite link as a QR. Shown only while the room is still open: a code for a game
+     * already under way would let somebody scan their way into a seat that no longer exists.
+     */
+    private fun renderRoomQr(inLobby: Boolean) {
+        val image = findViewById<ImageView>(R.id.roomQr)
+        val caption = findViewById<View>(R.id.roomQrCaption)
+        val visible = inLobby && roomCode.isNotEmpty()
+
+        image.visibility = if (visible) View.VISIBLE else View.GONE
+        caption.visibility = if (visible) View.VISIBLE else View.GONE
+        if (!visible || qrDrawn) return
+
+        val size = (180 * resources.displayMetrics.density).toInt()
+        QrCode.render(inviteLink(), size)?.let {
+            image.setImageBitmap(it)
+            qrDrawn = true
+        }
+    }
+
+    /** The one link both the QR and the share sheet carry, so they cannot disagree. */
+    private fun inviteLink(): String = "yahtzee://join/$roomCode"
+
     /**
      * Shares an invite as text.
      *
@@ -171,7 +199,7 @@ class LobbyActivity : ImmersiveActivity() {
      * plenty of places.
      */
     private fun shareInvite() {
-        val text = getString(R.string.invite_share_text, roomCode, "yahtzee://join/$roomCode")
+        val text = getString(R.string.invite_share_text, roomCode, inviteLink())
         startActivity(
             Intent.createChooser(
                 Intent(Intent.ACTION_SEND)

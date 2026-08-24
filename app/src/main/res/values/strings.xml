@@ -97,6 +97,11 @@
     <string name="new_identity_done">New identity created. This phone is now a separate player.</string>
 
     <!-- Invites -->
+    <string name="scan_to_join">Scan to join</string>
+    <string name="reaction_from">%1$s %2$s</string>
+    <string name="scan_code">Scan a code</string>
+    <string name="scan_failed">Could not read that code.</string>
+    <string name="scan_not_a_room">That is not a Yahtzee invite.</string>
     <string name="share_invite">Share invite</string>
     <string name="invite_recent">Invite a player</string>
     <string name="invite_recent_empty">Nobody to invite yet — anyone you finish a game with shows up here afterwards.</string>

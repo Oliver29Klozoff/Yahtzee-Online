@@ -13,6 +13,9 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
@@ -93,6 +96,7 @@ class MainActivity : ImmersiveActivity() {
         }
 
         findViewById<View>(R.id.dailyCard).setOnClickListener { startDailyChallenge() }
+        findViewById<Button>(R.id.scanCodeButton).setOnClickListener { scanRoomCode() }
 
         // Followed an invite link: join straight away rather than making them retype the code
         // that was in the link they just tapped.
@@ -135,6 +139,51 @@ class MainActivity : ImmersiveActivity() {
             }
             joinRoomByCode(code)
         }
+    }
+
+    /**
+     * Joins by pointing the camera at the host's screen.
+     *
+     * Google's scanner is used rather than a camera preview of our own, because it runs in its
+     * own process and so needs no camera permission from this app. Asking for the camera is a
+     * large thing to ask in exchange for not typing six characters, and a permission refused
+     * once tends to stay refused.
+     */
+    private fun scanRoomCode() {
+        val options = GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            .build()
+
+        GmsBarcodeScanning.getClient(this, options).startScan()
+            .addOnSuccessListener { barcode ->
+                val code = roomCodeFrom(barcode.rawValue)
+                if (code == null) {
+                    Toast.makeText(this, R.string.scan_not_a_room, Toast.LENGTH_LONG).show()
+                } else {
+                    joinRoomByCode(code)
+                }
+            }
+            // Cancelling is not a failure and should say nothing; only a scanner that could not
+            // run at all is worth reporting.
+            .addOnCanceledListener { }
+            .addOnFailureListener {
+                Toast.makeText(this, R.string.scan_failed, Toast.LENGTH_LONG).show()
+            }
+    }
+
+    /**
+     * The room code inside a scanned invite, or null for any other code.
+     *
+     * Parsed here rather than handed to the system as a link: the app's own scheme is not one a
+     * general scanner would open, and this way a code scanned in-app works regardless of what
+     * the phone would otherwise do with it.
+     */
+    private fun roomCodeFrom(raw: String?): String? {
+        val value = raw?.trim().orEmpty()
+        if (value.isEmpty()) return null
+        val uri = runCatching { android.net.Uri.parse(value) }.getOrNull() ?: return null
+        if (uri.scheme != "yahtzee" || uri.host != "join") return null
+        return uri.lastPathSegment?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
     }
 
     private fun joinRoomByCode(code: String) {

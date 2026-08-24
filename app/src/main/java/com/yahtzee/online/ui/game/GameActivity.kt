@@ -63,6 +63,9 @@ class GameActivity : ImmersiveActivity() {
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = 0
 
+    /** Newest reaction already shown, so an unrelated room update does not replay it. */
+    private var lastReactionAt = -1L
+
     /** True while the dice are mid-throw, so the values are not revealed before they land. */
     private var diceRolling = false
     private lateinit var dice3DView: Dice3DView
@@ -107,15 +110,27 @@ class GameActivity : ImmersiveActivity() {
         scorecardAdapter = ScorecardAdapter(this) { card, category -> onScoreCategory(card, category) }
         findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
 
-        findViewById<Button>(R.id.rollButton).setOnClickListener {
-            val state = lastState ?: return@setOnClickListener
-            if (!state.isMyTurn(playerId) || state.rollsUsed >= MAX_ROLLS_PER_TURN) return@setOnClickListener
+        // Button or fling, both reach the same call under the same guard.
+        fun rollIfAllowed() {
+            val state = lastState ?: return
+            if (!state.isMyTurn(playerId) || state.rollsUsed >= MAX_ROLLS_PER_TURN) return
             repository.rollDice(roomCode, state.dice, state.held, state.rollsUsed, state.turnMillis)
+        }
+        findViewById<Button>(R.id.rollButton).setOnClickListener { rollIfAllowed() }
+        dice3DView.setOnThrowListener { rollIfAllowed() }
+
+        // Reactions only exist where there is somebody to react to.
+        findViewById<View>(R.id.reactionRow).visibility = View.VISIBLE
+        Reactions.buildRow(this, findViewById(R.id.reactionRow)) { emoji ->
+            repository.sendReaction(roomCode, emoji)
         }
 
         listener = repository.listenToRoom(roomCode) { state ->
             if (state == null) return@listenToRoom
             lastState = state
+            lastReactionAt = Reactions.render(
+                findViewById(R.id.reactionPopup), state, playerId, lastReactionAt
+            )
             render(state)
             if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
                 gameOverShown = true

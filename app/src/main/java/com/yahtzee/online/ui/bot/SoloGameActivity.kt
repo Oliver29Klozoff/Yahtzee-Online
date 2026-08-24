@@ -150,11 +150,16 @@ class SoloGameActivity : ImmersiveActivity() {
         }
         findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
 
-        findViewById<Button>(R.id.rollButton).setOnClickListener {
+        // Two ways to roll the same roll: the button, and flinging the dice across the table.
+        // The gesture is a shortcut to the same call rather than a second path into the game, so
+        // neither can do anything the other could not.
+        fun rollIfAllowed() {
             val state = engine.state
-            if (engine.isBotTurn() || state.rollsUsed >= MAX_ROLLS_PER_TURN) return@setOnClickListener
+            if (engine.isBotTurn() || state.rollsUsed >= MAX_ROLLS_PER_TURN) return
             engine.rollDice()
         }
+        findViewById<Button>(R.id.rollButton).setOnClickListener { rollIfAllowed() }
+        dice3DView.setOnThrowListener { rollIfAllowed() }
 
         // A resumed game keeps the record it has already built; a new one starts empty.
         if (saved == null) GameReview.begin(this)

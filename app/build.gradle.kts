@@ -21,8 +21,8 @@ android {
         applicationId = "com.yahtzee.online"
         minSdk = 24
         targetSdk = 36
-        versionCode = 89
-        versionName = "1.87"
+        versionCode = 90
+        versionName = "1.88"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -71,6 +71,14 @@ dependencies {
     // turn watch is a periodic job that reads the rooms this device is in and raises a local
     // notification itself.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // Drawing the invite QR. Encoding only — the bitmap is rendered here, so none of ZXing's
+    // Android layer is pulled in.
+    implementation("com.google.zxing:core:3.5.3")
+    // Reading one. Google's scanner shows its own camera UI and needs no camera permission,
+    // which is the whole reason to prefer it: asking for the camera to join a game is a big
+    // thing to ask for a small convenience.
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-database-ktx")

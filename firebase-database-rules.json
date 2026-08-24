@@ -113,6 +113,20 @@
         "rollsUsed": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
         },
+        "reactions": {
+          "$playerId": {
+            ".validate": "newData.hasChildren(['emoji'])",
+            "emoji": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 8"
+            },
+            "at": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
         "players": {
           "$playerId": {
             ".validate": "newData.hasChildren(['id', 'name'])",

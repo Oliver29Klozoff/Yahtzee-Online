@@ -141,6 +141,16 @@
                 android:layout_marginBottom="16dp" />
 
             <Button
+                android:id="@+id/scanCodeButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/scan_code"
+                android:tag="accentText"
+                android:textColor="?attr/colorPrimary"
+                android:layout_marginBottom="8dp" />
+
+            <Button
                 android:id="@+id/joinRoomButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

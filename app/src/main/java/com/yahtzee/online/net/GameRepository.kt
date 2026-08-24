@@ -185,6 +185,20 @@ class GameRepository(private val context: android.content.Context) {
         }.addOnFailureListener { onDone() }
     }
 
+    /**
+     * Sends a reaction to everyone in the room.
+     *
+     * Written under the sender rather than appended to a list: a reaction is a moment, not a
+     * record, and one slot per player means a room cannot accumulate history nobody will read.
+     * The timestamp is what makes the same emoji twice register as two reactions rather than one.
+     */
+    fun sendReaction(code: String, emoji: String) {
+        if (code.isEmpty() || emoji.isEmpty()) return
+        roomRef(code).child("reactions").child(localPlayerId).setValue(
+            mapOf("emoji" to emoji, "at" to System.currentTimeMillis())
+        )
+    }
+
     /** Clears one invite once it has been acted on, so it is not announced twice. */
     fun clearInvite(code: String) {
         db.getReference("invites").child(localPlayerId).child(code).removeValue()
@@ -510,12 +524,17 @@ private fun DataSnapshot.toGameState(): GameState? {
         key to value
     }.toMap()
     val openingRollTied = child("openingRollTied").children.mapNotNull { it.getValue(String::class.java) }
+    val reactions = child("reactions").children.mapNotNull { entry ->
+        val id = entry.key ?: return@mapNotNull null
+        val emoji = entry.child("emoji").getValue(String::class.java) ?: return@mapNotNull null
+        id to (emoji to (entry.child("at").getValue(Long::class.java) ?: 0L))
+    }.toMap()
     val cardCount = child("cardCount").getValue(Int::class.java) ?: 1
     val turnSeconds = child("turnSeconds").getValue(Int::class.java) ?: 30
 
     return GameState(
         roomCode, hostId, status, playerOrder, players,
         currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline,
-        openingRolls, openingRollTied, cardCount, turnSeconds
+        openingRolls, openingRollTied, cardCount, turnSeconds, reactions
     )
 }

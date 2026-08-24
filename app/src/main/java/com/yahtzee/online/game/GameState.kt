@@ -39,7 +39,13 @@ data class GameState(
      * Unlike the display preferences this cannot be per-device — every player has to be counting
      * down the same clock. 0 means no limit.
      */
-    val turnSeconds: Int = 30
+    val turnSeconds: Int = 30,
+    /**
+     * The latest reaction from each player, as emoji to when it was sent. One slot per player:
+     * a reaction is a moment rather than a record, and the timestamp is what lets the same emoji
+     * twice read as two reactions instead of one.
+     */
+    val reactions: Map<String, Pair<String, Long>> = emptyMap()
 ) {
     companion object {
         const val STATUS_LOBBY = "LOBBY"

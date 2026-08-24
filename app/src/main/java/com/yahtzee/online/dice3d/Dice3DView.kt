@@ -5,9 +5,13 @@ import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import android.view.GestureDetector
+import android.view.MotionEvent
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.TableLogoStore
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -64,6 +68,57 @@ class Dice3DView @JvmOverloads constructor(
 
     fun setOnSettledListener(listener: (List<Int>) -> Unit) {
         onSettledCallback = listener
+    }
+
+    /**
+     * Called when the player flings the dice across the table.
+     *
+     * The gesture only asks for a roll — what the dice come up as is the game's business, not the
+     * physics'. What the fling does own is how the throw looks: where it comes from and how hard,
+     * carried into the next [rollTo] so the dice go where they were thrown.
+     */
+    fun setOnThrowListener(listener: (() -> Unit)?) {
+        onThrowCallback = listener
+    }
+
+    private var onThrowCallback: (() -> Unit)? = null
+
+    /** Direction of the last fling in table space, and how hard, or null if none is pending. */
+    private var flingAngle: Float? = null
+    private var flingStrength: Float = 1f
+
+    private val flingDetector = GestureDetector(
+        context,
+        object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onFling(
+                down: MotionEvent?,
+                up: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                val throwListener = onThrowCallback ?: return false
+                val speed = hypot(velocityX, velocityY)
+                if (speed < MIN_FLING_SPEED) return false
+
+                // The dice are thrown from where the finger came FROM, so they travel with the
+                // gesture. Screen y grows downward and the table's z grows toward the viewer, so
+                // the seat sits opposite the fling: negate both to point back at its origin.
+                flingAngle = atan2(-velocityY, -velocityX)
+                flingStrength = (speed / REFERENCE_FLING_SPEED).coerceIn(0.75f, 1.6f)
+                throwListener()
+                return true
+            }
+        }
+    )
+
+    @Suppress("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Only claims the gesture when someone is listening for a throw, so the view stays inert
+        // on screens where the dice are something to look at rather than something to roll.
+        if (onThrowCallback == null) return super.onTouchEvent(event)
+        return flingDetector.onTouchEvent(event) || super.onTouchEvent(event)
     }
 
     /**
@@ -127,6 +182,15 @@ class Dice3DView @JvmOverloads constructor(
         heldFlags = held
         val random = Random.Default
 
+        // A throw the player made overrides where their seat is: the dice should leave the hand
+        // that threw them. Consumed here so it applies to exactly one roll — the next roll, from
+        // a button or from a bot, goes back to the seat.
+        val thrownFrom = flingAngle
+        val thrownStrength = flingStrength
+        flingAngle = null
+        flingStrength = 1f
+        val seatAngle = thrownFrom ?: seatAngleRadians
+
         // Motion off: place the result straight away. Still reports settled, so anything waiting
         // on the roll — the landing sound, the next bot step — carries on as normal.
         if (motionScale <= 0f) {
@@ -140,8 +204,8 @@ class Dice3DView @JvmOverloads constructor(
 
         // Unit vector pointing at the thrower's seat, and the direction across it, used to fan
         // the dice out along the near edge so they trail in rather than arriving as a rank.
-        val seatX = cos(seatAngleRadians)
-        val seatZ = sin(seatAngleRadians)
+        val seatX = cos(seatAngle)
+        val seatZ = sin(seatAngle)
         val acrossX = -seatZ
         val acrossZ = seatX
 
@@ -177,7 +241,8 @@ class Dice3DView @JvmOverloads constructor(
                     -seatZ + acrossZ * scatter
                 ),
                 // A little quicker than before so a throw still crosses the longer table.
-                speed = (5.6f + random.nextFloat() * 1.9f) / motionScale,
+                // A harder fling carries the dice further across the table.
+                speed = (5.6f + random.nextFloat() * 1.9f) * thrownStrength / motionScale,
                 random = random,
                 durationScale = motionScale
             )
@@ -192,5 +257,11 @@ class Dice3DView @JvmOverloads constructor(
 
     private companion object {
         const val DEFAULT_DIE_COUNT = 5
+
+        /** Below this a fling is a stray swipe rather than a throw. */
+        const val MIN_FLING_SPEED = 900f
+
+        /** The fling speed treated as a normal throw; harder or softer scales around it. */
+        const val REFERENCE_FLING_SPEED = 4500f
     }
 }
