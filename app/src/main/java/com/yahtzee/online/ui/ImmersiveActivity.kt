@@ -34,7 +34,7 @@ abstract class ImmersiveActivity : AppCompatActivity() {
     }
 
     /** The accent this screen was actually built with, to notice later that it has changed. */
-    private var builtWithAccent: AccentColor.Accent? = null
+    private var builtWithAccent: Int? = null
 
     /**
      * Applies the chosen accent before anything is inflated. It has to happen here rather than in
@@ -42,9 +42,9 @@ abstract class ImmersiveActivity : AppCompatActivity() {
      * every screen in the app passes through this class on its way up.
      */
     override fun onCreate(savedInstanceState: Bundle?) {
-        val accent = AccentColor.current(this)
+        val accent = AccentColor.getColor(this)
         builtWithAccent = accent
-        setTheme(accent.theme)
+        setTheme(AccentColor.themeFor(accent))
         super.onCreate(savedInstanceState)
     }
 
@@ -67,6 +67,13 @@ abstract class ImmersiveActivity : AppCompatActivity() {
             onBackPressedDispatcher.onBackPressed()
         }
         applyTopInset()
+        // The theme carried the nearest preset; this puts the exact colour on everything that
+        // asked for the accent.
+        AccentColor.retint(
+            findViewById(android.R.id.content),
+            AccentColor.themeColorOf(this),
+            AccentColor.getColor(this)
+        )
     }
 
     /**
@@ -106,7 +113,7 @@ abstract class ImmersiveActivity : AppCompatActivity() {
         // the app is killed. Rebuilding here is what makes the change reach the whole app rather
         // than only the screen it was made on. This settles after one pass: the new instance
         // records the accent it was built with, so it matches and comes straight through.
-        if (builtWithAccent != AccentColor.current(this)) {
+        if (builtWithAccent != AccentColor.getColor(this)) {
             recreate()
             return
         }

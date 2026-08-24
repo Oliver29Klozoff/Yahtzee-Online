@@ -117,6 +117,7 @@ class SoloGameActivity : ImmersiveActivity() {
 
         dice3DView = findViewById(R.id.dice3DView)
         dice3DView.setPipStyle(DicePreferences.pipStyle(this))
+        dice3DView.setDiceFinish(DicePreferences.diceFinish(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
         dice3DView.setTableLogo(TableLogoStore.mode(this))
         dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)

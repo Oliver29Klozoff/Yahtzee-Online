@@ -1,73 +1,95 @@
 package com.yahtzee.online.game
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.util.TypedValue
-import androidx.annotation.StyleRes
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import com.yahtzee.online.R
+import kotlin.math.abs
 
 /**
  * The colour the app itself is trimmed in — buttons, links, the highlight on your own name.
  *
- * Applied as a theme rather than by tinting views one at a time. A theme reaches everything that
- * asks for colorPrimary, including the parts of a Button that are drawn by the platform and were
- * never going to be reachable from this code, and it costs nothing per screen. The price is that
- * the choice is a fixed set rather than a free colour picker, since each one has to exist as a
- * style; the dice, where a free picker genuinely matters, keep theirs.
+ * Any colour can be chosen, not just a listed one, which a theme alone cannot do: a theme has to
+ * exist as a compiled style. So a theme still goes on first, the nearest of a handful of presets,
+ * and then [retint] walks the inflated view and replaces that theme's colour with the exact one.
+ *
+ * The walk works because every accent in the app is written as `?attr/colorPrimary`. That gives
+ * one value to look for, so recolouring is an exact match rather than a guess about which blue
+ * meant what — and a view that was never accented is left alone.
  */
 object AccentColor {
 
     private const val PREFS = "accent_color"
-    private const val KEY_ACCENT = "accent"
+    private const val KEY_COLOR = "accent_value"
+
+    /** Starting points for the picker. The first is the app's original blue and is the default. */
+    val PALETTE: List<Pair<String, Int>> = listOf(
+        "Cobalt" to 0xFF3D7FFF.toInt(),
+        "Emerald" to 0xFF16B972.toInt(),
+        "Amber" to 0xFFF5A524.toInt(),
+        "Crimson" to 0xFFE23D4B.toInt(),
+        "Amethyst" to 0xFF9B5DE5.toInt(),
+        "Cyan" to 0xFF12C2D8.toInt()
+    )
+
+    /** Theme per preset, used as the base a custom colour is painted over. */
+    private val THEMES = listOf(
+        R.style.Theme_YahtzeeOnline,
+        R.style.Theme_YahtzeeOnline_Emerald,
+        R.style.Theme_YahtzeeOnline_Amber,
+        R.style.Theme_YahtzeeOnline_Crimson,
+        R.style.Theme_YahtzeeOnline_Amethyst,
+        R.style.Theme_YahtzeeOnline_Cyan
+    )
+
+    fun getColor(context: Context): Int =
+        prefs(context).getInt(KEY_COLOR, PALETTE.first().second)
+
+    fun setColor(context: Context, color: Int) {
+        prefs(context).edit().putInt(KEY_COLOR, color).apply()
+    }
 
     /**
-     * Each accent is a value, a readable name, and the theme that carries it. The first is the
-     * app's original blue and stays the default.
-     */
-    enum class Accent(
-        val label: String,
-        val value: Int,
-        @StyleRes val theme: Int
-    ) {
-        COBALT("Cobalt", 0xFF3D7FFF.toInt(), R.style.Theme_YahtzeeOnline),
-        EMERALD("Emerald", 0xFF16B972.toInt(), R.style.Theme_YahtzeeOnline_Emerald),
-        AMBER("Amber", 0xFFF5A524.toInt(), R.style.Theme_YahtzeeOnline_Amber),
-        CRIMSON("Crimson", 0xFFE23D4B.toInt(), R.style.Theme_YahtzeeOnline_Crimson),
-        AMETHYST("Amethyst", 0xFF9B5DE5.toInt(), R.style.Theme_YahtzeeOnline_Amethyst),
-        CYAN("Cyan", 0xFF12C2D8.toInt(), R.style.Theme_YahtzeeOnline_Cyan)
-    }
-
-    fun current(context: Context): Accent {
-        val stored = prefs(context).getString(KEY_ACCENT, Accent.COBALT.name)
-        return runCatching { Accent.valueOf(stored!!) }.getOrDefault(Accent.COBALT)
-    }
-
-    fun set(context: Context, accent: Accent) {
-        prefs(context).edit().putString(KEY_ACCENT, accent.name).apply()
-    }
-
-    /**
-     * The accent as it currently resolves on [context]'s theme.
+     * The preset theme closest to [color] in hue.
      *
-     * Read from the theme rather than from the stored value so that code drawing a colour and
-     * XML drawing one can never disagree — anything built before a change still repaints in the
-     * accent its own screen was themed with.
+     * Matters for the parts no walk can reach — a dialog's buttons, a text cursor — which the
+     * platform draws from the theme before this code sees them. Close is enough there; the
+     * exact colour lands on everything in the layout itself.
      */
-    fun resolve(context: Context): Int {
-        val typed = TypedValue()
-        return if (context.theme.resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typed, true)) {
-            if (typed.resourceId != 0) context.getColor(typed.resourceId) else typed.data
-        } else {
-            Accent.COBALT.value
+    fun themeFor(color: Int): Int {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(color, hsv)
+        val target = hsv[0]
+
+        var bestIndex = 0
+        var bestDistance = Float.MAX_VALUE
+        PALETTE.forEachIndexed { index, (_, preset) ->
+            val presetHsv = FloatArray(3)
+            Color.colorToHSV(preset, presetHsv)
+            // Hue is a circle, so 350 and 10 are twenty degrees apart, not three hundred.
+            val raw = abs(presetHsv[0] - target)
+            val distance = minOf(raw, 360f - raw)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                bestIndex = index
+            }
         }
+        return THEMES[bestIndex]
     }
+
+    /** The accent as chosen. Code drawing a colour and XML drawing one then agree exactly. */
+    fun resolve(context: Context): Int = getColor(context)
 
     /**
      * The accent laid faintly over the card surface, for the filled badge behind a score that is
      * still available.
      *
-     * Derived rather than listed per accent: a fixed pair of badge colours per theme would be
-     * twelve more entries to keep in step with the six accents, and blending gets the same
-     * result for any accent — including one added later.
+     * Derived rather than listed, which now matters more than ever: with any colour selectable
+     * there is no fixed set of badge colours that could have been listed in the first place.
      */
     fun badgeBackground(context: Context): Int = androidx.core.graphics.ColorUtils.blendARGB(
         context.getColor(R.color.surface),
@@ -77,6 +99,41 @@ object AccentColor {
 
     /** How much accent is mixed into the badge: enough to read as tinted, not as a coloured tile. */
     private const val BADGE_BLEND = 0.16f
+
+    /**
+     * Replaces the theme's accent with the chosen one throughout [root].
+     *
+     * [themeColor] is what the base theme resolved `?attr/colorPrimary` to, which is the value
+     * every accented view is currently wearing.
+     */
+    fun retint(root: View, themeColor: Int, accent: Int) {
+        if (themeColor == accent) return
+        walk(root) { view ->
+            if (view is TextView && view.textColors?.defaultColor == themeColor) {
+                view.setTextColor(accent)
+            }
+            if (view.backgroundTintList?.defaultColor == themeColor) {
+                view.backgroundTintList = ColorStateList.valueOf(accent)
+            }
+        }
+    }
+
+    /** What the current theme resolves the accent attribute to, before any retinting. */
+    fun themeColorOf(context: Context): Int {
+        val typed = TypedValue()
+        val found = context.theme.resolveAttribute(
+            androidx.appcompat.R.attr.colorPrimary, typed, true
+        )
+        if (!found) return PALETTE.first().second
+        return if (typed.resourceId != 0) context.getColor(typed.resourceId) else typed.data
+    }
+
+    private fun walk(view: View, action: (View) -> Unit) {
+        action(view)
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) walk(view.getChildAt(i), action)
+        }
+    }
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

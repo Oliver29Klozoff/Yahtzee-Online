@@ -40,6 +40,9 @@ class SettingsActivity : ImmersiveActivity() {
     /** Guards the sliders while they are being set from a preset, so they do not feed back. */
     private var syncingSliders = false
 
+    /** Same guard for the accent sliders, which are set from a swatch as well as dragged. */
+    private var syncingAccent = false
+
     /** Set once the logo control is built, so the picker result can refresh it. */
     private var refreshTableLogo: (() -> Unit)? = null
 
@@ -91,6 +94,7 @@ class SettingsActivity : ImmersiveActivity() {
         dicePreview = findViewById(R.id.dicePreview)
         dicePreview.setDiceColor(selectedColor)
         dicePreview.setPipStyle(pipStyle)
+        dicePreview.setDiceFinish(DicePreferences.diceFinish(this))
 
         dicePreview.setTableColor(AppSettings.tableColor(this))
 
@@ -132,6 +136,8 @@ class SettingsActivity : ImmersiveActivity() {
 
         findViewById<Button>(R.id.saveDiceButton).setOnClickListener { promptSaveDice() }
         setUpTableLogo()
+        setUpDiceFinish()
+        setUpAccentSliders()
 
         setUpProfileRecovery()
         renderSwatches()
@@ -394,28 +400,86 @@ class SettingsActivity : ImmersiveActivity() {
         row.removeAllViews()
         val density = resources.displayMetrics.density
         val size = (44 * density).toInt()
-        val current = AccentColor.current(this)
+        val current = AccentColor.getColor(this)
 
-        AccentColor.Accent.values().forEach { accent ->
+        AccentColor.PALETTE.forEach { (name, color) ->
             val swatch = TextView(this).apply {
-                contentDescription = accent.label
+                contentDescription = name
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(accent.value)
+                    setColor(color)
                     setStroke(
-                        (if (accent == current) 3 * density else 1 * density).toInt(),
-                        if (accent == current) Color.WHITE else Color.parseColor("#39404A")
+                        (if (color == current) 3 * density else 1 * density).toInt(),
+                        if (color == current) Color.WHITE else Color.parseColor("#39404A")
                     )
                 }
-                setOnClickListener {
-                    if (accent == current) return@setOnClickListener
-                    AccentColor.set(this@SettingsActivity, accent)
-                    recreate()
-                }
+                setOnClickListener { applyAccent(color) }
             }
             swatch.layoutParams = LinearLayout.LayoutParams(size, size)
                 .also { it.marginEnd = (12 * density).toInt() }
             row.addView(swatch)
+        }
+        syncAccentSliders(current)
+    }
+
+    /**
+     * Hue, vividness and brightness for the accent, so it is not limited to the six presets.
+     *
+     * Brightness has a floor: an accent is drawn on a black page and used as text as often as
+     * fill, so a nearly-black one would leave links and labels unreadable rather than merely
+     * dark. Full black is not a choice worth offering.
+     */
+    private fun setUpAccentSliders() {
+        val ids = listOf(R.id.accentHueSlider, R.id.accentSaturationSlider, R.id.accentBrightnessSlider)
+        ids.forEach { id ->
+            findViewById<SeekBar>(id).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                    if (!fromUser || syncingAccent) return
+                    applyAccent(accentFromSliders(), recreateNow = false)
+                }
+
+                // Recreating on every pixel of a drag would restart the screen continuously, so
+                // the colour is stored live and the repaint waits for the finger to lift.
+                override fun onStartTrackingTouch(bar: SeekBar) = Unit
+                override fun onStopTrackingTouch(bar: SeekBar) = recreate()
+            })
+        }
+    }
+
+    private fun accentFromSliders(): Int {
+        val hue = findViewById<SeekBar>(R.id.accentHueSlider).progress.toFloat()
+        val saturation = findViewById<SeekBar>(R.id.accentSaturationSlider).progress / 100f
+        val brightness = findViewById<SeekBar>(R.id.accentBrightnessSlider).progress / 100f
+        return Color.HSVToColor(floatArrayOf(hue, saturation, brightness.coerceAtLeast(0.35f)))
+    }
+
+    private fun syncAccentSliders(color: Int) {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(color, hsv)
+        syncingAccent = true
+        findViewById<SeekBar>(R.id.accentHueSlider).progress = hsv[0].toInt()
+        findViewById<SeekBar>(R.id.accentSaturationSlider).progress = (hsv[1] * 100).toInt()
+        findViewById<SeekBar>(R.id.accentBrightnessSlider).progress = (hsv[2] * 100).toInt()
+        syncingAccent = false
+    }
+
+    private fun applyAccent(color: Int, recreateNow: Boolean = true) {
+        if (color == AccentColor.getColor(this)) return
+        AccentColor.setColor(this, color)
+        // A theme only takes effect as a screen is built, so the page is rebuilt to show it.
+        if (recreateNow) recreate()
+    }
+
+    /** Glass or solid. Only the lighting changes, so the preview updates without a reroll. */
+    private fun setUpDiceFinish() {
+        setUpCycler(
+            R.id.diceFinishButton,
+            DicePreferences.DiceFinish.values().toList(),
+            DicePreferences.diceFinish(this),
+            { it.label }
+        ) { finish ->
+            DicePreferences.setDiceFinish(this, finish)
+            dicePreview.setDiceFinish(finish)
         }
     }
 

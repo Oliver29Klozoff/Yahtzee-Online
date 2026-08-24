@@ -53,6 +53,9 @@ private const val FRAGMENT_SHADER = """
     uniform vec3 uCameraPos;
     uniform vec3 uDiceColor;
     uniform float uDim;
+    // 1 = thick coloured glass, 0 = solid moulded plastic. Every glass term below is scaled
+    // by it, so the two finishes are one material rather than two shaders to keep in step.
+    uniform float uGloss;
 
     void main() {
         vec4 texColor = texture2D(uTexture, vTexCoord);
@@ -66,7 +69,7 @@ private const val FRAGMENT_SHADER = """
         float maxC = max(max(texColor.r, texColor.g), texColor.b);
         float minC = min(min(texColor.r, texColor.g), texColor.b);
         float saturation = (maxC - minC) / max(maxC, 0.001);
-        float glassness = clamp(saturation * 1.7, 0.0, 1.0);
+        float glassness = clamp(saturation * 1.7, 0.0, 1.0) * uGloss;
 
         // Interior depth is kept light. The reference dice are vivid electric glass, not dark
         // blocks; darkening the core any further buries the far-side detail that clarity
@@ -77,12 +80,14 @@ private const val FRAGMENT_SHADER = """
 
         vec3 litTint = mix(uDiceColor, vec3(1.0), 0.45);
         color = mix(color, litTint, diffuse * 0.30 * glassness);
-        color *= (0.94 + 0.24 * diffuse);
+        // A solid body leans harder on plain diffuse shading, which is what gives it form once
+        // the depth gradient and edge ignition are gone.
+        color *= (mix(0.82, 0.94, uGloss) + mix(0.42, 0.24, uGloss) * diffuse);
 
         vec3 halfVec = normalize(toLight + toCamera);
         float specAngle = max(dot(normal, halfVec), 0.0);
-        float tightSpec = pow(specAngle, 120.0) * 0.38;
-        float sheen = pow(specAngle, 20.0) * 0.06;
+        float tightSpec = pow(specAngle, mix(60.0, 120.0, uGloss)) * mix(0.12, 0.38, uGloss);
+        float sheen = pow(specAngle, 20.0) * mix(0.03, 0.06, uGloss);
 
         vec3 oppositeLight = reflect(toLight, normal);
         float secondary = pow(max(dot(-oppositeLight, toCamera), 0.0), 12.0) * 0.05;
@@ -130,6 +135,7 @@ class DiceShader {
     val uCameraPos: Int
     val uDiceColor: Int
     val uDim: Int
+    val uGloss: Int
 
     init {
         val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER)
@@ -156,6 +162,7 @@ class DiceShader {
         uCameraPos = GLES20.glGetUniformLocation(program, "uCameraPos")
         uDiceColor = GLES20.glGetUniformLocation(program, "uDiceColor")
         uDim = GLES20.glGetUniformLocation(program, "uDim")
+        uGloss = GLES20.glGetUniformLocation(program, "uGloss")
     }
 
     /**

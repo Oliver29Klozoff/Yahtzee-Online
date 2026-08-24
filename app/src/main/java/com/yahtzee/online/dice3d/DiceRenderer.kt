@@ -77,6 +77,10 @@ class DiceRenderer(
     @Volatile
     var cameraScale: Float = 1f
 
+    /** Glass or solid. Only changes how the die is lit, so no texture rebuild is needed. */
+    @Volatile
+    var diceFinish: DicePreferences.DiceFinish = DicePreferences.DiceFinish.GLASS
+
     /** Table felt colour, a local look preference. */
     @Volatile
     var tableColor: Int = 0xFF000000.toInt()
@@ -353,6 +357,7 @@ class DiceRenderer(
             Color.blue(diceColor) / 255f
         )
         GLES20.glUniform1f(diceShader.uDim, dim)
+        GLES20.glUniform1f(diceShader.uGloss, diceFinish.gloss)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)

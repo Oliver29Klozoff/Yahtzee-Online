@@ -130,6 +130,30 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
+        android:layout_marginTop="6dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/dice_finish"
+            android:textSize="15sp"
+            android:textColor="@color/text_dark" />
+
+        <Button
+            android:id="@+id/diceFinishButton"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="110dp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:layout_marginTop="20dp">
 
         <TextView
@@ -256,6 +280,25 @@
             android:orientation="horizontal" />
 
     </HorizontalScrollView>
+
+    <SeekBar
+        android:id="@+id/accentHueSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:max="359" />
+
+    <SeekBar
+        android:id="@+id/accentSaturationSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100" />
+
+    <SeekBar
+        android:id="@+id/accentBrightnessSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100" />
 
     <LinearLayout
         android:layout_width="match_parent"
