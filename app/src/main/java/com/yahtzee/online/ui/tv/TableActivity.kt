@@ -33,6 +33,14 @@ import com.yahtzee.online.ui.QrCode
  */
 class TableActivity : ImmersiveActivity() {
 
+    private companion object {
+        /**
+         * Camera distance for the TV table. Above 1 pulls back: the pane is short and wide next
+         * to a phone's tall strip, and at the phone framing the dice overrun the top of it.
+         */
+        const val TV_CAMERA_SCALE = 1.35f
+    }
+
     private val repository by lazy { GameRepository(this) }
     private lateinit var dice: Dice3DView
 
@@ -52,6 +60,9 @@ class TableActivity : ImmersiveActivity() {
         dice.setTableColor(AppSettings.tableColor(this))
         dice.setTableLogo(TableLogoStore.mode(this))
         dice.setMotionScale(AppSettings.diceMotion(this).durationScale)
+        // A television pane is far wider than the phone strip the camera was framed for, so the
+        // table needs pulling back to sit inside it rather than running off the top.
+        dice.setCameraScale(TV_CAMERA_SCALE)
 
         findViewById<TextView>(R.id.tableHint).setText(R.string.tv_waiting)
         openRoom()

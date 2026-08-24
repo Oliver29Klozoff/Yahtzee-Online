@@ -117,6 +117,14 @@ class GameRepository(private val context: android.content.Context) {
                     )
                 )
             }
+            // A room opened by a television is owned by a screen that has no seat and no way to
+            // press anything, so the first player to actually sit down takes it over. Without
+            // this the Start button belongs to the TV and nobody can ever begin the game.
+            val currentHost = snapshot.child("hostId").getValue(String::class.java)
+            val hostHasSeat = !currentHost.isNullOrEmpty() &&
+                snapshot.child("players").child(currentHost).exists()
+            if (!hostHasSeat) ref.child("hostId").setValue(localPlayerId)
+
             ref.child("playerOrder").get().addOnSuccessListener { orderSnap ->
                 val order = orderSnap.children.mapNotNull { it.getValue(String::class.java) }.toMutableList()
                 if (localPlayerId !in order) {

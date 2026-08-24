@@ -98,8 +98,8 @@
 
     <!-- Television table -->
     <string name="tv_scan_to_play">Scan to play on your phone</string>
-    <string name="tv_waiting">Point a phone camera at the code to take a seat. Everyone plays on their own phone; this screen is the table.</string>
-    <string name="tv_start_on_phone">Start the game from the host\x27s phone when everyone is in.</string>
+    <string name="tv_waiting">Point a phone camera at the code to take a seat.</string>
+    <string name="tv_start_on_phone">Tap Start Game on the first phone that joined.</string>
     <string name="tv_scan_to_join_late">Still open — scan to join.</string>
     <string name="tv_finished">Open a new room to play again.</string>
     <string name="tv_turn_of">%1$s to roll</string>
