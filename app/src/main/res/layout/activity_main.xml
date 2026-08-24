@@ -23,7 +23,7 @@
                 android:text="@string/app_name"
                 android:textSize="32sp"
                 android:textStyle="bold"
-                android:textColor="@color/text_dark"
+                android:textColor="?attr/colorPrimary"
                 android:layout_marginTop="8dp" />
 
             <TextView
@@ -95,6 +95,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/continue_game"
+                android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp"
                 android:visibility="gone" />
 
@@ -103,6 +104,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/create_room"
+                android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp" />
 
             <EditText
@@ -113,6 +115,7 @@
                 android:inputType="textCapCharacters"
                 android:maxLines="1"
                 android:textColor="@color/text_dark"
+                android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp" />
 
             <Button
@@ -120,6 +123,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/join_room"
+                android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp" />
 
             <View

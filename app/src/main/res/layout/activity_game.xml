@@ -103,6 +103,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:text="@string/roll_dice"
+        android:backgroundTint="?attr/colorPrimary"
         android:layout_marginBottom="8dp" />
 
     <TextView
