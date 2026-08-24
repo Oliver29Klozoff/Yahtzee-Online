@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The tile Android TV shows in its app row. TV banners are wide (320x180) where a launcher icon
+    is square, so the app icon is placed on the app's own background rather than stretched to fit.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/background" />
+    <item
+        android:drawable="@drawable/splash_icon"
+        android:gravity="center"
+        android:width="150dp"
+        android:height="150dp" />
+</layer-list>
