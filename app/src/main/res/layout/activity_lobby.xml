@@ -31,6 +31,7 @@
         android:layout_height="wrap_content"
         android:textSize="48sp"
         android:textStyle="bold"
+        android:tag="accentText"
         android:textColor="?attr/colorPrimary"
         android:letterSpacing="0.2"
         android:layout_marginBottom="24dp" />
@@ -71,6 +72,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="@string/share_invite"
+            android:tag="accentText"
             android:textColor="?attr/colorPrimary" />
 
         <Button
@@ -80,6 +82,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="@string/invite_recent"
+            android:tag="accentText"
             android:textColor="?attr/colorPrimary" />
     </LinearLayout>
 
@@ -88,6 +91,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/start_game"
+        android:tag="accentBg"
         android:backgroundTint="?attr/colorPrimary"
         android:visibility="gone" />
 
@@ -107,6 +111,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/play_bots_instead"
+        android:tag="accentText"
         android:textColor="?attr/colorPrimary"
         android:visibility="gone" />
 

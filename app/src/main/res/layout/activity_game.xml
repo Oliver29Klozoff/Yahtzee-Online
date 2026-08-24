@@ -103,6 +103,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:text="@string/roll_dice"
+        android:tag="accentBg"
         android:backgroundTint="?attr/colorPrimary"
         android:layout_marginBottom="8dp" />
 
@@ -151,6 +152,7 @@
                 android:layout_height="wrap_content"
                 android:textSize="13sp"
                 android:textStyle="bold"
+                android:tag="accentText"
                 android:textColor="?attr/colorPrimary" />
 
         </LinearLayout>

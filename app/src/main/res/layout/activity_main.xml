@@ -23,6 +23,7 @@
                 android:text="@string/app_name"
                 android:textSize="32sp"
                 android:textStyle="bold"
+                android:tag="accentText"
                 android:textColor="?attr/colorPrimary"
                 android:layout_marginTop="8dp" />
 
@@ -32,6 +33,7 @@
                 android:layout_height="wrap_content"
                 android:background="?attr/selectableItemBackground"
                 android:textSize="15sp"
+                android:tag="accentText"
                 android:textColor="?attr/colorPrimary"
                 android:paddingTop="6dp"
                 android:paddingBottom="6dp"
@@ -112,6 +114,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/continue_game"
+                android:tag="accentBg"
                 android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp"
                 android:visibility="gone" />
@@ -121,6 +124,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/create_room"
+                android:tag="accentBg"
                 android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp" />
 
@@ -132,6 +136,7 @@
                 android:inputType="textCapCharacters"
                 android:maxLines="1"
                 android:textColor="@color/text_dark"
+                android:tag="accentBg"
                 android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp" />
 
@@ -140,6 +145,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/join_room"
+                android:tag="accentBg"
                 android:backgroundTint="?attr/colorPrimary"
                 android:layout_marginBottom="16dp" />
 
@@ -182,6 +188,7 @@
                     android:paddingBottom="4dp"
                     android:text="@string/daily_board"
                     android:textSize="12sp"
+                    android:tag="accentText"
                     android:textColor="?attr/colorPrimary" />
             </LinearLayout>
 

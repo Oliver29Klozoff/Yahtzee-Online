@@ -45,6 +45,7 @@
             android:textSize="17sp"
             android:textStyle="bold"
             android:lineSpacingExtra="4dp"
+            android:tag="accentText"
             android:textColor="?attr/colorPrimary"
             android:layout_marginBottom="6dp" />
 

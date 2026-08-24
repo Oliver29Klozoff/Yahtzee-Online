@@ -19,14 +19,19 @@ import kotlin.math.abs
  * exist as a compiled style. So a theme still goes on first, the nearest of a handful of presets,
  * and then [retint] walks the inflated view and replaces that theme's colour with the exact one.
  *
- * The walk works because every accent in the app is written as `?attr/colorPrimary`. That gives
- * one value to look for, so recolouring is an exact match rather than a guess about which blue
- * meant what — and a view that was never accented is left alone.
+ * Accented views are marked with a tag in the layout rather than found by comparing colours.
+ * Matching on colour looked tidier and failed quietly: anything storing its tint as a state list
+ * or reporting it back a shade off simply never matched, and a miss was indistinguishable from
+ * the whole feature not working.
  */
 object AccentColor {
 
     private const val PREFS = "accent_color"
     private const val KEY_COLOR = "accent_value"
+
+    /** Layout tags marking what carries the accent, so recolouring never has to guess. */
+    private const val TAG_TEXT = "accentText"
+    private const val TAG_BACKGROUND = "accentBg"
 
     /** Starting points for the picker. The first is the app's original blue and is the default. */
     val PALETTE: List<Pair<String, Int>> = listOf(
@@ -111,11 +116,8 @@ object AccentColor {
     fun retint(root: View, themeColor: Int, accent: Int) {
         val tint = ColorStateList.valueOf(accent)
         walk(root) { view ->
-            // Sliders and spinners are tinted by the theme itself, so they carry no value this
-            // walk could match on and were the one thing left wearing the old colour. That made
-            // dragging the accent sliders look broken above all else: every slider in the app is
-            // accented, so the control under the finger was the last thing to change. They are
-            // set outright rather than matched.
+            // Sliders and spinners are tinted by the theme itself, so they carry no value worth
+            // comparing and are simply set.
             when (view) {
                 is SeekBar -> {
                     view.progressTintList = tint
@@ -124,12 +126,24 @@ object AccentColor {
                 is ProgressBar -> view.progressTintList = tint
             }
 
-            if (themeColor == accent) return@walk
+            // Everything else says outright that it is accented. Recolouring by comparing each
+            // view against the theme's colour was the original approach and it failed quietly:
+            // a widget that stores its tint as a state list, or reports it back a shade off,
+            // simply never matched, and the miss looked identical to the feature not working.
+            // A tag cannot miss.
+            when (view.tag) {
+                TAG_TEXT -> (view as? TextView)?.setTextColor(accent)
+                TAG_BACKGROUND -> view.backgroundTintList = tint
+            }
+
+            // Anything untagged still gets the old treatment, so a view added later without a
+            // tag is merely no worse off than before rather than stuck on the wrong colour.
+            if (themeColor == accent || view.tag != null) return@walk
             if (view is TextView && view.textColors?.defaultColor == themeColor) {
                 view.setTextColor(accent)
             }
             if (view.backgroundTintList?.defaultColor == themeColor) {
-                view.backgroundTintList = ColorStateList.valueOf(accent)
+                view.backgroundTintList = tint
             }
         }
     }

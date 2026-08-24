@@ -220,6 +220,7 @@
             style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:tag="accentText"
             android:textColor="?attr/colorPrimary" />
     </LinearLayout>
 
@@ -459,6 +460,7 @@
             android:layout_height="wrap_content"
             android:text="@string/expand_chevron"
             android:textSize="13sp"
+            android:tag="accentText"
             android:textColor="?attr/colorPrimary" />
 
     </LinearLayout>
@@ -506,6 +508,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/copy_code"
                 android:textSize="13sp"
+                android:tag="accentText"
                 android:textColor="?attr/colorPrimary" />
 
             <Button
@@ -548,6 +551,7 @@
         android:id="@+id/checkForUpdatesButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:tag="accentBg"
         android:backgroundTint="?attr/colorPrimary"
         android:text="@string/check_for_updates" />
 
