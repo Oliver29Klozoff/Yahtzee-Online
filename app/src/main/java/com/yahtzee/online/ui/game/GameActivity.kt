@@ -22,6 +22,7 @@ import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.GameReview
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
@@ -324,6 +325,7 @@ class GameActivity : ImmersiveActivity() {
         sound.play(SoundEngine.Sound.SCORE)
         // Read before submitting: scoring consumes the Yahtzee, so once the write lands there is
         // nothing left on the table to say what it was worth.
+        GameReview.record(this, state, playerId, card, category)
         val earnedBonus = state.yahtzeeStateFor(playerId) == YahtzeeState.BONUS &&
             category != Category.YAHTZEE
         repository.submitScore(roomCode, state, category, playerId, card)
@@ -344,6 +346,10 @@ class GameActivity : ImmersiveActivity() {
                 // Resetting the room sends every client back to the roll-off, so this returns to
                 // the lobby to follow it rather than sitting on a finished board.
                 repository.rematch(roomCode, state)
+                finish()
+            }
+            .setNeutralButton(R.string.see_review) { _, _ ->
+                startActivity(android.content.Intent(this, com.yahtzee.online.ui.ReviewActivity::class.java))
                 finish()
             }
             .setNegativeButton(R.string.leave_game) { _, _ ->

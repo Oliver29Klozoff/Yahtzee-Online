@@ -131,6 +131,22 @@
     <string name="notify_permission_allow">Turn on</string>
     <string name="not_now">Not now</string>
 
+    <!-- Post-game review -->
+    <string name="review_title">Game review</string>
+    <string name="review_turns">EVERY TURN</string>
+    <string name="see_review">See review</string>
+    <string name="review_empty_title">Nothing to review</string>
+    <string name="review_empty">Play a game through and this will show you where the points went.</string>
+    <string name="review_perfect_title">Every box in the right place.</string>
+    <string name="review_perfect">You put every roll where a strong player would have put it. Nothing left behind.</string>
+    <string name="review_missed_title">%1$d points left on the table.</string>
+    <string name="review_missed">%1$d turns could have gone somewhere better.</string>
+    <string name="review_missed_with_worst">%1$d turns could have gone somewhere better. The costliest: you rolled %2$s and took %3$s for %4$d, where %5$s was worth %6$d.</string>
+    <string name="review_row_fine">%1$s · %2$d</string>
+    <string name="review_row_better">%1$s %2$d → %3$s %4$d</string>
+    <string name="review_row_cost">+%1$d</string>
+    <string name="review_caveat">Measured against the Expert bot, which values a box by what it is worth over the whole game — so taking fewer points to protect a category counts as the right call, not a mistake.</string>
+
     <!-- Yahtzee bonus -->
     <string name="yahtzee_first">YAHTZEE! Score it in the Yahtzee box — that\'s what unlocks +100 for every one after.</string>
     <string name="yahtzee_bonus_ready">YAHTZEE BONUS! +100 added wherever you score this.</string>

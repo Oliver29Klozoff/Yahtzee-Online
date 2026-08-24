@@ -30,10 +30,12 @@ import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.game.GameReview
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
+import com.yahtzee.online.ui.ReviewActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
 import com.yahtzee.online.ui.game.RollOffRow
 import com.yahtzee.online.ui.game.ScoreConfirm
@@ -138,6 +140,11 @@ class SoloGameActivity : ImmersiveActivity() {
             // is no longer anything on the table to tell the player what they just earned.
             val earnedBonus = engine.state.yahtzeeStateFor(engine.humanPlayerId) == YahtzeeState.BONUS &&
                 category != Category.YAHTZEE
+            // Noted before submitting: what made the choice a choice is the boxes that were still
+            // open, and scoring closes one of them.
+            if (engine.state.currentPlayerId == engine.humanPlayerId) {
+                GameReview.record(this, engine.state, engine.humanPlayerId, card, category)
+            }
             engine.submitScore(category, card)
             if (earnedBonus) announceYahtzeeBonus()
         }
@@ -148,6 +155,9 @@ class SoloGameActivity : ImmersiveActivity() {
             if (engine.isBotTurn() || state.rollsUsed >= MAX_ROLLS_PER_TURN) return@setOnClickListener
             engine.rollDice()
         }
+
+        // A resumed game keeps the record it has already built; a new one starts empty.
+        if (saved == null) GameReview.begin(this)
 
         engine.setOnChangeListener {
             persistGame()
@@ -474,9 +484,19 @@ class SoloGameActivity : ImmersiveActivity() {
             .setTitle(R.string.game_over)
             .setMessage(getString(R.string.winner_is, winnerName))
             .setPositiveButton(R.string.play_again) { _, _ -> restartSoloGame() }
+            .setNeutralButton(R.string.see_review) { _, _ -> openReview() }
             .setNegativeButton(R.string.leave_game) { _, _ -> finish() }
             .setCancelable(false)
             .show()
+    }
+
+    /**
+     * Leaves the finished board behind rather than sitting under the review: coming back from it
+     * would land on a game that is over, with a game-over box already dismissed.
+     */
+    private fun openReview() {
+        startActivity(Intent(this, ReviewActivity::class.java))
+        finish()
     }
 
     /**
@@ -497,6 +517,9 @@ class SoloGameActivity : ImmersiveActivity() {
             .setTitle(R.string.daily_complete)
             .setMessage(getString(R.string.daily_result, score, day))
             .setPositiveButton(R.string.share_result) { _, _ -> shareDailyResult(day, score) }
+            // Worth more on the daily than anywhere else: everyone played the same dice, so the
+            // gap between your score and someone else's is entirely in these decisions.
+            .setNeutralButton(R.string.see_review) { _, _ -> openReview() }
             .setNegativeButton(R.string.done) { _, _ -> finish() }
             .setCancelable(false)
             .show()
