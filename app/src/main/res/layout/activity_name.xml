@@ -38,6 +38,8 @@
 
     <Button
         android:id="@+id/continueButton"
+        android:tag="accentBg"
+        android:backgroundTint="?attr/colorPrimary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/continue_label" />

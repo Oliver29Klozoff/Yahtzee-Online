@@ -140,6 +140,8 @@
 
     <Button
         android:id="@+id/rollForFirstButton"
+        android:tag="accentBg"
+        android:backgroundTint="?attr/colorPrimary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/roll_for_first"

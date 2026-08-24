@@ -119,6 +119,8 @@
         <Button
             android:id="@+id/pipStyleButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="110dp" />
@@ -146,6 +148,8 @@
         <Button
             android:id="@+id/saveDiceButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/save_dice" />
@@ -295,6 +299,8 @@
         <Button
             android:id="@+id/keepScreenOnButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="80dp" />
@@ -319,6 +325,8 @@
         <Button
             android:id="@+id/confirmScoringButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="80dp" />
@@ -343,6 +351,8 @@
         <Button
             android:id="@+id/soundButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="80dp" />
@@ -367,6 +377,8 @@
         <Button
             android:id="@+id/hapticsButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="80dp" />
@@ -391,6 +403,8 @@
         <Button
             android:id="@+id/diceMotionButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="80dp" />
@@ -415,6 +429,8 @@
         <Button
             android:id="@+id/botSkillButton"
             style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="80dp" />
