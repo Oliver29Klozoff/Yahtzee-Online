@@ -61,7 +61,7 @@ object DieTextureAtlas {
             Bitmap.Config.ARGB_8888
         )
         val canvas = Canvas(bitmap)
-        val palette = Palette.from(baseColor)
+        val palette = Palette.from(baseColor, flatPips)
 
         for (value in 1..6) {
             val cell = value - 1
@@ -79,16 +79,36 @@ object DieTextureAtlas {
      */
     fun face(baseColor: Int, value: Int, darkPips: Boolean = true, flatPips: Boolean = false, cellSize: Int = 128): Bitmap {
         val bitmap = Bitmap.createBitmap(cellSize, cellSize, Bitmap.Config.ARGB_8888)
-        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPips, flatPips)
+        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor, flatPips), darkPips, flatPips)
         return bitmap
     }
 
-    /** Glass tones derived from one base colour, so any hue yields a coherent material. */
+    /** Tones derived from one base colour, so any hue yields a coherent material. */
     private class Palette(val deep: Int, val base: Int, val rim: Int, val edge: Int) {
         companion object {
-            fun from(baseColor: Int): Palette {
+            fun from(baseColor: Int, flat: Boolean = false): Palette {
                 val hsv = FloatArray(3)
                 Color.colorToHSV(baseColor, hsv)
+
+                // A solid die is one colour all over. Glass earns its rim by brightening and
+                // draining colour toward the edge — light escaping where the block is thinnest —
+                // and doing that to moulded plastic just bleaches its edges, which is what left a
+                // solid red die looking like washed pink glass. Here the edge only catches a
+                // little more light and keeps its hue, so the die reads as one piece of colour
+                // the way the white one does.
+                if (flat) {
+                    return Palette(
+                        deep = Color.HSVToColor(floatArrayOf(hsv[0], hsv[1], hsv[2] * 0.92f)),
+                        base = baseColor,
+                        rim = Color.HSVToColor(
+                            floatArrayOf(hsv[0], hsv[1] * 0.94f, min(1f, hsv[2] + 0.05f))
+                        ),
+                        edge = Color.HSVToColor(
+                            floatArrayOf(hsv[0], hsv[1] * 0.90f, min(1f, hsv[2] + 0.08f))
+                        )
+                    )
+                }
+
                 val deep = Color.HSVToColor(
                     floatArrayOf(hsv[0], min(1f, hsv[1] * 1.18f), hsv[2] * 0.32f)
                 )
@@ -160,7 +180,11 @@ object DieTextureAtlas {
             bandPaint
         )
 
-        // 3. Internal streak — scattered light travelling through the body.
+        // 3. Internal streak — scattered light travelling through the body. Nothing travels
+        //    through solid plastic, and on a light die the streak shows as a smear across the
+        //    face, so it is skipped entirely there.
+        if (flatPips) return drawPips(canvas, left, top, size, value, darkPips, flatPips)
+
         val streakPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(
                 left + size * 0.1f, top + size * 0.05f, left + size * 0.75f, top + size * 0.7f,
@@ -175,7 +199,19 @@ object DieTextureAtlas {
         }
         canvas.drawRect(rect, streakPaint)
 
-        // 4. Pips.
+        drawPips(canvas, left, top, size, value, darkPips, flatPips)
+    }
+
+    /** 4. Pips. Split out so the solid path can reach them without the glass layers above. */
+    private fun drawPips(
+        canvas: Canvas,
+        left: Int,
+        top: Int,
+        size: Int,
+        value: Int,
+        darkPips: Boolean,
+        flatPips: Boolean
+    ) {
         val pipRadius = size * 0.086f
         pipLayouts[value]?.forEach { (fx, fy) ->
             drawPip(canvas, left + fx * size, top + fy * size, pipRadius, darkPips, flatPips)
