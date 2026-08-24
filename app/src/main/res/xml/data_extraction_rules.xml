@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The profile id is what identifies a player to every other player, so it must not be copied
+    from one device to another behind the player's back. Android's backup would otherwise restore
+    it onto a second phone on the same account, and the two would be one player: they could not
+    join a game against each other, because to the game they are the same seat.
+
+    Moving an identity deliberately is what the recovery code is for. The list of tracked games
+    goes with it, being of no use to a device that is not that player.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="player_profile.xml" />
+        <exclude domain="sharedpref" path="active_games.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="player_profile.xml" />
+        <exclude domain="sharedpref" path="active_games.xml" />
+    </device-transfer>
+</data-extraction-rules>

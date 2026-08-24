@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The same exclusions for Android 11 and below, which uses this older format. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="player_profile.xml" />
+    <exclude domain="sharedpref" path="active_games.xml" />
+</full-backup-content>

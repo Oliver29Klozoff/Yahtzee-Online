@@ -45,6 +45,21 @@ object PlayerProfile {
         prefs(context).edit().putString(KEY_ID, id).apply()
     }
 
+    /**
+     * Issues this device a brand new identity.
+     *
+     * The way out of two devices sharing one. That happens if a recovery code is entered on both,
+     * or if a backup restored the first one's profile onto the second — to the game they are then
+     * a single seat, so they cannot join a room against each other, and whichever moves second
+     * simply lands on the first one's player. Taking a new id here makes this device a different
+     * player, at the cost of the leaderboard row and the games that stay with the old one.
+     */
+    fun resetId(context: Context): String {
+        val fresh = UUID.randomUUID().toString()
+        setId(context, fresh)
+        return fresh
+    }
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

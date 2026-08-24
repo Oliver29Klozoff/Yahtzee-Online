@@ -499,6 +499,24 @@
                 android:textSize="13sp"
                 android:textColor="@color/text_muted" />
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/same_code_warning"
+            android:textSize="12sp"
+            android:lineSpacingExtra="2dp"
+            android:textColor="@color/text_muted"
+            android:paddingTop="6dp" />
+
+        <Button
+            android:id="@+id/newIdentityButton"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/new_identity"
+            android:textSize="13sp"
+            android:textColor="@color/timer_warn" />
     </LinearLayout>
 
     <View

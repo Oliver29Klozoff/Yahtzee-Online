@@ -20,9 +20,11 @@ import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.ProfileRecovery
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.update.UpdateChecker
@@ -451,6 +453,28 @@ class SettingsActivity : ImmersiveActivity() {
         }
 
         findViewById<Button>(R.id.restoreProfileButton).setOnClickListener { promptRestoreProfile() }
+        findViewById<Button>(R.id.newIdentityButton).setOnClickListener { promptNewIdentity() }
+    }
+
+    /**
+     * The way out of two devices sharing one identity — from a code entered on both, or from a
+     * backup that carried the first phone's profile onto the second. Until one of them takes a
+     * new id they are a single seat, and cannot be in a room against each other.
+     */
+    private fun promptNewIdentity() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.new_identity)
+            .setMessage(R.string.new_identity_warning)
+            .setPositiveButton(R.string.new_identity) { _, _ ->
+                PlayerProfile.resetId(this)
+                // Games and invites belonged to the identity being left behind, so watching for
+                // turns in them would be watching someone else's games.
+                ActiveGamesStore.all(this).forEach { ActiveGamesStore.untrack(this, it.roomCode) }
+                findViewById<TextView>(R.id.recoveryCodeText).text = ProfileRecovery.codeFor(this)
+                Toast.makeText(this, R.string.new_identity_done, Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun promptRestoreProfile() {
