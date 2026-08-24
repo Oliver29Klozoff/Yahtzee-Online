@@ -66,13 +66,19 @@ private const val FRAGMENT_SHADER = """
         // gradient through the body, no ignited edge, nothing shining through from behind. The
         // spread is wide enough that a face turned away still reads as the same colour rather
         // than going black.
-        vec3 color = texColor.rgb * (0.82 + 0.42 * diffuse);
+        // Never brighter than the texture itself. Scaling a lit face ABOVE 1.0 does not make it
+        // brighter, it clips — and it clips the strongest channel first, which drains the colour
+        // out: a lit yellow face pins both red and green at 1.0 and comes out white. Shading
+        // downward from full instead keeps every colour its own at every angle, and a face
+        // turned away still reads as the colour rather than going black.
+        vec3 color = texColor.rgb * (0.58 + 0.42 * diffuse);
 
         // One soft highlight, the size a matte plastic surface would give. Wide and weak
-        // deliberately: a tight bright catch is what makes a surface look wet or glazed.
+        // deliberately: a tight bright catch is what makes a surface look wet or glazed, and a
+        // strong one would clip the same way the diffuse term did.
         vec3 halfVec = normalize(toLight + toCamera);
         float specAngle = max(dot(normal, halfVec), 0.0);
-        float highlight = pow(specAngle, 60.0) * 0.12 + pow(specAngle, 20.0) * 0.03;
+        float highlight = pow(specAngle, 48.0) * 0.09;
 
         gl_FragColor = vec4((color + vec3(highlight)) * uDim, texColor.a);
     }
