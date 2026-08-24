@@ -166,6 +166,20 @@ class MainActivity : ImmersiveActivity() {
                     .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, playerName())
             )
         }
+        // A saved solo game otherwise sits here until it is played out — including one abandoned
+        // ten turns in that the player has no intention of going back to.
+        continueButton.setOnLongClickListener {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.clear_saved_game)
+                .setMessage(R.string.clear_saved_game_warning)
+                .setPositiveButton(R.string.clear_game) { _, _ ->
+                    SoloGameStore.clear(this)
+                    continueButton.visibility = Button.GONE
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            true
+        }
         // Re-read on resume so a name changed on the name page shows immediately on return.
         findViewById<TextView>(R.id.greetingText).text =
             getString(R.string.greeting, playerName())
@@ -230,6 +244,13 @@ class MainActivity : ImmersiveActivity() {
                     android.R.drawable.list_selector_background, theme
                 )
                 setOnClickListener { openLobby(game.roomCode) }
+                setOnLongClickListener {
+                    // Long press rather than a delete button on every row: clearing a game is
+                    // rare next to opening one, and a row of crosses would make the list read as
+                    // something to tidy up rather than something to play.
+                    promptClearGame(game.roomCode)
+                    true
+                }
             }
             list.addView(row)
 
@@ -340,6 +361,37 @@ class MainActivity : ImmersiveActivity() {
         } else {
             leaderboardListener = leaderboard.observeTop(LEADERBOARD_SIZE) { entries ->
                 runOnUiThread { renderLeaderboard(entries) }
+            }
+        }
+    }
+
+    /**
+     * Drops a game from the list.
+     *
+     * What that means depends on where the game has got to. Before it starts, the seat can be
+     * given up properly, so the others stop waiting on a player who is not coming. Once it is
+     * under way the seat has to stay — turn order is positional, and removing a player mid-game
+     * would hand their turn to someone else — so this only stops the phone tracking it, and the
+     * wording says so rather than implying the game has been left.
+     */
+    private fun promptClearGame(code: String) {
+        repository.readRoomOnce(code) { state ->
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val started = state != null && state.status != GameState.STATUS_LOBBY &&
+                    state.status != GameState.STATUS_FINISHED
+
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.clear_game_title, code))
+                    .setMessage(if (started) R.string.clear_game_started else R.string.clear_game_lobby)
+                    .setPositiveButton(R.string.clear_game) { _, _ ->
+                        ActiveGamesStore.untrack(this, code)
+                        TurnNotifier.clear(this, code)
+                        if (!started) repository.leaveRoom(code)
+                        renderActiveGames()
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
             }
         }
     }

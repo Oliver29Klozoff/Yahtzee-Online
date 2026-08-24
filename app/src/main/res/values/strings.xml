@@ -120,6 +120,13 @@
     <string name="game_waiting_on_you">Your turn</string>
     <string name="game_waiting_on_other">Waiting on %1$s</string>
     <string name="game_in_lobby">In the lobby</string>
+    <string name="clear_game">Remove</string>
+    <string name="clear_game_title">Remove room %1$s?</string>
+    <string name="clear_game_lobby">You will leave this room and the other players will stop waiting for you.</string>
+    <string name="clear_game_started">This game has already started, so your seat and your scores stay in it. It just disappears from this list and stops notifying you — you can rejoin with the room code.</string>
+    <string name="clear_saved_game">Discard saved game?</string>
+    <string name="clear_saved_game_warning">Your solo game in progress will be thrown away. This cannot be undone.</string>
+    <string name="hold_to_remove">Hold a game to remove it</string>
     <string name="notify_permission_rationale">Allow notifications and the app will tell you when it\'s your turn in a game you left running.</string>
     <string name="notify_permission_allow">Turn on</string>
     <string name="not_now">Not now</string>

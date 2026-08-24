@@ -151,6 +151,40 @@ class GameRepository(private val context: android.content.Context) {
             .addOnFailureListener { onResult(emptyMap()) }
     }
 
+    /**
+     * Gives up this device's seat in a room.
+     *
+     * Only safe before play starts, which is why the caller checks: turn order is a list of
+     * player ids and the current turn is an index into it, so pulling a name out of the middle
+     * of a game in progress would hand somebody else's turn to the wrong person. Once a game is
+     * under way the seat stays and the room is only dropped from this device's list.
+     *
+     * The host leaving passes the room to whoever is left rather than leaving it pointing at
+     * nobody, and the last player out takes the room with them instead of leaving an empty one
+     * behind for good.
+     */
+    fun leaveRoom(code: String, onDone: () -> Unit = {}) {
+        val ref = roomRef(code)
+        ref.get().addOnSuccessListener { snapshot ->
+            val order = snapshot.child("playerOrder").children
+                .mapNotNull { it.getValue(String::class.java) }
+                .filterNot { it == localPlayerId }
+
+            if (order.isEmpty()) {
+                ref.removeValue()
+                onDone()
+                return@addOnSuccessListener
+            }
+
+            ref.child("players").child(localPlayerId).removeValue()
+            ref.child("playerOrder").setValue(order)
+            if (snapshot.child("hostId").getValue(String::class.java) == localPlayerId) {
+                ref.child("hostId").setValue(order.first())
+            }
+            onDone()
+        }.addOnFailureListener { onDone() }
+    }
+
     /** Clears one invite once it has been acted on, so it is not announced twice. */
     fun clearInvite(code: String) {
         db.getReference("invites").child(localPlayerId).child(code).removeValue()
