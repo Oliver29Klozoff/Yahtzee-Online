@@ -256,6 +256,18 @@ class LocalGameEngine(
             .filterValues { it.isNotEmpty() }
     }
 
+    /**
+     * The bot's strongest upper section, which is the one the bonus is most likely to come from.
+     * With one card it is simply that card; with several, chasing the furthest along beats
+     * averaging across cards that are nowhere near 63.
+     */
+    private fun bestUpperTotal(playerId: String): Int {
+        val player = state.players[playerId] ?: return 0
+        return (0 until cardCount).maxOfOrNull { card ->
+            Category.UPPER.sumOf { player.scoresForCard(card)[it] ?: 0 }
+        } ?: 0
+    }
+
     fun isBotDoneRolling(): Boolean {
         val playerId = state.currentPlayerId ?: return true
         if (playerId !in botIds) return true
@@ -264,7 +276,7 @@ class LocalGameEngine(
         if (state.rollsUsed == 0) return false
         if (state.rollsUsed >= MAX_ROLLS_PER_TURN) return true
         val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
-        return BotSkillPlay.chooseHolds(botSkill, state.dice, open, rollsLeft).size == 5
+        return BotSkillPlay.chooseHolds(botSkill, state.dice, open, rollsLeft, bestUpperTotal(playerId)).size == 5
     }
 
     /**
@@ -283,7 +295,7 @@ class LocalGameEngine(
             // Hold whatever serves any card still open, since the bot has yet to commit to one.
             val open = openByCard(playerId).values.flatten().toSet()
             val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
-            val holdIndices = BotSkillPlay.chooseHolds(botSkill, state.dice, open, rollsLeft)
+            val holdIndices = BotSkillPlay.chooseHolds(botSkill, state.dice, open, rollsLeft, bestUpperTotal(playerId))
             state = state.copy(held = List(5) { it in holdIndices })
         }
         rollDiceForBot()

@@ -5,6 +5,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.bot.BotStrategy
+import com.yahtzee.online.bot.ExpertStrategy
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DiceRoller
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -341,7 +342,17 @@ class GameRepository(private val context: android.content.Context) {
                 return
             }
             val rollsLeft = MAX_ROLLS_PER_TURN - state.rollsUsed
-            val holds = BotStrategy.chooseHolds(state.dice, openByCard.values.flatten().toSet(), rollsLeft)
+            // Auto-play covers for an absent human, so it plays the best hand available rather
+            // than a difficulty setting meant to make an opponent beatable.
+            val upperBest = (0 until state.cardCount.coerceAtLeast(1)).maxOfOrNull { card ->
+                Category.UPPER.sumOf { player.scoresForCard(card)[it] ?: 0 }
+            } ?: 0
+            val holds = ExpertStrategy.chooseHolds(
+                state.dice,
+                openByCard.values.flatten().toSet(),
+                rollsLeft,
+                upperBest
+            )
             if (holds.size < 5) {
                 val heldFlags = List(5) { it in holds }
                 roomRef(code).child("held").setValue(heldFlags)

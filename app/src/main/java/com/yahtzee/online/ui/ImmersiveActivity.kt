@@ -20,13 +20,31 @@ import com.yahtzee.online.game.AccentColor
  */
 abstract class ImmersiveActivity : AppCompatActivity() {
 
+    private companion object {
+        /**
+         * The full inset is far more than this screen needs. Nothing sits directly under the
+         * camera — the title is hard left and the icons hard right, while a punch-hole is
+         * centred — so what is actually wanted is clearance from the top edge, not room for the
+         * whole cutout. Capping keeps that from eating a chunk of every screen.
+         */
+        const val MAX_TOP_PADDING_DP = 22f
+
+        /** So a phone reporting no inset at all still does not start flush against the glass. */
+        const val MIN_TOP_PADDING_DP = 10f
+    }
+
+    /** The accent this screen was actually built with, to notice later that it has changed. */
+    private var builtWithAccent: AccentColor.Accent? = null
+
     /**
      * Applies the chosen accent before anything is inflated. It has to happen here rather than in
      * each screen: a theme set after the content view is built reaches nothing already drawn, and
      * every screen in the app passes through this class on its way up.
      */
     override fun onCreate(savedInstanceState: Bundle?) {
-        setTheme(AccentColor.current(this).theme)
+        val accent = AccentColor.current(this)
+        builtWithAccent = accent
+        setTheme(accent.theme)
         super.onCreate(savedInstanceState)
     }
 
@@ -67,10 +85,14 @@ abstract class ImmersiveActivity : AppCompatActivity() {
     private fun applyTopInset() {
         if (!padsForDisplayCutout) return
         val content = findViewById<View>(android.R.id.content) ?: return
+        val density = resources.displayMetrics.density
+        val floor = (MIN_TOP_PADDING_DP * density).toInt()
+        val ceiling = (MAX_TOP_PADDING_DP * density).toInt()
+
         ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
             val bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()).top
             val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout()).top
-            view.updatePadding(top = maxOf(bars, cutout))
+            view.updatePadding(top = maxOf(bars, cutout).coerceIn(floor, ceiling))
             insets
         }
         ViewCompat.requestApplyInsets(content)
@@ -78,6 +100,16 @@ abstract class ImmersiveActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // Screens behind the one that changed the accent are already built, and coming back to
+        // them only resumes them — nothing re-inflates, so they keep wearing the old colour until
+        // the app is killed. Rebuilding here is what makes the change reach the whole app rather
+        // than only the screen it was made on. This settles after one pass: the new instance
+        // records the accent it was built with, so it matches and comes straight through.
+        if (builtWithAccent != AccentColor.current(this)) {
+            recreate()
+            return
+        }
         hideSystemBars()
     }
 

@@ -89,11 +89,16 @@ object AppSettings {
      * How well the bots play. This is the one setting here that changes the game rather than
      * its presentation, but it is still local: bots only exist in solo games.
      */
-    enum class BotSkill(val label: String) { EASY("Easy"), NORMAL("Normal"), HARD("Hard") }
+    /**
+     * Bot difficulty. Expert searches rather than following rules -- see [com.yahtzee.online.bot.ExpertStrategy] --
+     * and is the default, since the levels below it exist to be easier than a good opponent
+     * rather than to stand in for one.
+     */
+    enum class BotSkill(val label: String) { EASY("Easy"), NORMAL("Normal"), HARD("Hard"), EXPERT("Expert") }
 
     fun botSkill(context: Context): BotSkill {
-        val name = prefs(context).getString(KEY_BOT_SKILL, BotSkill.HARD.name)
-        return runCatching { BotSkill.valueOf(name!!) }.getOrDefault(BotSkill.HARD)
+        val name = prefs(context).getString(KEY_BOT_SKILL, BotSkill.EXPERT.name)
+        return runCatching { BotSkill.valueOf(name!!) }.getOrDefault(BotSkill.EXPERT)
     }
 
     fun setBotSkill(context: Context, skill: BotSkill) {

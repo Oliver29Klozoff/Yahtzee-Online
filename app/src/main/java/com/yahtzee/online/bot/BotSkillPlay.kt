@@ -27,10 +27,17 @@ object BotSkillPlay {
         dice: List<Int>,
         openCategories: Set<Category>,
         rollsLeft: Int,
+        upperTotalSoFar: Int = 0,
         random: Random = Random.Default
     ): Set<Int> {
+        // Expert is a different method rather than a stronger setting of the same one: it works
+        // the keep out by search instead of matching the dice against a list of rules.
+        if (skill == AppSettings.BotSkill.EXPERT) {
+            return ExpertStrategy.chooseHolds(dice, openCategories, rollsLeft, upperTotalSoFar)
+        }
         val best = BotStrategy.chooseHolds(dice, openCategories, rollsLeft)
         return when (skill) {
+            AppSettings.BotSkill.EXPERT -> best
             AppSettings.BotSkill.HARD -> best
             // Occasionally keeps the wrong dice, the way a decent player misreads a roll.
             AppSettings.BotSkill.NORMAL ->
@@ -49,6 +56,10 @@ object BotSkillPlay {
         random: Random = Random.Default
     ): Category {
         return when (skill) {
+            // Priced the same way the search prices it, so where it scores agrees with what it
+            // kept — the two halves of a turn pulling different directions is its own weakness.
+            AppSettings.BotSkill.EXPERT ->
+                ExpertStrategy.chooseCategory(dice, openCategories, upperTotalSoFar)
             AppSettings.BotSkill.HARD ->
                 BotStrategy.chooseCategory(dice, openCategories, upperTotalSoFar)
             AppSettings.BotSkill.NORMAL ->
