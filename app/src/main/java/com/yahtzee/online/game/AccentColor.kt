@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
 import com.yahtzee.online.R
 import kotlin.math.abs
@@ -107,8 +109,22 @@ object AccentColor {
      * every accented view is currently wearing.
      */
     fun retint(root: View, themeColor: Int, accent: Int) {
-        if (themeColor == accent) return
+        val tint = ColorStateList.valueOf(accent)
         walk(root) { view ->
+            // Sliders and spinners are tinted by the theme itself, so they carry no value this
+            // walk could match on and were the one thing left wearing the old colour. That made
+            // dragging the accent sliders look broken above all else: every slider in the app is
+            // accented, so the control under the finger was the last thing to change. They are
+            // set outright rather than matched.
+            when (view) {
+                is SeekBar -> {
+                    view.progressTintList = tint
+                    view.thumbTintList = tint
+                }
+                is ProgressBar -> view.progressTintList = tint
+            }
+
+            if (themeColor == accent) return@walk
             if (view is TextView && view.textColors?.defaultColor == themeColor) {
                 view.setTextColor(accent)
             }
