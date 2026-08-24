@@ -5,6 +5,9 @@ import android.os.Bundle
 import android.view.View
 import android.view.WindowInsets
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
 
@@ -28,6 +31,13 @@ abstract class ImmersiveActivity : AppCompatActivity() {
     }
 
     /**
+     * Whether this screen keeps clear of the camera. True everywhere except the splash, whose
+     * whole point is artwork running edge to edge — padding it would leave a black band across
+     * the top and shift the image off centre.
+     */
+    protected open val padsForDisplayCutout: Boolean get() = true
+
+    /**
      * Wires up the standard back arrow for any layout that includes a view with id
      * `backButton`, so screens get it just by putting the button in their XML. Done here
      * rather than per-activity because the system back affordance is hidden by immersive
@@ -38,6 +48,32 @@ abstract class ImmersiveActivity : AppCompatActivity() {
         findViewById<View?>(R.id.backButton)?.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
+        applyTopInset()
+    }
+
+    /**
+     * Holds the content below the camera.
+     *
+     * Hiding the system bars puts the top of the layout at the very top of the glass, which on a
+     * phone with a punch-hole or a notch means the title and the icons beside it sit level with
+     * the camera. The inset is read rather than guessed at, because the height differs by device
+     * and a fixed value would be wrong on most of them.
+     *
+     * The bars' *live* inset is no use here — they are hidden, so it reads zero. What is wanted
+     * is the room they would occupy, which is also a reasonable margin on a phone with no cutout
+     * at all; the cutout itself reports its inset whether the bars are showing or not, and on the
+     * phones where it is taller than the status bar it is the one that wins.
+     */
+    private fun applyTopInset() {
+        if (!padsForDisplayCutout) return
+        val content = findViewById<View>(android.R.id.content) ?: return
+        ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
+            val bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()).top
+            val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout()).top
+            view.updatePadding(top = maxOf(bars, cutout))
+            insets
+        }
+        ViewCompat.requestApplyInsets(content)
     }
 
     override fun onResume() {

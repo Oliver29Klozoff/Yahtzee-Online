@@ -17,6 +17,9 @@ import com.yahtzee.online.game.PlayerProfile
  */
 class SplashActivity : ImmersiveActivity() {
 
+    /** Full-bleed artwork: the camera sits over it rather than the layout being held clear. */
+    override val padsForDisplayCutout: Boolean get() = false
+
     companion object {
         private const val SPLASH_DURATION_MS = 2000L
     }
