@@ -21,8 +21,8 @@ android {
         applicationId = "com.yahtzee.online"
         minSdk = 24
         targetSdk = 36
-        versionCode = 97
-        versionName = "1.95"
+        versionCode = 98
+        versionName = "1.96"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

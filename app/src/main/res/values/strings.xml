@@ -28,9 +28,6 @@
     <string name="check_for_updates">Check for Updates</string>
     <string name="dice_color">Dice Colour</string>
     <string name="custom_colour">Custom colour — hue, vividness, brightness</string>
-    <string name="pip_style">Pips</string>
-    <string name="pips_dark">Dark</string>
-    <string name="pips_light">White</string>
     <string name="choose_turn_length">How long is each turn?</string>
     <string name="turn_seconds">%1$d seconds</string>
     <string name="turn_minutes">%1$d minute</string>

@@ -35,7 +35,6 @@ class SettingsActivity : ImmersiveActivity() {
     private lateinit var dicePreview: Dice3DView
     private val sound by lazy { SoundEngine(this) }
     private var selectedColor: Int = DicePreferences.PALETTE.first().second
-    private var pipStyle: DicePreferences.PipStyle = DicePreferences.PipStyle.AUTO
 
     /** Guards the sliders while they are being set from a preset, so they do not feed back. */
     private var syncingSliders = false
@@ -107,16 +106,13 @@ class SettingsActivity : ImmersiveActivity() {
         }
 
         selectedColor = DicePreferences.getColor(this)
-        pipStyle = DicePreferences.pipStyle(this)
 
         dicePreview = findViewById(R.id.dicePreview)
         dicePreview.setDiceColor(selectedColor)
-        dicePreview.setPipStyle(pipStyle)
 
         dicePreview.setTableColor(AppSettings.tableColor(this))
 
         setUpSliders()
-        setUpPipToggle()
         setUpToggle(
             R.id.keepScreenOnButton,
             AppSettings.keepScreenOn(this)
@@ -185,7 +181,7 @@ class SettingsActivity : ImmersiveActivity() {
             .setPositiveButton(R.string.save) { _, _ ->
                 val name = input.text.toString().trim()
                 if (name.isEmpty()) return@setPositiveButton
-                DicePreferences.saveDie(this, name, selectedColor, pipStyle)
+                DicePreferences.saveDie(this, name, selectedColor)
                 Toast.makeText(this, getString(R.string.dice_saved, name), Toast.LENGTH_SHORT).show()
                 renderSavedDice()
             }
@@ -214,7 +210,7 @@ class SettingsActivity : ImmersiveActivity() {
             // was saved, and a swatch cannot show it.
             cell.addView(ImageView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(dieSize, dieSize)
-                setImageBitmap(DieTextureAtlas.face(die.color, 5, die.pipStyle.darkFor(die.color)))
+                setImageBitmap(DieTextureAtlas.face(die.color, 5))
             })
             cell.addView(TextView(this).apply {
                 text = die.name
@@ -226,12 +222,8 @@ class SettingsActivity : ImmersiveActivity() {
             })
 
             cell.setOnClickListener {
-                pipStyle = die.pipStyle
-                DicePreferences.setPipStyle(this, die.pipStyle)
-                dicePreview.setPipStyle(die.pipStyle)
                 applyColor(die.color, reroll = true)
                 syncSlidersTo(die.color)
-                setUpPipToggle()
             }
             cell.setOnLongClickListener {
                 AlertDialog.Builder(this)
@@ -314,20 +306,6 @@ class SettingsActivity : ImmersiveActivity() {
         syncingSliders = false
     }
 
-    private fun setUpPipToggle() {
-        setUpCycler(
-            R.id.pipStyleButton,
-            DicePreferences.PipStyle.values().toList(),
-            pipStyle,
-            { it.label }
-        ) { style ->
-            pipStyle = style
-            DicePreferences.setPipStyle(this, style)
-            dicePreview.setPipStyle(style)
-            dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
-        }
-    }
-
     private fun applyColor(color: Int, reroll: Boolean) {
         selectedColor = color
         DicePreferences.setColor(this, color)
@@ -364,10 +342,7 @@ class SettingsActivity : ImmersiveActivity() {
     }
 
     /** Simple on/off button, since a Switch would need a Material theme this app does not use. */
-    /**
-     * What is printed on the felt. "Your picture" is only offered once one has been chosen, so
-     * the cycler never lands on an option that would show blank felt.
-     */
+
     private fun setUpTableLogo() {
         val button = findViewById<Button>(R.id.tableLogoButton)
 

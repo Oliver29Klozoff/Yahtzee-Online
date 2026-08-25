@@ -33,7 +33,6 @@ object RollOffRow {
         // The winner is shown a little larger during the reveal.
         val dieSize = ((if (winnerId != null) 64 else 54) * density).toInt()
         val tied = state.openingRollTied.toSet()
-        val pipStyle = DicePreferences.pipStyle(context)
         val highest = rolls.values.maxOrNull()
 
         order.forEach { id ->
@@ -51,7 +50,7 @@ object RollOffRow {
             // the start and fills in rather than growing.
             cell.addView(ImageView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(dieSize, dieSize)
-                setImageBitmap(DieTextureAtlas.face(color, roll ?: 1, pipStyle.darkFor(color)))
+                setImageBitmap(DieTextureAtlas.face(color, roll ?: 1))
                 alpha = when {
                     roll == null -> 0.18f
                     winnerId != null && id != winnerId -> 0.45f

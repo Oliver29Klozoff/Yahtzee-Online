@@ -129,11 +129,6 @@ class Dice3DView @JvmOverloads constructor(
         renderer.diceColor = color
     }
 
-    /** Pip colouring; the atlas is regenerated on the GL thread next frame. */
-    fun setPipStyle(style: DicePreferences.PipStyle) {
-        renderer.pipStyle = style
-    }
-
     /** Table felt colour behind the dice. */
     fun setTableColor(color: Int) {
         renderer.tableColor = color
