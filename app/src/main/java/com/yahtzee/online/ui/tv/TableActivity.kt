@@ -61,7 +61,10 @@ class TableActivity : ImmersiveActivity() {
         dice = findViewById(R.id.tableDice)
         dice.setPipStyle(DicePreferences.pipStyle(this))
         dice.setTableColor(AppSettings.tableColor(this))
-        dice.setTableLogo(TableLogoStore.mode(this))
+        // Plain felt on a television, whatever the phones are set to. Artwork printed on the
+        // table reads as a picture of dice sitting behind the real ones at this size, and the
+        // shared screen is the one place where nothing should compete with the roll.
+        dice.setTableLogo(TableLogoStore.Mode.NONE)
         dice.setMotionScale(AppSettings.diceMotion(this).durationScale)
         // A television pane is far wider than the phone strip the camera was framed for, so the
         // table needs pulling back to sit inside it rather than running off the top.
