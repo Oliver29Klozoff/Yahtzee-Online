@@ -16,7 +16,13 @@ data class SavedSoloGame(
      * open overnight resumes against the tape it was dealt from — picking up today's dice halfway
      * through would score the player against a hand nobody else played.
      */
-    val dailyId: String? = null
+    val dailyId: String? = null,
+    /**
+     * The duel this is a round of, or null. Kept for the same reason as [dailyId] — the duel's
+     * dice come from its code, so a game resumed without it would silently deal a different hand
+     * than the one the opponent is being measured against.
+     */
+    val duelCode: String? = null
 )
 
 /**
@@ -89,6 +95,7 @@ object SoloGameStore {
             .put("cardCount", game.cardCount)
             .put("botSkill", game.botSkill.name)
             .put("dailyId", game.dailyId)
+            .put("duelCode", game.duelCode)
             .put("status", state.status)
             .put("playerOrder", JSONArray(state.playerOrder))
             .put("players", players)
@@ -155,7 +162,8 @@ object SoloGameStore {
                 AppSettings.BotSkill.valueOf(json.optString("botSkill"))
             }.getOrDefault(AppSettings.BotSkill.HARD),
             state = state,
-            dailyId = json.optString("dailyId").takeIf { it.isNotEmpty() && it != "null" }
+            dailyId = json.optString("dailyId").takeIf { it.isNotEmpty() && it != "null" },
+            duelCode = json.optString("duelCode").takeIf { it.isNotEmpty() && it != "null" }
         )
     }
 

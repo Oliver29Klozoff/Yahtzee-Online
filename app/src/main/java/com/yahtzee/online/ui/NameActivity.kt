@@ -41,7 +41,20 @@ class NameActivity : ImmersiveActivity() {
             }
             PlayerProfile.setName(this, name)
             if (!editMode) {
-                startActivity(Intent(this, MainActivity::class.java))
+                // Carry an invite through the name page.
+                //
+                // Someone following a challenge on a phone that has never run the app lands here
+                // first, and the code they tapped was being dropped on the floor — they arrived at
+                // the start screen with no idea they had been invited to anything, which is
+                // precisely the person the invite most needed to work for.
+                startActivity(
+                    Intent(this, MainActivity::class.java).apply {
+                        intent.getStringExtra(MainActivity.EXTRA_JOIN_ROOM)
+                            ?.let { putExtra(MainActivity.EXTRA_JOIN_ROOM, it) }
+                        intent.getStringExtra(MainActivity.EXTRA_JOIN_DUEL)
+                            ?.let { putExtra(MainActivity.EXTRA_JOIN_DUEL, it) }
+                    }
+                )
             }
             finish()
         }

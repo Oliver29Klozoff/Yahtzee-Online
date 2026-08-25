@@ -22,6 +22,9 @@ import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.Duel
+import com.yahtzee.online.net.DuelRepository
+import com.yahtzee.online.ui.duel.DuelActivity
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.SoloGameStore
@@ -40,6 +43,7 @@ class MainActivity : ImmersiveActivity() {
     companion object {
         /** Room code from a followed invite link, joined as soon as this screen opens. */
         const val EXTRA_JOIN_ROOM = "join_room"
+        const val EXTRA_JOIN_DUEL = "join_duel"
 
         /**
          * Process-scoped, so the launch check runs once per cold boot. MainActivity is recreated
@@ -101,6 +105,7 @@ class MainActivity : ImmersiveActivity() {
         }
 
         findViewById<View>(R.id.dailyCard).setOnClickListener { startDailyChallenge() }
+        findViewById<View>(R.id.duelCard).setOnClickListener { startDuel() }
         findViewById<Button>(R.id.scanCodeButton).setOnClickListener { scanRoomCode() }
 
         // Followed an invite link: join straight away rather than making them retype the code
@@ -108,6 +113,10 @@ class MainActivity : ImmersiveActivity() {
         intent.getStringExtra(EXTRA_JOIN_ROOM)?.let { code ->
             intent.removeExtra(EXTRA_JOIN_ROOM)
             joinRoomByCode(code)
+        }
+        intent.getStringExtra(EXTRA_JOIN_DUEL)?.let { code ->
+            intent.removeExtra(EXTRA_JOIN_DUEL)
+            openDuel(code, join = true)
         }
 
         findViewById<Button>(R.id.leaderboardToggle).setOnClickListener {
@@ -161,11 +170,14 @@ class MainActivity : ImmersiveActivity() {
 
         GmsBarcodeScanning.getClient(this, options).startScan()
             .addOnSuccessListener { barcode ->
-                val code = roomCodeFrom(barcode.rawValue)
-                if (code == null) {
-                    Toast.makeText(this, R.string.scan_not_a_room, Toast.LENGTH_LONG).show()
-                } else {
-                    joinRoomByCode(code)
+                // One scan button for both kinds of invite. Nobody looking at a QR code on a
+                // screen knows or cares whether it leads to a room or a duel, and making them
+                // pick the right button first would be asking them to know.
+                val target = inviteFrom(barcode.rawValue)
+                when (target?.first) {
+                    "join" -> joinRoomByCode(target.second)
+                    "duel" -> openDuel(target.second, join = true)
+                    else -> Toast.makeText(this, R.string.scan_not_a_room, Toast.LENGTH_LONG).show()
                 }
             }
             // Cancelling is not a failure and should say nothing; only a scanner that could not
@@ -177,18 +189,21 @@ class MainActivity : ImmersiveActivity() {
     }
 
     /**
-     * The room code inside a scanned invite, or null for any other code.
+     * What a scanned invite points at: "join" or "duel", and the code.
      *
      * Parsed here rather than handed to the system as a link: the app's own scheme is not one a
      * general scanner would open, and this way a code scanned in-app works regardless of what
      * the phone would otherwise do with it.
      */
-    private fun roomCodeFrom(raw: String?): String? {
+    private fun inviteFrom(raw: String?): Pair<String, String>? {
         val value = raw?.trim().orEmpty()
         if (value.isEmpty()) return null
         val uri = runCatching { android.net.Uri.parse(value) }.getOrNull() ?: return null
-        if (uri.scheme != "yahtzee" || uri.host != "join") return null
-        return uri.lastPathSegment?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
+        if (uri.scheme != "yahtzee") return null
+        val host = uri.host ?: return null
+        if (host != "join" && host != "duel") return null
+        val code = uri.lastPathSegment?.trim()?.uppercase()?.takeIf { it.isNotEmpty() } ?: return null
+        return host to code
     }
 
     private fun joinRoomByCode(code: String) {
@@ -239,8 +254,72 @@ class MainActivity : ImmersiveActivity() {
             getString(R.string.greeting, playerName())
 
         renderDailyCard()
+        renderDuelCard()
         renderActiveGames()
         observeLeaderboard()
+    }
+
+    /**
+     * The duel card, plus a line per duel this device is in.
+     *
+     * The rows matter more than they look: a duel is asynchronous by nature — you play your round
+     * and then wait, possibly for a day — so without somewhere to come back to, a duel invited by
+     * someone else would exist only in a message thread the player has to go and find again.
+     */
+    private fun renderDuelCard() {
+        val list = findViewById<LinearLayout>(R.id.duelList)
+        list.removeAllViews()
+
+        val codes = Duel.joined(this)
+        findViewById<TextView>(R.id.duelStatus).setText(
+            if (codes.isEmpty()) R.string.duel_subtitle else R.string.duel_subtitle_active
+        )
+
+        val density = resources.displayMetrics.density
+        codes.take(4).forEach { code ->
+            val played = Duel.hasPlayed(this, code)
+            val row = TextView(this).apply {
+                text = getString(
+                    if (played) R.string.duel_row_played else R.string.duel_row_waiting,
+                    code
+                )
+                textSize = 13f
+                setTextColor(AccentColor.resolve(this@MainActivity))
+                setPadding(0, (6 * density).toInt(), 0, (6 * density).toInt())
+                setOnClickListener { openDuel(code) }
+                // A duel that has run its course, or one the other person never took up, should
+                // not sit on the start screen for ever.
+                setOnLongClickListener {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle(R.string.duel_title)
+                        .setMessage(getString(R.string.duel_remove_confirm, code))
+                        .setPositiveButton(R.string.clear_game) { _, _ ->
+                            Duel.forget(this@MainActivity, code)
+                            renderDuelCard()
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                    true
+                }
+            }
+            list.addView(row)
+        }
+    }
+
+    /** Opens a fresh duel. Joining an existing one arrives by link or scan instead. */
+    private fun startDuel() {
+        DuelRepository(this).createDuel(playerName()) { code ->
+            if (isFinishing || isDestroyed) return@createDuel
+            openDuel(code)
+        }
+    }
+
+    private fun openDuel(code: String, join: Boolean = false) {
+        startActivity(
+            Intent(this, DuelActivity::class.java)
+                .putExtra(DuelActivity.EXTRA_DUEL_CODE, code)
+                .putExtra(DuelActivity.EXTRA_JOIN, join)
+        )
     }
 
     /**

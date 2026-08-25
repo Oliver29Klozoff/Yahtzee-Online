@@ -48,6 +48,9 @@ object RoomCleanup {
     /** A game in progress, which may legitimately be played a turn a day. */
     private const val PLAYING_TTL_MS = 14 * DAY
 
+    /** How long a duel is kept, counted from when it was opened rather than last touched. */
+    private const val DUEL_TTL_MS = 30 * DAY
+
     /** Deleted per sweep, so one launch never turns into a long run of writes. */
     private const val BATCH = 25
 
@@ -67,7 +70,35 @@ object RoomCleanup {
         // every launch for the rest of the day, and tomorrow's sweep picks up whatever was missed.
         prefs.edit().putLong(KEY_LAST_SWEEP, now).apply()
 
-        FirebaseSignIn.awaitReady { sweep() }
+        FirebaseSignIn.awaitReady {
+            sweep()
+            sweepDuels()
+        }
+    }
+
+    /**
+     * The same job for duels, which would otherwise pile up exactly as rooms did.
+     *
+     * Simpler, because a duel has no live state to protect: it is a code, a couple of names and a
+     * couple of numbers. Once it is old enough that nobody is coming back to look at the result,
+     * there is nothing in it worth keeping. The allowance is generous anyway — a duel is played
+     * at each person's own pace and one sent on a Friday may not be answered until Sunday.
+     */
+    private fun sweepDuels() {
+        FirebaseDatabase.getInstance().getReference("duels")
+            .orderByChild("createdAt")
+            .endAt((System.currentTimeMillis() - DUEL_TTL_MS).toDouble())
+            .limitToFirst(BATCH)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                var removed = 0
+                snapshot.children.forEach { duel ->
+                    duel.ref.removeValue()
+                    removed++
+                }
+                if (removed > 0) Log.i(TAG, "Removed $removed expired duel(s)")
+            }
+            .addOnFailureListener { error -> Log.w(TAG, "Duel sweep skipped", error) }
     }
 
     private fun sweep() {

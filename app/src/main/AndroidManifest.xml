@@ -48,8 +48,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="yahtzee" android:host="join" />
+                <!-- Duel challenges arrive the same way, with their own host. -->
+                <data android:scheme="yahtzee" android:host="duel" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".ui.duel.DuelActivity" android:exported="false" />
 
         <activity android:name=".ui.NameActivity" android:exported="false" />
         <activity android:name=".ui.MainActivity" android:exported="false" />

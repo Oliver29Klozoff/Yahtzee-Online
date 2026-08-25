@@ -66,6 +66,48 @@
       }
     },
 
+    "duels": {
+      ".read": "auth != null",
+      ".indexOn": ["createdAt"],
+      "$duelCode": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['createdAt'])",
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "createdBy": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+        },
+        "hostName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+        },
+        "players": {
+          "$profileId": {
+            ".validate": "newData.hasChildren(['name'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "score": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2000 && !data.exists()"
+            },
+            "finishedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
     "games": {
       ".read": "auth != null",
       ".indexOn": ["updatedAt"],

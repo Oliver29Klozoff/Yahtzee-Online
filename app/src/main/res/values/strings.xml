@@ -179,6 +179,29 @@
     <string name="daily_board">Today\'s board</string>
     <string name="daily_board_empty">Nobody has posted a score yet today.</string>
     <string name="share_result">Share result</string>
+
+    <!-- Duels: same dice, one attempt each, highest score wins. -->
+    <string name="duel_title">Duel a friend</string>
+    <string name="duel_subtitle">Same dice for both of you. Only the decisions differ.</string>
+    <string name="duel_subtitle_active">Tap to start another, or pick one below.</string>
+    <string name="duel_row_waiting">Duel %1$s — your round is waiting</string>
+    <string name="duel_row_played">Duel %1$s — you\'ve played</string>
+    <string name="duel_remove_confirm">Remove duel %1$s from this list? The duel itself is not affected.</string>
+    <string name="duel_invite_hint">Have them scan this, or send them the link. Everyone in the duel plays these exact dice.</string>
+    <string name="duel_share">Send challenge</string>
+    <string name="duel_share_text">I\'ve challenged you to a Yahtzee duel — same dice, one go each. Code %1$s: %2$s</string>
+    <string name="duel_standings">Standings</string>
+    <string name="duel_play">Play your round</string>
+    <string name="duel_played">You\'ve played this duel</string>
+    <string name="duel_still_playing">Still to play</string>
+    <string name="duel_nobody_yet">Nobody has played yet.</string>
+    <string name="duel_you">%1$s (you)</string>
+    <string name="duel_you_won">You win with %1$d.</string>
+    <string name="duel_they_won">%1$s wins with %2$d.</string>
+    <string name="duel_draw">A draw — %1$d each. On identical dice, that takes some doing.</string>
+    <string name="duel_not_found">That duel no longer exists.</string>
+    <string name="duel_result_ready">%1$s has finished their round</string>
+    <string name="duel_result_ready_body">Duel %1$s — tap to see how it went.</string>
     <string name="done">Done</string>
     <string name="daily_replaces_game">You have a solo game in progress. Starting today\'s challenge will discard it.</string>
     <string name="daily_start_anyway">Start challenge</string>

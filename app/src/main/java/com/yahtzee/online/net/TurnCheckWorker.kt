@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.yahtzee.online.game.ActiveGamesStore
+import com.yahtzee.online.game.Duel
 import com.yahtzee.online.game.GameState
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.TimeUnit
@@ -80,13 +81,16 @@ class TurnCheckWorker(
         collectInvites(repository)
 
         val tracked = ActiveGamesStore.all(applicationContext)
-        if (tracked.isEmpty()) {
+        val duels = Duel.joined(applicationContext)
+        if (tracked.isEmpty() && duels.isEmpty()) {
             // Nothing left to watch: stand the job down rather than waking every quarter hour to
             // discover the same thing.
             cancel(applicationContext)
             return Result.success()
         }
         if (!TurnNotifier.canNotify(applicationContext)) return Result.success()
+
+        checkDuels(duels)
 
         for (game in tracked) {
             val state = readRoom(repository, game.roomCode) ?: continue
@@ -137,6 +141,37 @@ class TurnCheckWorker(
             TurnNotifier.notifyInvite(applicationContext, code, fromName.ifEmpty { "Someone" })
         }
     }
+
+    /**
+     * Announces duels where somebody else has finished since this last looked.
+     *
+     * Only once this device has played its own round. Before that the player has a duel waiting
+     * for *them*, and telling them their opponent has already gone would be pressure rather than
+     * news — it is also visible on the start screen, where it belongs.
+     */
+    private suspend fun checkDuels(codes: List<String>) {
+        val repository = DuelRepository(applicationContext)
+        codes.forEach { code ->
+            val state = readDuel(repository, code) ?: return@forEach
+
+            val me = state.players.firstOrNull { it.id == repository.localPlayerId }
+            val others = state.players.filterNot { it.id == repository.localPlayerId }
+            val finished = others.count { it.hasPlayed }
+
+            val seen = Duel.seenFinishers(applicationContext, code)
+            if (finished <= seen) return@forEach
+            Duel.markSeenFinishers(applicationContext, code, finished)
+
+            if (me?.hasPlayed != true) return@forEach
+            val newest = others.filter { it.hasPlayed }.maxByOrNull { it.finishedAt } ?: return@forEach
+            TurnNotifier.notifyDuelResult(applicationContext, code, newest.name)
+        }
+    }
+
+    private suspend fun readDuel(repository: DuelRepository, code: String) =
+        suspendCancellableCoroutine { continuation ->
+            repository.readOnce(code) { if (continuation.isActive) continuation.resume(it) }
+        }
 
     private suspend fun awaitSignIn(): Unit =
         suspendCancellableCoroutine { continuation ->

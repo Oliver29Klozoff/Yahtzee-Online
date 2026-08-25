@@ -67,6 +67,45 @@
                     android:paddingTop="3dp" />
             </LinearLayout>
 
+            <!--
+                Sits directly under the daily card because it is the same idea aimed at one
+                person: fixed dice, one attempt, judgement only.
+            -->
+            <LinearLayout
+                android:id="@+id/duelCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/daily_card_background"
+                android:foreground="?attr/selectableItemBackground"
+                android:padding="18dp"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/duel_title"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_dark" />
+
+                <TextView
+                    android:id="@+id/duelStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/duel_subtitle"
+                    android:textSize="13sp"
+                    android:textColor="@color/text_muted"
+                    android:paddingTop="3dp" />
+
+                <LinearLayout
+                    android:id="@+id/duelList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="10dp" />
+            </LinearLayout>
+
             <LinearLayout
                 android:id="@+id/activeGamesSection"
                 android:layout_width="match_parent"

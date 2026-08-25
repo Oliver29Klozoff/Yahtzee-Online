@@ -20,6 +20,9 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.DailyChallenge
+import com.yahtzee.online.game.Duel
+import com.yahtzee.online.net.DuelRepository
+import com.yahtzee.online.ui.duel.DuelActivity
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayerStats
@@ -59,6 +62,13 @@ class SoloGameActivity : ImmersiveActivity() {
          * exactly what is wanted.
          */
         const val EXTRA_DAILY_ID = "daily_id"
+
+        /**
+         * The duel code when this is a round of a duel. A duel round is the same shape as a daily
+         * challenge — alone, one card, dice off a fixed tape — so it runs through this screen too;
+         * the only differences are where the tape's seed comes from and where the score is posted.
+         */
+        const val EXTRA_DUEL_CODE = "duel_code"
         private const val ROLL_SETTLE_DELAY_MS = 1300L
 
         /** How long the finished roll-off is held before play begins. */
@@ -87,6 +97,18 @@ class SoloGameActivity : ImmersiveActivity() {
     /** Non-null when this is a daily challenge, holding the day whose tape is in play. */
     private var dailyId: String? = null
 
+    /** Non-null when this is a round of a duel, holding the code whose tape is in play. */
+    private var duelCode: String? = null
+
+    /**
+     * True when the dice come off a fixed tape rather than being rolled freely.
+     *
+     * A taped game is always solo and always one card — there is nobody else at the table and
+     * every player of it has to face the identical thirteen turns for the comparison to mean
+     * anything.
+     */
+    private val fixedTape: Boolean get() = dailyId != null || duelCode != null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
@@ -99,16 +121,18 @@ class SoloGameActivity : ImmersiveActivity() {
         // A resumed daily keeps its own day, so a game left open overnight finishes against the
         // tape it was started on rather than silently switching to today's dice mid-game.
         dailyId = saved?.dailyId ?: intent.getStringExtra(EXTRA_DAILY_ID)
-        val daily = dailyId != null
+        duelCode = saved?.duelCode ?: intent.getStringExtra(EXTRA_DUEL_CODE)
+        val taped = fixedTape
 
         engine = LocalGameEngine(
             name,
-            if (daily) 0 else saved?.botIds?.size ?: botCount,
+            if (taped) 0 else saved?.botIds?.size ?: botCount,
             DicePreferences.getColor(this),
-            if (daily) 1 else saved?.cardCount ?: cardCount,
+            if (taped) 1 else saved?.cardCount ?: cardCount,
             saved?.botSkill ?: AppSettings.botSkill(this),
             saved,
             dailyId?.let { DailyChallenge.tapeFor(it) }
+                ?: duelCode?.let { Duel.tapeFor(it) }
         )
 
         // Solo games have no turn timer / no timer UI needed.
@@ -439,7 +463,8 @@ class SoloGameActivity : ImmersiveActivity() {
                 cardCount = state.cardCount,
                 botSkill = AppSettings.botSkill(this),
                 state = state,
-                dailyId = dailyId
+                dailyId = dailyId,
+                duelCode = duelCode
             )
         )
     }
@@ -472,10 +497,17 @@ class SoloGameActivity : ImmersiveActivity() {
                 cardCount = state.cardCount,
                 mode = if (day != null) PlayerStats.Mode.DAILY else PlayerStats.Mode.SOLO,
                 // A daily challenge has nobody to beat, so it is never counted as a win — it
-                // would otherwise inflate the win rate with games that had no opponent.
-                won = day == null && state.winnerId == engine.humanPlayerId,
+                // would otherwise inflate the win rate with games that had no opponent. The same
+                // goes for a duel round: the opponent may not have played yet, and whether this
+                // was a win is not knowable here.
+                won = !fixedTape && state.winnerId == engine.humanPlayerId,
                 opponents = state.playerOrder.size - 1
             )
+        }
+
+        duelCode?.let {
+            showDuelResult(it, score)
+            return
         }
 
         if (day != null) {
@@ -527,6 +559,29 @@ class SoloGameActivity : ImmersiveActivity() {
             .setNegativeButton(R.string.done) { _, _ -> finish() }
             .setCancelable(false)
             .show()
+    }
+
+    /**
+     * The duel round is over: post the number and hand the player back to the duel.
+     *
+     * There is deliberately no score shown in a dialog here. The duel screen is where the score
+     * means anything — next to whoever else has played — and stopping to announce it in isolation
+     * first would be announcing half a result.
+     */
+    private fun showDuelResult(duel: String, score: Int) {
+        SoloGameStore.clear(this)
+        DuelRepository(this).submitScore(
+            code = duel,
+            name = PlayerProfile.getName(this).ifEmpty { "Player" },
+            score = score
+        )
+
+        startActivity(
+            Intent(this, DuelActivity::class.java)
+                .putExtra(DuelActivity.EXTRA_DUEL_CODE, duel)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        )
+        finish()
     }
 
     private fun shareDailyResult(day: String, score: Int) {

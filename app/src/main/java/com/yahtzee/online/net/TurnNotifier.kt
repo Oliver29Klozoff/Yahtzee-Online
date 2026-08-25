@@ -112,6 +112,46 @@ object TurnNotifier {
         }
     }
 
+    /**
+     * Someone else in a duel has posted their score.
+     *
+     * A duel is silent by construction — you play your round and then nothing happens, possibly
+     * for a day, because the other person is doing theirs whenever suits them. Without this the
+     * result would only ever be found by opening the app and going to look, which is asking the
+     * player to poll on the app's behalf.
+     *
+     * Opens straight into the duel rather than the start screen: the notification is about one
+     * specific result, and landing anywhere else makes the reader go and find it.
+     */
+    fun notifyDuelResult(context: Context, duelCode: String, fromName: String) {
+        if (!canNotify(context)) return
+        ensureChannel(context)
+
+        val intent = Intent(context, SplashActivity::class.java)
+            .setData(android.net.Uri.parse("yahtzee://duel/$duelCode"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val pending = PendingIntent.getActivity(
+            context,
+            notificationId("duel:$duelCode"),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stats)
+            .setContentTitle(context.getString(R.string.duel_result_ready, fromName))
+            .setContentText(context.getString(R.string.duel_result_ready_body, duelCode))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+
+        runCatching {
+            NotificationManagerCompat.from(context)
+                .notify(notificationId("duel:$duelCode"), notification)
+        }
+    }
+
     fun clear(context: Context, roomCode: String) {
         runCatching {
             NotificationManagerCompat.from(context).cancel(notificationId(roomCode))

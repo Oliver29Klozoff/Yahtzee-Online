@@ -49,6 +49,16 @@ class SplashActivity : ImmersiveActivity() {
             ?.uppercase()
             ?.takeIf { it.isNotEmpty() }
 
+        // yahtzee://duel/ABCDE — the same treatment. Read rather than acted on for the same
+        // reason: someone following a challenge on a fresh install has to be asked their name
+        // before they can be seated at it.
+        val invitedDuel = intent?.data
+            ?.takeIf { it.scheme == "yahtzee" && it.host == "duel" }
+            ?.lastPathSegment
+            ?.trim()
+            ?.uppercase()
+            ?.takeIf { it.isNotEmpty() }
+
         handler.postDelayed({
             // First launch goes to the name page; afterwards the saved name is used and the
             // start screen opens directly.
@@ -60,6 +70,7 @@ class SplashActivity : ImmersiveActivity() {
             startActivity(
                 Intent(this, next).apply {
                     if (invitedRoom != null) putExtra(MainActivity.EXTRA_JOIN_ROOM, invitedRoom)
+                    if (invitedDuel != null) putExtra(MainActivity.EXTRA_JOIN_DUEL, invitedDuel)
                 }
             )
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
