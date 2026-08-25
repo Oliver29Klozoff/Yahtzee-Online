@@ -2,6 +2,7 @@ package com.yahtzee.online.ui.tv
 
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -9,11 +10,13 @@ import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
+import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -84,6 +87,13 @@ class TableActivity : ImmersiveActivity() {
         val image = findViewById<ImageView>(R.id.tableQr)
         val size = (260 * resources.displayMetrics.density).toInt()
         QrCode.render("yahtzee://join/$code", size)?.let { image.setImageBitmap(it) }
+
+        // The same code again, small, for the corner it keeps during play.
+        val small = (88 * resources.displayMetrics.density).toInt()
+        QrCode.render("yahtzee://join/$code", small)?.let {
+            findViewById<ImageView>(R.id.tableQrSmall).setImageBitmap(it)
+        }
+        findViewById<TextView>(R.id.tableRoomCodeSmall).text = code
     }
 
     private fun watchRoom(code: String) {
@@ -97,9 +107,65 @@ class TableActivity : ImmersiveActivity() {
     }
 
     private fun render(state: GameState) {
+        renderPanels(state)
         renderTurn(state)
         renderDice(state)
+        renderHeld(state)
+        renderScorecards(state)
         renderScores(state)
+    }
+
+    /**
+     * Swaps the left panel between joining and playing.
+     *
+     * Before the game the only useful thing a screen can offer is a way in; afterwards it is the
+     * cards. The code survives the swap at a fraction of the size, because a room still open to
+     * latecomers that nobody can find is no use to them.
+     */
+    private fun renderPanels(state: GameState) {
+        val playing = state.status != GameState.STATUS_LOBBY && state.players.isNotEmpty()
+        findViewById<View>(R.id.joinPanel).visibility = if (playing) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.cardPanel).visibility = if (playing) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * The five dice as the current player is holding them.
+     *
+     * The 3D table shows what was rolled but not what is being kept, and keeping is the whole
+     * decision — a table watching someone deliberate has nothing to watch otherwise. Held dice
+     * stand at full strength against dimmed ones, which is the same language the phones use.
+     */
+    private fun renderHeld(state: GameState) {
+        val row = findViewById<LinearLayout>(R.id.tableHeldRow)
+        val label = findViewById<TextView>(R.id.tableHeldLabel)
+        row.removeAllViews()
+
+        val anyHeld = state.held.any { it }
+        val showing = state.status == GameState.STATUS_PLAYING && state.rollsUsed > 0
+        label.visibility = if (showing && anyHeld) View.VISIBLE else View.GONE
+        if (!showing) return
+
+        val colour = state.players[state.currentPlayerId]?.diceColor?.takeIf { it != 0 }
+            ?: DieTextureAtlas.DEFAULT_COLOR
+        val dark = DicePreferences.pipStyle(this).darkFor(colour)
+        val density = resources.displayMetrics.density
+        val size = (56 * density).toInt()
+
+        state.dice.forEachIndexed { index, value ->
+            val held = state.held.getOrElse(index) { false }
+            row.addView(
+                ImageView(this).apply {
+                    setImageBitmap(DieTextureAtlas.face(colour, value, dark))
+                    // Dimming rather than hiding: the roll is still five dice, and which ones
+                    // are going back in matters as much as which are staying.
+                    alpha = if (held) 1f else 0.28f
+                    layoutParams = LinearLayout.LayoutParams(size, size).also {
+                        it.marginEnd = (8 * density).toInt()
+                    }
+                }
+            )
+        }
+        label.setText(R.string.tv_keeping)
     }
 
     private fun renderTurn(state: GameState) {
@@ -156,9 +222,108 @@ class TableActivity : ImmersiveActivity() {
         dice.rollTo(state.dice, state.held, state.seatAngle(viewer, state.currentPlayerId))
     }
 
+    /**
+     * Everyone's card as one grid: categories down the side, a column per player.
+     *
+     * Laid out as a printed scorecard rather than one card per player, because the interesting
+     * thing at a table is the comparison — who still has Yahtzee open, who has burned their
+     * sixes — and that is only readable when the same row can be run across.
+     *
+     * Card zero only. A television room is dealt a single card, since several cards each is a
+     * format for people looking closely at their own sheet rather than for a shared screen.
+     */
+    private fun renderScorecards(state: GameState) {
+        val grid = findViewById<LinearLayout>(R.id.scorecardGrid)
+        grid.removeAllViews()
+        if (state.players.isEmpty()) return
+
+        val players = state.playerOrder.mapNotNull { state.players[it] }
+        if (players.isEmpty()) return
+
+        grid.addView(
+            gridRow(
+                label = "",
+                cells = players.map { it.name.take(6) },
+                header = true,
+                highlight = players.map { it.id == state.currentPlayerId }
+            )
+        )
+
+        Category.values().forEach { category ->
+            grid.addView(
+                gridRow(
+                    label = category.label,
+                    cells = players.map { player ->
+                        player.scoresForCard(0)[category]?.toString() ?: "–"
+                    },
+                    highlight = players.map { it.id == state.currentPlayerId }
+                )
+            )
+        }
+
+        grid.addView(
+            gridRow(
+                label = getString(R.string.tv_total),
+                cells = players.map { it.grandTotalAllCards(state.cardCount).toString() },
+                header = true,
+                highlight = players.map { it.id == state.currentPlayerId }
+            )
+        )
+    }
+
+    private fun gridRow(
+        label: String,
+        cells: List<String>,
+        header: Boolean = false,
+        highlight: List<Boolean> = emptyList()
+    ): LinearLayout {
+        val density = resources.displayMetrics.density
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, (3 * density).toInt(), 0, (3 * density).toInt())
+        }
+
+        row.addView(TextView(this).apply {
+            text = label
+            textSize = if (header) 15f else 14f
+            maxLines = 1
+            setTextColor(resources.getColor(R.color.text_muted, theme))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.5f)
+        })
+
+        cells.forEachIndexed { index, value ->
+            row.addView(TextView(this).apply {
+                text = value
+                textSize = if (header) 15f else 14f
+                maxLines = 1
+                gravity = Gravity.CENTER
+                if (header) setTypeface(typeface, android.graphics.Typeface.BOLD)
+                // The player whose turn it is has their whole column lifted, so a glance finds
+                // the card being filled in without hunting for a marker.
+                setTextColor(
+                    when {
+                        highlight.getOrElse(index) { false } ->
+                            resources.getColor(R.color.text_dark, theme)
+                        value == "–" -> resources.getColor(R.color.category_filled_text, theme)
+                        else -> resources.getColor(R.color.text_muted, theme)
+                    }
+                )
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+        }
+        return row
+    }
+
     private fun renderScores(state: GameState) {
         val list = findViewById<LinearLayout>(R.id.tableScores)
         list.removeAllViews()
+
+        // Only while waiting. Once the cards are up they carry the names and the totals already,
+        // and saying it twice on one screen wastes the room the dice want.
+        val inLobby = state.status == GameState.STATUS_LOBBY
+        list.visibility = if (inLobby) View.VISIBLE else View.GONE
+        if (!inLobby) return
+
         val density = resources.displayMetrics.density
 
         state.playerOrder.mapNotNull { state.players[it] }.forEach { player ->
