@@ -78,8 +78,9 @@ object RoomCleanup {
         // which of the longer cutoffs actually applies is decided per room below.
         //
         // Rooms written before this version have no `updatedAt` at all. Firebase sorts a missing
-        // key ahead of every number, so they arrive first — which is right: they predate the
-        // heartbeat, so they are the oldest things here by definition.
+        // key ahead of every number, so they arrive first — which is convenient, since they are
+        // the ones needing a decision. Their age comes from [derivedStamp] rather than from the
+        // absent key.
         games.orderByChild("updatedAt")
             .endAt((System.currentTimeMillis() - LOBBY_TTL_MS).toDouble())
             .limitToFirst(BATCH)
@@ -87,23 +88,61 @@ object RoomCleanup {
             .addOnSuccessListener { snapshot ->
                 val now = System.currentTimeMillis()
                 var removed = 0
+                var stamped = 0
                 snapshot.children.forEach { room ->
                     val status = room.child("status").getValue(String::class.java)
                         ?: GameState.STATUS_LOBBY
-                    // No heartbeat means it was created before rooms had one, so treat it as
-                    // ancient rather than as brand new — the opposite reading would make every
-                    // legacy room immortal, which is the problem being fixed.
-                    val updatedAt = room.child("updatedAt").getValue(Long::class.java) ?: 0L
-                    if (now - updatedAt < ttlFor(status)) return@forEach
-                    room.ref.removeValue()
-                    removed++
+                    val heartbeat = room.child("updatedAt").getValue(Long::class.java)
+                    val age = now - (heartbeat ?: derivedStamp(room))
+
+                    if (age >= ttlFor(status)) {
+                        room.ref.removeValue()
+                        removed++
+                        return@forEach
+                    }
+
+                    // Survived, but has no heartbeat of its own — so give it the one derived
+                    // above. Two reasons, and both are load-bearing:
+                    //
+                    // Firebase sorts a missing key ahead of every number, so a room with no
+                    // `updatedAt` is permanently at the front of this query. Leaving one in place
+                    // means tomorrow's sweep is handed the same batch, and the sweep never reaches
+                    // anything behind it. Writing the stamp moves it into the ordered range.
+                    //
+                    // It also stops the room being re-judged from scratch every day: the value
+                    // written is what was worked out here, so the decision is made once.
+                    if (heartbeat == null) {
+                        room.ref.child("updatedAt").setValue(now - age)
+                        stamped++
+                    }
                 }
-                if (removed > 0) Log.i(TAG, "Removed $removed stale room(s)")
+                if (removed > 0 || stamped > 0) {
+                    Log.i(TAG, "Removed $removed stale room(s), stamped $stamped")
+                }
             }
             .addOnFailureListener { error ->
                 Log.w(TAG, "Sweep skipped", error)
             }
     }
+
+    /**
+     * The best age available for a room predating the heartbeat.
+     *
+     * Reading a missing heartbeat as zero — as this first did — dates every such room to 1970 and
+     * deletes it on sight. That is fine for the ninety-odd abandoned rooms already sitting in the
+     * database, and catastrophic for the one that happens to be a game somebody is in the middle
+     * of: it would be swept away underneath them before they ever took the turn that would have
+     * stamped it.
+     *
+     * Every player carries the time they sat down, so the most recent of those is a real lower
+     * bound on when the room was last plausibly in use. Only a room with no heartbeat and no
+     * seated player at all falls through to zero, and that one really is debris.
+     */
+    private fun derivedStamp(room: com.google.firebase.database.DataSnapshot): Long =
+        room.child("players").children
+            .mapNotNull { it.child("joinedAt").getValue(Long::class.java) }
+            .maxOrNull()
+            ?: 0L
 
     private fun ttlFor(status: String): Long = when (status) {
         GameState.STATUS_FINISHED -> FINISHED_TTL_MS
