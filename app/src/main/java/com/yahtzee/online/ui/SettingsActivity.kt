@@ -52,6 +52,9 @@ class SettingsActivity : ImmersiveActivity() {
     private companion object {
         /** Below this an accent used as text on a black page stops being readable. */
         const val MIN_ACCENT_BRIGHTNESS = 35
+
+        /** A die can be black; its slider cannot be, or the control vanishes into the page. */
+        const val MIN_SLIDER_BRIGHTNESS = 0.5f
     }
 
     /** Set once the logo control is built, so the picker result can refresh it. */
@@ -298,6 +301,7 @@ class SettingsActivity : ImmersiveActivity() {
         saturation.setOnSeekBarChangeListener(listener)
         brightness.setOnSeekBarChangeListener(listener)
         syncSlidersTo(selectedColor)
+        tintDiceSliders(selectedColor)
     }
 
     private fun syncSlidersTo(color: Int) {
@@ -328,8 +332,35 @@ class SettingsActivity : ImmersiveActivity() {
         selectedColor = color
         DicePreferences.setColor(this, color)
         dicePreview.setDiceColor(color)
+        tintDiceSliders(color)
         if (reroll) dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
         renderSwatches()
+    }
+
+    /**
+     * Paints the dice sliders in the dice colour, so the control shows what it is making.
+     *
+     * Every slider in the app is otherwise the app accent, which is right for the accent's own
+     * sliders and wrong for these: dragging a hue while the track stays a fixed blue gives
+     * nothing to aim with, when the whole point is the colour being chosen.
+     *
+     * The track takes a lifted version rather than the colour itself. A die may legitimately be
+     * black, and a slider drawn in black on a black page is a control nobody can find.
+     */
+    private fun tintDiceSliders(color: Int) {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(color, hsv)
+        val visible = Color.HSVToColor(
+            floatArrayOf(hsv[0], hsv[1], maxOf(hsv[2], MIN_SLIDER_BRIGHTNESS))
+        )
+        val tint = android.content.res.ColorStateList.valueOf(visible)
+
+        listOf(R.id.hueSlider, R.id.saturationSlider, R.id.brightnessSlider).forEach { id ->
+            findViewById<SeekBar>(id).apply {
+                progressTintList = tint
+                thumbTintList = tint
+            }
+        }
     }
 
     /** Simple on/off button, since a Switch would need a Material theme this app does not use. */
@@ -514,6 +545,9 @@ class SettingsActivity : ImmersiveActivity() {
         AccentColor.setColor(this, color)
         AccentColor.retint(findViewById(android.R.id.content), shownAccent, color)
         shownAccent = color
+        // That repaint reaches every slider on the page, including the dice ones, so their own
+        // colour goes back on afterwards.
+        tintDiceSliders(selectedColor)
     }
 
     /**
