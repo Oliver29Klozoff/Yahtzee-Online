@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    A FrameLayout only so the reaction popup can float. Everything else is the column inside it.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/background">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -94,16 +101,6 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:layout_marginBottom="6dp"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/reactionPopup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:textSize="15sp"
-        android:textColor="@color/text_dark"
-        android:layout_marginBottom="4dp"
         android:visibility="gone" />
 
     <LinearLayout
@@ -204,3 +201,33 @@
     </LinearLayout>
 
 </LinearLayout>
+
+    <!--
+        Floats over the table rather than sitting in the column. In the column it was a row that
+        appeared and vanished, shoving the hold row, the roll button and the whole scorecard down
+        and back for two and a half seconds — long enough that a reaction arriving while you were
+        aiming at a category could move the box out from under your thumb.
+
+        Not clickable, so it never eats a tap meant for the dice underneath.
+    -->
+    <TextView
+        android:id="@+id/reactionPopup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="150dp"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFFFF"
+        android:background="@drawable/reaction_popup_background"
+        android:elevation="8dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
+</FrameLayout>

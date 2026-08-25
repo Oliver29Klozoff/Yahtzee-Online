@@ -1,10 +1,10 @@
 {
   "rules": {
     "leaderboard": {
-      ".read": true,
+      ".read": "auth != null",
       ".indexOn": ["bestScore"],
       "$profileId": {
-        ".write": true,
+        ".write": "auth != null",
         ".validate": "newData.hasChildren(['name', 'bestScore'])",
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
@@ -23,10 +23,10 @@
 
     "dailyBoard": {
       "$dayId": {
-        ".read": true,
+        ".read": "auth != null",
         ".indexOn": ["bestScore"],
         "$profileId": {
-          ".write": "!data.exists()",
+          ".write": "auth != null && !data.exists()",
           ".validate": "newData.hasChildren(['name', 'bestScore'])",
           "name": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
@@ -46,8 +46,8 @@
 
     "invites": {
       "$profileId": {
-        ".read": true,
-        ".write": true,
+        ".read": "auth != null",
+        ".write": "auth != null",
         "$roomCode": {
           ".validate": "newData.hasChildren(['fromName', 'fromId'])",
           "fromName": {
@@ -67,9 +67,11 @@
     },
 
     "games": {
+      ".read": "auth != null",
+      ".indexOn": ["updatedAt"],
       "$roomCode": {
-        ".read": true,
-        ".write": true,
+        ".read": "auth != null",
+        ".write": "auth != null",
         ".validate": "newData.hasChildren(['roomCode', 'hostId', 'status'])",
 
         "roomCode": {
@@ -77,6 +79,9 @@
         },
         "status": {
           ".validate": "newData.isString() && (newData.val() === 'LOBBY' || newData.val() === 'ROLL_OFF' || newData.val() === 'PLAYING' || newData.val() === 'FINISHED')"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
         },
         "openingRolls": {
           "$playerId": {

@@ -10,6 +10,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
+import com.yahtzee.online.net.FirebaseSignIn
 
 /**
  * Base for every screen in the app: hides the system status bar (where notification icons/
@@ -107,6 +108,16 @@ abstract class ImmersiveActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // Another go at signing in, on every screen the player lands on.
+        //
+        // The attempt made at process start can legitimately fail: launch the app while the phone
+        // is dozing and it has no working DNS, so the sign-in fails and — since nothing else ever
+        // asked again — the process would spend the rest of its life with no session and a
+        // database that refuses it. Retrying whenever a screen comes to the front costs nothing
+        // (it returns immediately once there is a session) and means the app repairs itself the
+        // moment somebody is actually looking at it.
+        FirebaseSignIn.start()
 
         // Screens behind the one that changed the accent are already built, and coming back to
         // them only resumes them — nothing re-inflates, so they keep wearing the old colour until

@@ -28,6 +28,7 @@ import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardEntry
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.RoomCleanup
 import com.yahtzee.online.net.TurnCheckWorker
 import com.yahtzee.online.net.TurnNotifier
 import com.yahtzee.online.ui.bot.SoloGameActivity
@@ -73,6 +74,10 @@ class MainActivity : ImmersiveActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Housekeeping for a database with no server behind it: every client that reaches the
+        // start screen takes a turn at clearing out dead rooms, at most once a day.
+        RoomCleanup.maybeSweep(this)
 
         val roomCodeInput = findViewById<EditText>(R.id.roomCodeInput)
         val createButton = findViewById<Button>(R.id.createRoomButton)

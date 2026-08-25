@@ -128,7 +128,7 @@ class GameActivity : ImmersiveActivity() {
             if (state == null) return@listenToRoom
             lastState = state
             lastReactionAt = Reactions.render(
-                findViewById(R.id.reactionPopup), state, playerId, lastReactionAt
+                findViewById(R.id.reactionPopup), state, lastReactionAt
             )
             render(state)
             if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The chip a reaction floats in.
+
+    Deliberately its own dark translucent pill rather than a theme colour: the popup sits over the
+    felt, which is a different colour on every table, and over dice the player chose the colour of.
+    A fixed dark ground with light text is the one combination that stays readable across all of
+    them, and being see-through keeps it from hiding the roll underneath.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#D9101418" />
+    <corners android:radius="22dp" />
+</shape>

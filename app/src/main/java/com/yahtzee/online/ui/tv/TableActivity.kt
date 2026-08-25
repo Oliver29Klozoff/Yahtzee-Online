@@ -50,6 +50,9 @@ class TableActivity : ImmersiveActivity() {
     private var roomCode: String = ""
     private var listener: ValueEventListener? = null
 
+    /** Kept only so [onDestroy] can tell an empty room from one with a game going on in it. */
+    private var lastState: GameState? = null
+
     /** Last dice shown, so a roll is animated once rather than on every unrelated update. */
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = -1
@@ -101,6 +104,7 @@ class TableActivity : ImmersiveActivity() {
     private fun watchRoom(code: String) {
         listener = repository.listenToRoom(code) { state ->
             if (state == null) return@listenToRoom
+            lastState = state
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 render(state)
@@ -365,5 +369,21 @@ class TableActivity : ImmersiveActivity() {
     override fun onDestroy() {
         super.onDestroy()
         listener?.let { repository.stopListening(roomCode, it) }
+
+        // The television opens a brand new room every single time it is switched on, and the vast
+        // majority of them are never scanned into — someone opens the app on the TV, looks at it,
+        // and backs out. Those are rubbish the instant the screen closes, so it takes them with
+        // it instead of leaving a trail for the daily sweep to find hours later.
+        //
+        // Strictly guarded: only a lobby, only with nobody seated. A room with players in it
+        // belongs to their phones now, and switching the TV off must never end their game.
+        val state = lastState
+        if (roomCode.isNotEmpty() &&
+            state != null &&
+            state.status == GameState.STATUS_LOBBY &&
+            state.players.isEmpty()
+        ) {
+            repository.deleteRoom(roomCode)
+        }
     }
 }

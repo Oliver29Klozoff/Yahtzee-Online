@@ -39,6 +39,19 @@ class GameRepository(private val context: android.content.Context) {
 
     private fun roomRef(code: String) = db.getReference("games").child(code)
 
+    /**
+     * Stamps a room as still being used, which is the only thing [RoomCleanup] has to go on.
+     *
+     * Not called on every write — that would be a second round trip per die roll for no gain.
+     * It marks the points at which a room's life demonstrably continues: someone opened it,
+     * someone sat down, someone finished a turn. A game people are actually playing is stamped
+     * at least once a turn; one that was abandoned stops being stamped the moment it was
+     * abandoned, which is exactly when the clock on it should start.
+     */
+    private fun touch(code: String) {
+        roomRef(code).child("updatedAt").setValue(System.currentTimeMillis())
+    }
+
     fun createRoom(
         hostName: String,
         diceColor: Int,
@@ -63,7 +76,10 @@ class GameRepository(private val context: android.content.Context) {
             cardCount = cardCount,
             turnSeconds = turnSeconds
         )
-        ref.setValue(state.toMap()).addOnSuccessListener { onResult(code) }
+        ref.setValue(state.toMap()).addOnSuccessListener {
+            touch(code)
+            onResult(code)
+        }
     }
 
     /**
@@ -88,7 +104,10 @@ class GameRepository(private val context: android.content.Context) {
             // turn it is, and nobody is waiting on a phone that fell asleep in a pocket.
             turnSeconds = 0
         )
-        roomRef(code).setValue(state.toMap()).addOnSuccessListener { onResult(code) }
+        roomRef(code).setValue(state.toMap()).addOnSuccessListener {
+            touch(code)
+            onResult(code)
+        }
     }
 
     fun joinRoom(code: String, playerName: String, diceColor: Int, onResult: (Boolean) -> Unit) {
@@ -131,6 +150,7 @@ class GameRepository(private val context: android.content.Context) {
                     order.add(localPlayerId)
                     ref.child("playerOrder").setValue(order)
                 }
+                touch(code)
                 onResult(true)
             }
         }.addOnFailureListener { onResult(false) }
@@ -382,6 +402,8 @@ class GameRepository(private val context: android.content.Context) {
 
         val nextIndex = (state.currentTurnIndex + 1) % state.playerOrder.size
         ref.child("currentTurnIndex").setValue(nextIndex)
+        // A completed turn is the clearest possible sign the room is alive.
+        touch(code)
         // Leave `dice` as whatever they last showed (per-player preference) — only reset
         // held/rollsUsed so the next player starts a fresh turn, but the dice visually stay
         // put until someone actually rolls again.

@@ -65,6 +65,13 @@ class TurnCheckWorker(
     }
 
     override suspend fun doWork(): Result {
+        // Everything below reads or writes, and the database no longer answers to callers without
+        // a session. Usually one is already restored from disk and this returns at once; the case
+        // worth handling is the run where this job is what started the process, and the sign-in
+        // fired from the Application has not landed yet. Retrying beats reporting no turns.
+        awaitSignIn()
+        if (!FirebaseSignIn.isReady) return Result.retry()
+
         val repository = GameRepository(applicationContext)
         val myId = repository.localPlayerId
 
@@ -130,6 +137,11 @@ class TurnCheckWorker(
             TurnNotifier.notifyInvite(applicationContext, code, fromName.ifEmpty { "Someone" })
         }
     }
+
+    private suspend fun awaitSignIn(): Unit =
+        suspendCancellableCoroutine { continuation ->
+            FirebaseSignIn.awaitReady { if (continuation.isActive) continuation.resume(Unit) }
+        }
 
     private suspend fun readRoom(repository: GameRepository, code: String): GameState? =
         suspendCancellableCoroutine { continuation ->
