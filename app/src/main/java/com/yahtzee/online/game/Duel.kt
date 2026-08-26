@@ -33,6 +33,17 @@ object Duel {
     private const val KEY_JOINED = "joined"
     private const val KEY_SEEN = "seenFinishers"
 
+    /**
+     * The seat the solver plays from.
+     *
+     * A fixed id rather than a generated one so it is the same seat in every duel, and so a duel
+     * can never end up with two of them: a second "add the expert" writes over the first rather
+     * than seating a rival clone.
+     */
+    const val EXPERT_ID = "expert"
+
+    fun isExpert(playerId: String): Boolean = playerId == EXPERT_ID
+
     fun generateCode(): String =
         (1..CODE_LENGTH).map { ALPHABET[Random.nextInt(ALPHABET.length)] }.joinToString("")
 

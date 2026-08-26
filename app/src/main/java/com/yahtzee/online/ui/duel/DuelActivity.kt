@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.bot.ExpertRun
 import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.Duel
 import com.yahtzee.online.game.DuelState
@@ -40,12 +41,18 @@ class DuelActivity : ImmersiveActivity() {
 
         /** Set when arriving from a link or a scan, so the seat is taken on the way in. */
         const val EXTRA_JOIN = "duel_join"
+
+        /** Set by a rematch, so the new code is offered for sending without another tap. */
+        const val EXTRA_SHARE_ON_OPEN = "duel_share_on_open"
     }
 
     private lateinit var repository: DuelRepository
     private var code: String = ""
     private var listener: ValueEventListener? = null
     private var lastState: DuelState? = null
+
+    /** Guards the solver against being asked twice while it is still working. */
+    private var computingExpert = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,8 +73,15 @@ class DuelActivity : ImmersiveActivity() {
         findViewById<ImageButton>(R.id.backButton).setOnClickListener { finish() }
         findViewById<Button>(R.id.shareDuelButton).setOnClickListener { shareDuel() }
         findViewById<Button>(R.id.playDuelButton).setOnClickListener { play() }
+        findViewById<Button>(R.id.addExpertButton).setOnClickListener { addExpert() }
+        findViewById<Button>(R.id.rematchButton).setOnClickListener { rematch() }
 
         renderInvite()
+
+        if (intent.getBooleanExtra(EXTRA_SHARE_ON_OPEN, false)) {
+            intent.removeExtra(EXTRA_SHARE_ON_OPEN)
+            shareDuel()
+        }
 
         if (intent.getBooleanExtra(EXTRA_JOIN, false)) {
             intent.removeExtra(EXTRA_JOIN)
@@ -119,6 +133,57 @@ class DuelActivity : ImmersiveActivity() {
         playButton.isEnabled = !played
         playButton.alpha = if (played) 0.5f else 1f
         playButton.setText(if (played) R.string.duel_played else R.string.duel_play)
+
+        // Only offered while it would still mean something, and only once.
+        val hasExpert = state.players.any { Duel.isExpert(it.id) }
+        findViewById<Button>(R.id.addExpertButton).visibility =
+            if (hasExpert || computingExpert) View.GONE else View.VISIBLE
+
+        // A rematch only makes sense once this one has actually finished.
+        findViewById<Button>(R.id.rematchButton).visibility =
+            if (state.isSettled) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Puts the solver in the duel, on the same dice.
+     *
+     * Run off the main thread: a perfect game is twenty-six exhaustive hold searches, and while
+     * that is fast it is not free, and it is not something to make the interface wait on.
+     */
+    private fun addExpert() {
+        if (computingExpert) return
+        computingExpert = true
+        findViewById<Button>(R.id.addExpertButton).visibility = View.GONE
+        Toast.makeText(this, R.string.duel_expert_thinking, Toast.LENGTH_SHORT).show()
+
+        Thread {
+            val result = ExpertRun.play(Duel.tapeFor(code))
+            runOnUiThread {
+                computingExpert = false
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                repository.addExpert(code, getString(R.string.duel_expert_name), result.score)
+            }
+        }.start()
+    }
+
+    /**
+     * Opens a fresh duel with the same people in it, then offers the link straight away.
+     *
+     * The share sheet is not a nicety here — it is the only way the others learn the new code.
+     * Nothing in this app can put a duel on somebody else's phone uninvited, so a rematch that
+     * did not immediately hand over a link would be a duel nobody could join.
+     */
+    private fun rematch() {
+        val previous = lastState ?: return
+        repository.createRematch(previous, playerName()) { fresh ->
+            if (isFinishing || isDestroyed) return@createRematch
+            startActivity(
+                Intent(this, DuelActivity::class.java)
+                    .putExtra(EXTRA_DUEL_CODE, fresh)
+                    .putExtra(EXTRA_SHARE_ON_OPEN, true)
+            )
+            finish()
+        }
     }
 
     private fun renderPlayers(state: DuelState) {

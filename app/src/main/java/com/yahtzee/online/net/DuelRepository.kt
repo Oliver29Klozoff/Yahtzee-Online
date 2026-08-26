@@ -94,6 +94,68 @@ class DuelRepository(private val context: Context) {
         )
     }
 
+    /**
+     * Seats the solver with the score it made of this duel's dice.
+     *
+     * Written by whichever device asked for it, because the answer does not depend on the device:
+     * the tape comes from the duel code and the strategy is deterministic, so every phone that
+     * runs it arrives at the same number. That also means it cannot be argued with — a player who
+     * suspects the expert of an easy ride can recompute it and get the identical result.
+     *
+     * Asking a second time is refused by the same write-once rule that stops a player replaying
+     * their own round — the seat already holds a score, and the rules will not overwrite one. That
+     * is the desired outcome rather than a limitation, since a re-run on the same tape would
+     * produce the identical number anyway; the button is hidden once the seat is taken so it never
+     * comes up.
+     */
+    fun addExpert(code: String, expertName: String, score: Int) {
+        duelRef(code).child("players").child(Duel.EXPERT_ID).setValue(
+            mapOf(
+                "name" to expertName,
+                "joinedAt" to System.currentTimeMillis(),
+                "score" to score,
+                "finishedAt" to System.currentTimeMillis()
+            )
+        )
+    }
+
+    /**
+     * Opens a fresh duel carrying the same people across.
+     *
+     * The names are seated up front so the new duel reads as a rematch rather than as an empty
+     * room — you can see who you are waiting on before anybody has played. They still have to be
+     * sent the link: nothing here can reach into someone else's phone and put a duel on their
+     * start screen, so the share sheet follows immediately.
+     *
+     * The solver is deliberately not carried over. Its score belongs to the old tape, and copying
+     * it forward would post a number for dice it never saw.
+     */
+    fun createRematch(previous: DuelState, hostName: String, onResult: (String) -> Unit) {
+        val code = Duel.generateCode()
+        val now = System.currentTimeMillis()
+
+        val seats = previous.players
+            .filterNot { Duel.isExpert(it.id) }
+            .associate { player ->
+                val name = if (player.id == localPlayerId) hostName else player.name
+                player.id to mapOf("name" to name, "joinedAt" to now)
+            }
+            .toMutableMap()
+        seats[localPlayerId] = mapOf("name" to hostName, "joinedAt" to now)
+
+        duelRef(code).setValue(
+            mapOf(
+                "createdAt" to now,
+                "createdBy" to localPlayerId,
+                "hostName" to hostName,
+                "players" to seats
+            )
+        ).addOnSuccessListener {
+            Duel.remember(context, code)
+            onResult(code)
+        }
+    }
+
     fun listen(code: String, onUpdate: (DuelState?) -> Unit): ValueEventListener {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) = onUpdate(snapshot.toDuelState(code))

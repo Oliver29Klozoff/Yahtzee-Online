@@ -200,6 +200,10 @@
     <string name="duel_they_won">%1$s wins with %2$d.</string>
     <string name="duel_draw">A draw — %1$d each. On identical dice, that takes some doing.</string>
     <string name="duel_not_found">That duel no longer exists.</string>
+    <string name="duel_add_expert">Add the expert</string>
+    <string name="duel_expert_name">The Expert</string>
+    <string name="duel_expert_thinking">Playing the expert\'s round…</string>
+    <string name="duel_rematch">Rematch</string>
     <string name="duel_result_ready">%1$s has finished their round</string>
     <string name="duel_result_ready_body">Duel %1$s — tap to see how it went.</string>
     <string name="done">Done</string>
