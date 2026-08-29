@@ -15,6 +15,7 @@ import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.hasScoredYahtzee
 import com.yahtzee.online.game.scoresForCard
+import com.yahtzee.online.game.TurnOrder
 import java.util.UUID
 import kotlin.random.Random
 
@@ -169,7 +170,7 @@ class LocalGameEngine(
         } else {
             val first = winners.first()
             state.copy(
-                playerOrder = listOf(first) + state.playerOrder.filterNot { it == first },
+                playerOrder = TurnOrder.startingWith(state.playerOrder, first),
                 currentTurnIndex = 0,
                 status = GameState.STATUS_PLAYING,
                 openingRolls = emptyMap(),

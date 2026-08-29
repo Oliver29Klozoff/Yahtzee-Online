@@ -19,6 +19,7 @@ import com.yahtzee.online.game.hasScoredYahtzee
 import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.TurnOrder
 import kotlin.random.Random
 
 class GameRepository(private val context: android.content.Context) {
@@ -324,7 +325,9 @@ class GameRepository(private val context: android.content.Context) {
         }
 
         val firstPlayerId = winners.first()
-        val reordered = listOf(firstPlayerId) + state.playerOrder.filter { it != firstPlayerId }
+        // Play starts at the winner and carries on around the table from there — nobody changes
+        // seats just because someone else won the toss.
+        val reordered = TurnOrder.startingWith(state.playerOrder, firstPlayerId)
         ref.child("playerOrder").setValue(reordered)
         ref.child("currentTurnIndex").setValue(0)
         ref.child("status").setValue(GameState.STATUS_PLAYING)
