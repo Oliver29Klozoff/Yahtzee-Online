@@ -28,6 +28,10 @@ class Dice3DView @JvmOverloads constructor(
     private var heldFlags: List<Boolean> = List(5) { false }
     private var motionScale: Float = 1f
 
+    /** Whether the throw in flight has already been reported as landed. */
+    private var settleReported = true
+    private val settleWatchdog = Runnable { forceSettle() }
+
     init {
         setEGLContextClientVersion(2)
         populate(DEFAULT_DIE_COUNT)
@@ -38,6 +42,12 @@ class Dice3DView @JvmOverloads constructor(
         )
         setRenderer(renderer)
         renderMode = RENDERMODE_CONTINUOUSLY
+    }
+
+    override fun onDetachedFromWindow() {
+        // The watchdog outlives the view otherwise, and fires into a dead screen.
+        mainHandler.removeCallbacks(settleWatchdog)
+        super.onDetachedFromWindow()
     }
 
     private fun populate(count: Int) {
@@ -177,6 +187,12 @@ class Dice3DView @JvmOverloads constructor(
         heldFlags = held
         val random = Random.Default
 
+        // This throw is now outstanding, and something is going to report it landed — the physics
+        // if it settles, the watchdog if it does not.
+        settleReported = false
+        mainHandler.removeCallbacks(settleWatchdog)
+        mainHandler.postDelayed(settleWatchdog, SETTLE_TIMEOUT_MS)
+
         // A throw the player made overrides where their seat is: the dice should leave the hand
         // that threw them. Consumed here so it applies to exactly one roll — the next roll, from
         // a button or from a bot, goes back to the seat.
@@ -246,11 +262,45 @@ class Dice3DView @JvmOverloads constructor(
 
     private fun notifySettled() {
         mainHandler.post {
+            // At most one report per throw. Without this the watchdog and a late genuine settle
+            // could both fire, and the screen would be told the same roll landed twice.
+            if (settleReported) return@post
+            settleReported = true
+            mainHandler.removeCallbacks(settleWatchdog)
             onSettledCallback?.invoke(pendingTargets)
         }
     }
 
+    /**
+     * Ends the throw by hand when the simulation has not managed it in a reasonable time.
+     *
+     * The screen will not show the keep/reroll tiles until it hears that the roll has landed, so
+     * a throw that never settles does not merely look wrong — it takes the game away from the
+     * player, with nothing to do but leave and come back. Whatever the dice are doing, after
+     * [SETTLE_TIMEOUT_MS] they are put on their target faces and declared down.
+     *
+     * This is a backstop and not the mechanism: it is not expected to fire, and if it starts
+     * firing routinely something in the physics needs looking at rather than the timeout raising.
+     * But the cost of it existing is nothing, and the cost of its absence was a stuck game.
+     */
+    private fun forceSettle() {
+        world.dice.forEachIndexed { i, die ->
+            die.snapToUpright(pendingTargets.getOrElse(i) { 1 })
+            die.velocity = Vec3.ZERO
+            die.atRest = true
+        }
+        notifySettled()
+    }
+
     private companion object {
+        /**
+         * How long a throw is given to come to rest before it is settled by force.
+         *
+         * A full-motion throw lands in well under two seconds, and the motion setting only ever
+         * shortens that, so this cannot cut a legitimate roll short.
+         */
+        const val SETTLE_TIMEOUT_MS = 5_000L
+
         const val DEFAULT_DIE_COUNT = 5
 
         /** Below this a fling is a stray swipe rather than a throw. */

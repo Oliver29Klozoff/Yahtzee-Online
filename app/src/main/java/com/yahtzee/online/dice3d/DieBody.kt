@@ -20,6 +20,13 @@ class DieBody(
         const val HALF_SIZE = 0.5f
         const val COLLIDE_RADIUS = 0.62f
         const val MASS = 1f
+
+        /** Below this speed, and [REST_SPIN], a die is a candidate for going to sleep. */
+        const val REST_SPEED = 0.05f
+        const val REST_SPIN = 0.15f
+
+        /** How long it has to stay that quiet before it is actually asleep. */
+        const val REST_SECONDS = 0.35f
     }
 
     fun throwWith(direction: Vec3, speed: Float, spin: Float, random: Random = Random.Default) {
@@ -185,19 +192,25 @@ class DieBody(
         angularVelocity = Vec3.ZERO
     }
 
+    /** Puts the die back to work and makes it earn its rest again from scratch. */
+    fun wake() {
+        atRest = false
+        restTimer = 0f
+    }
+
     fun markRestIfSettled(dt: Float): Boolean {
         if (isRigged()) {
             restTimer = 0f
             atRest = false
             return false
         }
-        val slow = velocity.length() < 0.05f && angularVelocity.length() < 0.15f
+        val slow = velocity.length() < REST_SPEED && angularVelocity.length() < REST_SPIN
         if (slow) {
             restTimer += dt
         } else {
             restTimer = 0f
         }
-        atRest = restTimer > 0.35f
+        atRest = restTimer > REST_SECONDS
         return atRest
     }
 }
