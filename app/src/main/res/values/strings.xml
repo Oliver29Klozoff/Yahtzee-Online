@@ -207,7 +207,7 @@
     <string name="score_taken">%1$s\n%2$s took %3$s</string>
 
     <string name="off_the_rip_emoji">🎯</string>
-    <string name="off_the_rip">%1$s Off the rip! %2$d</string>
+    <string name="off_the_rip">%1$s\nOff the rip! %2$d</string>
 
     <!-- Duels: same dice, one attempt each, highest score wins. -->
     <string name="duel_title">Duel a friend</string>

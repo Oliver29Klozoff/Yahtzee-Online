@@ -55,6 +55,14 @@ object OffTheRip {
         EmojiPop.show(popup, label(context, category, points), SHOW_MILLIS)
     }
 
+    /**
+     * The dart on its own line with the words beneath it.
+     *
+     * Side by side, the sentence sets the line height and the emoji can only grow so far before
+     * the row looks broken — the same reason a reaction stacks its name under the emoji rather
+     * than beside it. Stacked, the dart is the thing you see and the words are what you read if
+     * you care to.
+     */
     private fun label(context: Context, category: Category, points: Int): CharSequence {
         val emoji = context.getString(R.string.off_the_rip_emoji)
         val text = context.getString(R.string.off_the_rip, emoji, points)
