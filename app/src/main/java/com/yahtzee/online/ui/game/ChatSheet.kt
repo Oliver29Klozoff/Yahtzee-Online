@@ -15,6 +15,7 @@ import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.Chat
 import com.yahtzee.online.game.ChatMessage
+import com.yahtzee.online.ui.ColorContrast
 
 /**
  * Talking to the other people in the room.
@@ -47,6 +48,16 @@ class ChatSheet(private val activity: Activity) {
         listView = sheet.findViewById(R.id.chatList)
         emptyView = sheet.findViewById(R.id.chatEmpty)
         scroll = sheet.findViewById(R.id.chatScroll)
+
+        // Coloured here rather than left to the layout.
+        //
+        // A bottom sheet is not styled by the activity's theme, and the accent walk that repaints
+        // tagged views never reaches inside a dialog — so the send button took the sheet theme's
+        // own default text colour, which is the same blue the button is tinted with. It rendered
+        // as a blank blue rectangle: the label was there, correct, and completely invisible.
+        val accent = AccentColor.resolve(activity)
+        send?.backgroundTintList = android.content.res.ColorStateList.valueOf(accent)
+        send?.setTextColor(ColorContrast.textOn(accent))
 
         val submit = {
             val text = input?.text?.toString().orEmpty()
