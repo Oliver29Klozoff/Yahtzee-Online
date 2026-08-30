@@ -45,6 +45,8 @@ import com.yahtzee.online.ui.game.ScoreConfirm
 import com.yahtzee.online.ui.game.ScorecardTabs
 import com.yahtzee.online.ui.game.YahtzeeBanner
 import com.yahtzee.online.ui.game.activeDiceColorOf
+import com.yahtzee.online.ui.game.GameLayout
+import com.yahtzee.online.ui.game.OffTheRip
 import com.yahtzee.online.ui.game.styleHoldChip
 
 class SoloGameActivity : ImmersiveActivity() {
@@ -140,6 +142,8 @@ class SoloGameActivity : ImmersiveActivity() {
         findViewById<View>(R.id.turnTimerBar).visibility = View.GONE
 
         dice3DView = findViewById(R.id.dice3DView)
+        GameLayout.fitTableToFontScale(dice3DView)
+        dice3DView.setPipStyle(DicePreferences.pipStyle(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
         dice3DView.setTableLogo(TableLogoStore.mode(this))
         dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)
@@ -168,7 +172,14 @@ class SoloGameActivity : ImmersiveActivity() {
             if (engine.state.currentPlayerId == engine.humanPlayerId) {
                 GameReview.record(this, engine.state, engine.humanPlayerId, card, category)
             }
+            // Read before the write, which resets the dice and the roll count.
+            val offTheRip = engine.state.currentPlayerId == engine.humanPlayerId &&
+                OffTheRip.qualifies(engine.state.rollsUsed, category, engine.state.dice)
+            val ripPoints = Scoring.score(category, engine.state.dice)
             engine.submitScore(category, card)
+            if (offTheRip) {
+                OffTheRip.show(this, findViewById(R.id.reactionPopup), category, ripPoints)
+            }
             if (earnedBonus) announceYahtzeeBonus()
         }
         findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter

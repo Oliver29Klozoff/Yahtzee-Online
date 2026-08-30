@@ -93,6 +93,8 @@ class GameActivity : ImmersiveActivity() {
         applyDisplaySettings()
 
         dice3DView = findViewById(R.id.dice3DView)
+        GameLayout.fitTableToFontScale(dice3DView)
+        dice3DView.setPipStyle(DicePreferences.pipStyle(this))
         dice3DView.setTableColor(AppSettings.tableColor(this))
         dice3DView.setTableLogo(TableLogoStore.mode(this))
         dice3DView.setMotionScale(AppSettings.diceMotion(this).durationScale)
@@ -342,7 +344,13 @@ class GameActivity : ImmersiveActivity() {
         GameReview.record(this, state, playerId, card, category)
         val earnedBonus = state.yahtzeeStateFor(playerId) == YahtzeeState.BONUS &&
             category != Category.YAHTZEE
+        // Checked before the write, which clears the dice and the roll count out from under it.
+        val offTheRip = OffTheRip.qualifies(state.rollsUsed, category, state.dice)
+        val ripPoints = Scoring.score(category, state.dice)
         repository.submitScore(roomCode, state, category, playerId, card)
+        if (offTheRip) {
+            OffTheRip.show(this, findViewById(R.id.reactionPopup), category, ripPoints)
+        }
         if (earnedBonus) {
             sound.play(SoundEngine.Sound.WIN)
             Toast.makeText(this, R.string.yahtzee_bonus_awarded, Toast.LENGTH_LONG).show()

@@ -49,6 +49,20 @@ class DiceRenderer(
             }
         }
 
+    /**
+     * How pips are coloured. Resolved against the current dice colour at upload time rather
+     * than stored as a boolean, so Auto follows the colour as it changes from player to player
+     * without the caller having to recompute it.
+     */
+    @Volatile
+    var pipStyle: DicePreferences.PipStyle = DicePreferences.PipStyle.AUTO
+        set(value) {
+            if (field != value) {
+                field = value
+                textureDirty = true
+            }
+        }
+
     @Volatile
     private var textureDirty = false
 
@@ -174,7 +188,7 @@ class DiceRenderer(
     }
 
     private fun uploadAtlas() {
-        val bitmap = DieTextureAtlas.build(diceColor)
+        val bitmap = DieTextureAtlas.build(diceColor, pipStyle.darkFor(diceColor))
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         bitmap.recycle()

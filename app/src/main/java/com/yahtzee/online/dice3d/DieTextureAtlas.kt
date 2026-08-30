@@ -9,7 +9,6 @@ import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import kotlin.math.min
-import androidx.core.graphics.ColorUtils
 
 /**
  * Builds the die face texture: a 3x2 atlas (one 512px cell per face value 1..6), used by
@@ -51,18 +50,9 @@ object DieTextureAtlas {
         6 to listOf(0.28f to 0.22f, 0.72f to 0.22f, 0.28f to 0.5f, 0.72f to 0.5f, 0.28f to 0.78f, 0.72f to 0.78f)
     )
 
-    /**
-     * Whether a die of [color] takes dark pips.
-     *
-     * Decided from the die rather than chosen, because no single choice suits every colour on a
-     * table: white pips vanish into a pale green or amber die while black pips disappear into a
-     * navy one, and bot colours are spread right around the wheel. The threshold sits above the
-     * midpoint because a mid-tone die still reads better with light pips against a dark table.
-     */
-    private fun darkPipsFor(color: Int): Boolean = ColorUtils.calculateLuminance(color) > 0.42
-
     fun build(
         baseColor: Int = DEFAULT_COLOR,
+        darkPips: Boolean = true,
         cellSize: Int = CubeMesh.CELL_PX
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(
@@ -77,7 +67,7 @@ object DieTextureAtlas {
             val cell = value - 1
             val left = (cell % CubeMesh.ATLAS_COLS) * cellSize
             val top = (cell / CubeMesh.ATLAS_COLS) * cellSize
-            drawFace(canvas, left, top, cellSize, value, palette, darkPipsFor(baseColor))
+            drawFace(canvas, left, top, cellSize, value, palette, darkPips)
         }
         return bitmap
     }
@@ -87,9 +77,9 @@ object DieTextureAtlas {
      * for instance. Uses the same drawing as the atlas, so a die shown in a list matches the
      * ones on the table, in whatever colour that player chose.
      */
-    fun face(baseColor: Int, value: Int, cellSize: Int = 128): Bitmap {
+    fun face(baseColor: Int, value: Int, darkPips: Boolean = true, cellSize: Int = 128): Bitmap {
         val bitmap = Bitmap.createBitmap(cellSize, cellSize, Bitmap.Config.ARGB_8888)
-        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPipsFor(baseColor))
+        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPips)
         return bitmap
     }
 

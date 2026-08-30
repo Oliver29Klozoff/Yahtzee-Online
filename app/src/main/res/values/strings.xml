@@ -28,6 +28,9 @@
     <string name="check_for_updates">Check for Updates</string>
     <string name="dice_color">Dice Colour</string>
     <string name="custom_colour">Custom colour — hue, vividness, brightness</string>
+    <string name="pip_style">Pips</string>
+    <string name="pips_dark">Dark</string>
+    <string name="pips_light">White</string>
     <string name="choose_turn_length">How long is each turn?</string>
     <string name="turn_seconds">%1$d seconds</string>
     <string name="turn_minutes">%1$d minute</string>
@@ -179,6 +182,10 @@
     <string name="daily_board">Today\'s board</string>
     <string name="daily_board_empty">Nobody has posted a score yet today.</string>
     <string name="share_result">Share result</string>
+
+    <!-- Scored straight off the opening roll, no rerolls spent. -->
+    <string name="off_the_rip_emoji">🎯</string>
+    <string name="off_the_rip">%1$s Off the rip! %2$d</string>
 
     <!-- Duels: same dice, one attempt each, highest score wins. -->
     <string name="duel_title">Duel a friend</string>

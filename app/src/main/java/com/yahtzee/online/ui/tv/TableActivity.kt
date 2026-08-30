@@ -62,6 +62,7 @@ class TableActivity : ImmersiveActivity() {
         setContentView(R.layout.activity_table)
 
         dice = findViewById(R.id.tableDice)
+        dice.setPipStyle(DicePreferences.pipStyle(this))
         dice.setTableColor(AppSettings.tableColor(this))
         // Plain felt on a television, whatever the phones are set to. Artwork printed on the
         // table reads as a picture of dice sitting behind the real ones at this size, and the
@@ -153,6 +154,7 @@ class TableActivity : ImmersiveActivity() {
 
         val colour = state.players[state.currentPlayerId]?.diceColor?.takeIf { it != 0 }
             ?: DieTextureAtlas.DEFAULT_COLOR
+        val dark = DicePreferences.pipStyle(this).darkFor(colour)
         val density = resources.displayMetrics.density
         val size = (56 * density).toInt()
 
@@ -160,7 +162,7 @@ class TableActivity : ImmersiveActivity() {
             val held = state.held.getOrElse(index) { false }
             row.addView(
                 ImageView(this).apply {
-                    setImageBitmap(DieTextureAtlas.face(colour, value))
+                    setImageBitmap(DieTextureAtlas.face(colour, value, dark))
                     // Dimming rather than hiding: the roll is still five dice, and which ones
                     // are going back in matters as much as which are staying.
                     alpha = if (held) 1f else 0.28f
