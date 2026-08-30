@@ -7,6 +7,8 @@ import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.bot.BotStrategy
 import com.yahtzee.online.bot.ExpertStrategy
 import com.yahtzee.online.game.Category
+import com.yahtzee.online.game.Chat
+import com.yahtzee.online.game.ChatMessage
 import com.yahtzee.online.game.DiceRoller
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.GameState
@@ -265,6 +267,48 @@ class GameRepository(private val context: android.content.Context) {
         roomRef(code).child("reactions").child(localPlayerId).setValue(
             mapOf("emoji" to emoji, "at" to System.currentTimeMillis())
         )
+    }
+
+    /**
+     * Says something in the room.
+     *
+     * Appended under a generated key rather than written to a slot, because a message is a record
+     * — the person it is for is very often not looking at their phone when it arrives, which in a
+     * game played a turn a day is the normal case rather than the exception.
+     *
+     * The oldest are pruned once the room passes [Chat.MAX_MESSAGES]. The whole room is re-read on
+     * every roll, every held die and every score, so an unbounded history would have a long game
+     * re-downloading all of it many times a turn. Pruning is done by whoever is sending, since
+     * they are already writing.
+     */
+    fun sendChat(code: String, text: String) {
+        val message = Chat.clean(text) ?: return
+        if (code.isEmpty()) return
+
+        val chatRef = roomRef(code).child("chat")
+        val key = chatRef.push().key ?: return
+        chatRef.child(key).setValue(
+            mapOf(
+                "senderId" to localPlayerId,
+                "senderName" to PlayerProfile.getName(context).ifEmpty { "Player" },
+                "text" to message,
+                "at" to System.currentTimeMillis()
+            )
+        ).addOnSuccessListener { pruneChat(code) }
+    }
+
+    private fun pruneChat(code: String) {
+        val chatRef = roomRef(code).child("chat")
+        chatRef.get().addOnSuccessListener { snapshot ->
+            val entries = snapshot.children.mapNotNull { entry ->
+                val id = entry.key ?: return@mapNotNull null
+                id to (entry.child("at").getValue(Long::class.java) ?: 0L)
+            }
+            if (entries.size <= Chat.MAX_MESSAGES) return@addOnSuccessListener
+            entries.sortedBy { it.second }
+                .take(entries.size - Chat.MAX_MESSAGES)
+                .forEach { (id, _) -> chatRef.child(id).removeValue() }
+        }
     }
 
     /** Clears one invite once it has been acted on, so it is not announced twice. */
@@ -603,10 +647,24 @@ private fun DataSnapshot.toGameState(): GameState? {
     }.toMap()
     val cardCount = child("cardCount").getValue(Int::class.java) ?: 1
     val turnSeconds = child("turnSeconds").getValue(Int::class.java) ?: 30
+    // Sorted here rather than trusted: Firebase orders children by key, and the push ids these
+    // use do sort chronologically, but the reading is not worth leaving to a property of the
+    // key format when the timestamp is right there.
+    val chat = child("chat").children.mapNotNull { entry ->
+        val id = entry.key ?: return@mapNotNull null
+        val text = entry.child("text").getValue(String::class.java) ?: return@mapNotNull null
+        ChatMessage(
+            id = id,
+            senderId = entry.child("senderId").getValue(String::class.java).orEmpty(),
+            senderName = entry.child("senderName").getValue(String::class.java).orEmpty(),
+            text = text,
+            at = entry.child("at").getValue(Long::class.java) ?: 0L
+        )
+    }.sortedBy { it.at }
 
     return GameState(
         roomCode, hostId, status, playerOrder, players,
         currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline,
-        openingRolls, openingRollTied, cardCount, turnSeconds, reactions
+        openingRolls, openingRollTied, cardCount, turnSeconds, reactions, chat
     )
 }

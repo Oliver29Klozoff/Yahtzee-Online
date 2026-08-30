@@ -160,6 +160,26 @@
         "rollsUsed": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
         },
+        "chat": {
+          "$messageId": {
+            ".validate": "newData.hasChildren(['senderId', 'text'])",
+            "senderId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+            },
+            "senderName": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+            },
+            "text": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 140"
+            },
+            "at": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
         "reactions": {
           "$playerId": {
             ".validate": "newData.hasChildren(['emoji'])",

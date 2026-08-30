@@ -66,6 +66,16 @@ class GameActivity : ImmersiveActivity() {
     /** Newest reaction already shown, so an unrelated room update does not replay it. */
     private var lastReactionAt = -1L
 
+    private val chatSheet by lazy { ChatSheet(this) }
+
+    /**
+     * When this screen last showed the chat. Messages after it are unread.
+     *
+     * Starts at the current time rather than at zero: opening a game you have been playing for
+     * days should not greet you with a badge counting every word ever said in it.
+     */
+    private var chatSeenAt = System.currentTimeMillis()
+
     /** True while the dice are mid-throw, so the values are not revealed before they land. */
     private var diceRolling = false
     private lateinit var dice3DView: Dice3DView
@@ -120,11 +130,12 @@ class GameActivity : ImmersiveActivity() {
         findViewById<Button>(R.id.rollButton).setOnClickListener { rollIfAllowed() }
         dice3DView.setOnThrowListener { rollIfAllowed() }
 
-        // Reactions only exist where there is somebody to react to.
-        findViewById<View>(R.id.reactionRow).visibility = View.VISIBLE
+        // Reactions and chat only exist where there is somebody on the other end.
+        findViewById<View>(R.id.socialRow).visibility = View.VISIBLE
         Reactions.buildRow(this, findViewById(R.id.reactionRow)) { emoji ->
             repository.sendReaction(roomCode, emoji)
         }
+        findViewById<Button>(R.id.chatButton).setOnClickListener { openChat() }
 
         listener = repository.listenToRoom(roomCode) { state ->
             if (state == null) return@listenToRoom
@@ -132,6 +143,7 @@ class GameActivity : ImmersiveActivity() {
             lastReactionAt = Reactions.render(
                 findViewById(R.id.reactionPopup), state, lastReactionAt
             )
+            renderChat(state)
             render(state)
             if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
                 gameOverShown = true
@@ -294,6 +306,28 @@ class GameActivity : ImmersiveActivity() {
             isMyTurn = myTurn,
             suppress = diceRolling
         )
+    }
+
+    /**
+     * Keeps the chat button and any open sheet in step with the room.
+     *
+     * Your own messages never count as unread — you were there when they were sent, and a badge
+     * that goes up when you speak is just wrong.
+     */
+    private fun renderChat(state: GameState) {
+        chatSheet.update(state.chat, playerId)
+        if (chatSheet.isShowing) chatSeenAt = System.currentTimeMillis()
+
+        val unread = state.chat.count { it.at > chatSeenAt && it.senderId != playerId }
+        findViewById<Button>(R.id.chatButton).text =
+            if (unread > 0) getString(R.string.chat_unread, unread) else getString(R.string.chat_open)
+    }
+
+    private fun openChat() {
+        val state = lastState ?: return
+        chatSeenAt = System.currentTimeMillis()
+        chatSheet.show(state.chat, playerId) { text -> repository.sendChat(roomCode, text) }
+        findViewById<Button>(R.id.chatButton).setText(R.string.chat_open)
     }
 
     private fun renderHoldRow(state: GameState, myTurn: Boolean) {

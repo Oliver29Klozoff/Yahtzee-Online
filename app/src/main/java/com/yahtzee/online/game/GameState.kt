@@ -45,7 +45,17 @@ data class GameState(
      * a reaction is a moment rather than a record, and the timestamp is what lets the same emoji
      * twice read as two reactions instead of one.
      */
-    val reactions: Map<String, Pair<String, Long>> = emptyMap()
+    val reactions: Map<String, Pair<String, Long>> = emptyMap(),
+
+    /**
+     * What has been said in the room, oldest first.
+     *
+     * Unlike a reaction, a message is a record: it is read after the fact by whoever was not
+     * looking at their phone when it arrived, which in a game played a turn a day is everybody.
+     * So these accumulate rather than being one slot per player — bounded, because the room is
+     * re-read whole on every roll.
+     */
+    val chat: List<ChatMessage> = emptyList()
 ) {
     companion object {
         const val STATUS_LOBBY = "LOBBY"

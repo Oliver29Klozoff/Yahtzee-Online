@@ -93,15 +93,40 @@
         android:background="@drawable/yahtzee_banner_background"
         android:visibility="gone" />
 
-    <!-- Reactions. Online only: there is nobody to react to in a solo game. -->
+    <!-- Reactions and chat. Online only: there is nobody to talk to in a solo game. -->
     <LinearLayout
-        android:id="@+id/reactionRow"
+        android:id="@+id/socialRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:layout_marginBottom="6dp"
-        android:visibility="gone" />
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/reactionRow"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/chatButton"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:textSize="12sp"
+            android:text="@string/chat_open"
+            android:tag="accentText"
+            android:textColor="?attr/colorPrimary" />
+
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/holdRow"

@@ -184,6 +184,14 @@
     <string name="share_result">Share result</string>
 
     <!-- Scored straight off the opening roll, no rerolls spent. -->
+    <!-- Room chat -->
+    <string name="chat_title">Room chat</string>
+    <string name="chat_hint">Say something…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_empty">Nothing said yet. Whoever goes first, goes first.</string>
+    <string name="chat_open">Chat</string>
+    <string name="chat_unread">Chat · %1$d new</string>
+
     <string name="off_the_rip_emoji">🎯</string>
     <string name="off_the_rip">%1$s Off the rip! %2$d</string>
 
