@@ -1,5 +1,18 @@
 package com.yahtzee.online.game
 
+/**
+ * Somebody being asked to get on with their turn.
+ *
+ * A game played a turn at a time depends entirely on people remembering to take theirs, and
+ * "your turn" notifications only fire when the background check happens to run. This is the
+ * direct approach: whoever is waiting says so.
+ */
+data class Nudge(
+    val byName: String,
+    val toPlayerId: String,
+    val at: Long
+)
+
 /** One line said in a room. */
 data class ChatMessage(
     val id: String,

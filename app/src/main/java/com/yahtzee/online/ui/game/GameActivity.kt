@@ -47,6 +47,9 @@ class GameActivity : ImmersiveActivity() {
 
         /** Gap between automatic actions, long enough for the dice to finish landing. */
         private const val AUTO_ACTION_INTERVAL_MS = 1500L
+
+        /** How long before the same player can be nudged again from this device. */
+        private const val NUDGE_COOLDOWN_MS = 60_000L
     }
 
     private val repository by lazy { GameRepository(this) }
@@ -75,6 +78,11 @@ class GameActivity : ImmersiveActivity() {
      * days should not greet you with a badge counting every word ever said in it.
      */
     private var chatSeenAt = System.currentTimeMillis()
+
+    /** Throttles outgoing nudges, and tracks the newest one aimed at this device. */
+    private var lastNudgeSentAt = 0L
+    private var lastNudgeSeenAt = 0L
+    private var nudgeAdopted = false
 
     /** True while the dice are mid-throw, so the values are not revealed before they land. */
     private var diceRolling = false
@@ -140,6 +148,7 @@ class GameActivity : ImmersiveActivity() {
             repository.sendReaction(roomCode, emoji)
         }
         findViewById<Button>(R.id.chatButton).setOnClickListener { openChat() }
+        findViewById<Button>(R.id.nudgeButton).setOnClickListener { sendNudge() }
 
         listener = repository.listenToRoom(roomCode) { state ->
             if (state == null) return@listenToRoom
@@ -154,6 +163,8 @@ class GameActivity : ImmersiveActivity() {
                 findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt
             )
             renderChat(state)
+            renderNudge(state)
+            renderIncomingNudge(state)
             render(state)
             if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
                 gameOverShown = true
@@ -336,8 +347,73 @@ class GameActivity : ImmersiveActivity() {
     private fun openChat() {
         val state = lastState ?: return
         chatSeenAt = System.currentTimeMillis()
-        chatSheet.show(state.chat, playerId) { text -> repository.sendChat(roomCode, text) }
+        chatSheet.show(
+            state.chat,
+            playerId,
+            onSend = { text -> repository.sendChat(roomCode, text) },
+            onDelete = { message -> repository.deleteChat(roomCode, message) }
+        )
         findViewById<Button>(R.id.chatButton).setText(R.string.chat_open)
+    }
+
+    /**
+     * Offers the nudge only while the room is genuinely waiting on somebody else.
+     *
+     * Not during the roll-off, not once the game is over, and never on your own turn — the answer
+     * to "why is nothing happening" there is you.
+     */
+    private fun renderNudge(state: GameState) {
+        val current = state.currentPlayerId
+        val waiting = state.status == GameState.STATUS_PLAYING &&
+            current != null &&
+            current != playerId
+        findViewById<Button>(R.id.nudgeButton).visibility =
+            if (waiting) View.VISIBLE else View.GONE
+    }
+
+    private fun sendNudge() {
+        val state = lastState ?: return
+        val target = state.currentPlayerId ?: return
+        if (target == playerId) return
+
+        // A prod that can be sent twenty times in ten seconds is not a prod, it is a hammer on
+        // somebody's notification shade. One a minute is plenty to make the point.
+        val now = System.currentTimeMillis()
+        if (now - lastNudgeSentAt < NUDGE_COOLDOWN_MS) {
+            Toast.makeText(this, R.string.nudge_wait, Toast.LENGTH_SHORT).show()
+            return
+        }
+        lastNudgeSentAt = now
+
+        repository.sendNudge(roomCode, target)
+        val name = state.players[target]?.name.orEmpty()
+        Toast.makeText(this, getString(R.string.nudge_sent, name), Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * Reacts to a nudge aimed at this device.
+     *
+     * Announced on screen rather than as a notification, because to see this the app is already
+     * open in front of the player — a notification would be telling somebody something they are
+     * currently looking at. The background check raises the notification for the other case.
+     */
+    private fun renderIncomingNudge(state: GameState) {
+        val nudge = state.nudge ?: return
+        if (nudge.toPlayerId != playerId) return
+        if (nudge.at <= lastNudgeSeenAt) return
+        lastNudgeSeenAt = nudge.at
+
+        // Nothing on the first sight of a room: an old nudge still sitting in it is not news.
+        if (!nudgeAdopted) {
+            nudgeAdopted = true
+            return
+        }
+        sound.play(SoundEngine.Sound.SCORE)
+        Toast.makeText(
+            this,
+            getString(R.string.nudge_toast, nudge.byName.ifEmpty { "Someone" }),
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     private fun renderHoldRow(state: GameState, myTurn: Boolean) {

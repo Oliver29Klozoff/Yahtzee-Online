@@ -10,6 +10,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.AppCompatTextView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.yahtzee.online.R
@@ -39,8 +40,18 @@ class ChatSheet(private val activity: Activity) {
 
     /** The newest message this sheet has drawn, so an update only redraws when there is news. */
     private var lastDrawnAt = Long.MIN_VALUE
+    private var lastDrawnCount = -1
 
-    fun show(messages: List<ChatMessage>, localPlayerId: String, onSend: (String) -> Unit) {
+    /** Kept so a redraw can rewire the long-press without the caller passing it again. */
+    private var onDelete: ((ChatMessage) -> Unit)? = null
+
+    fun show(
+        messages: List<ChatMessage>,
+        localPlayerId: String,
+        onSend: (String) -> Unit,
+        onDelete: (ChatMessage) -> Unit
+    ) {
+        this.onDelete = onDelete
         val sheet = BottomSheetDialog(activity)
         sheet.setContentView(R.layout.dialog_chat)
 
@@ -104,13 +115,26 @@ class ChatSheet(private val activity: Activity) {
     fun update(messages: List<ChatMessage>, localPlayerId: String) {
         if (!isShowing) return
         val newest = messages.maxOfOrNull { it.at } ?: Long.MIN_VALUE
-        if (newest == lastDrawnAt) return
+        // The count matters as much as the timestamp. Deleting anything other than the most
+        // recent message leaves the newest exactly where it was, so a guard on the timestamp
+        // alone would decide there was nothing to redraw and leave the deleted line on screen.
+        if (newest == lastDrawnAt && messages.size == lastDrawnCount) return
         render(messages, localPlayerId)
+    }
+
+    private fun confirmDelete(message: ChatMessage) {
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.chat_delete_title)
+            .setMessage(activity.getString(R.string.chat_delete_message, message.text))
+            .setPositiveButton(R.string.delete) { _, _ -> onDelete?.invoke(message) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun render(messages: List<ChatMessage>, localPlayerId: String) {
         val list = listView ?: return
         lastDrawnAt = messages.maxOfOrNull { it.at } ?: Long.MIN_VALUE
+        lastDrawnCount = messages.size
 
         emptyView?.visibility = if (messages.isEmpty()) View.VISIBLE else View.GONE
         list.removeAllViews()
@@ -147,6 +171,16 @@ class ChatSheet(private val activity: Activity) {
                     gravity = if (mine) Gravity.END else Gravity.START
                 }
             )
+
+            // Hold your own message to take it back. Only your own: deleting somebody else's
+            // words is a different thing entirely, and not one a dice game needs.
+            if (mine) {
+                block.isLongClickable = true
+                block.setOnLongClickListener {
+                    confirmDelete(message)
+                    true
+                }
+            }
             list.addView(block)
         }
 

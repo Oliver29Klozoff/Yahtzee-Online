@@ -31,6 +31,7 @@ class TurnCheckWorker(
 
     companion object {
         private const val WORK_NAME = "turn_check"
+        private const val NUDGE_PREFS = "nudges_seen"
 
         /**
          * Fifteen minutes is the floor the platform allows for periodic work; asking for less
@@ -104,6 +105,20 @@ class TurnCheckWorker(
             }
 
             if (state.status != GameState.STATUS_PLAYING) continue
+
+            // A nudge is somebody actually waiting, so it is announced even if the ordinary
+            // your-turn notification for this turn has already been sent and dismissed.
+            state.nudge?.let { nudge ->
+                if (nudge.toPlayerId == myId && nudge.at > lastNudgeSeen(game.roomCode)) {
+                    markNudgeSeen(game.roomCode, nudge.at)
+                    TurnNotifier.notifyNudge(
+                        applicationContext,
+                        game.roomCode,
+                        nudge.byName.ifEmpty { "Someone" }
+                    )
+                }
+            }
+
             if (state.currentPlayerId != myId) continue
 
             // Identifies this turn specifically, so the same turn is announced once however many
@@ -172,6 +187,22 @@ class TurnCheckWorker(
         suspendCancellableCoroutine { continuation ->
             repository.readOnce(code) { if (continuation.isActive) continuation.resume(it) }
         }
+
+    /**
+     * When this device last announced a nudge for a room.
+     *
+     * Its own preference rather than a field on the tracked game: a nudge is answered by taking
+     * the turn, not by the turn changing, so it does not fit the turn-key the rest of this job
+     * dedupes on.
+     */
+    private fun lastNudgeSeen(roomCode: String): Long =
+        applicationContext.getSharedPreferences(NUDGE_PREFS, Context.MODE_PRIVATE)
+            .getLong(roomCode, 0L)
+
+    private fun markNudgeSeen(roomCode: String, at: Long) {
+        applicationContext.getSharedPreferences(NUDGE_PREFS, Context.MODE_PRIVATE)
+            .edit().putLong(roomCode, at).apply()
+    }
 
     private suspend fun awaitSignIn(): Unit =
         suspendCancellableCoroutine { continuation ->

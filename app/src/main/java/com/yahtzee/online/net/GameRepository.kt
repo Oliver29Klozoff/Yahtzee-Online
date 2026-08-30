@@ -11,6 +11,7 @@ import com.yahtzee.online.game.Chat
 import com.yahtzee.online.game.ChatMessage
 import com.yahtzee.online.game.DiceRoller
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
+import com.yahtzee.online.game.Nudge
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.Player
 import com.yahtzee.online.game.ScoreKey
@@ -295,6 +296,36 @@ class GameRepository(private val context: android.content.Context) {
                 "at" to System.currentTimeMillis()
             )
         ).addOnSuccessListener { pruneChat(code) }
+    }
+
+    /**
+     * Prods whoever the room is waiting on.
+     *
+     * Only ever aimed at the current player, and never at yourself — a button that lets you
+     * hurry yourself along is just a button that does nothing.
+     */
+    fun sendNudge(code: String, toPlayerId: String) {
+        if (code.isEmpty() || toPlayerId.isEmpty() || toPlayerId == localPlayerId) return
+        roomRef(code).child("nudge").setValue(
+            mapOf(
+                "byName" to PlayerProfile.getName(context).ifEmpty { "Someone" },
+                "toPlayerId" to toPlayerId,
+                "at" to System.currentTimeMillis()
+            )
+        )
+    }
+
+    /**
+     * Takes back something you said.
+     *
+     * Guarded on the sender here, and only here: the rules cannot tell one player from another
+     * within a room, since identity is the local profile id rather than the auth uid. So this is
+     * a courtesy for the person who mistyped, not a protection against someone determined — which
+     * is the same footing as everything else in a room anyone with the code can walk into.
+     */
+    fun deleteChat(code: String, message: ChatMessage) {
+        if (message.senderId != localPlayerId) return
+        roomRef(code).child("chat").child(message.id).removeValue()
     }
 
     private fun pruneChat(code: String) {
@@ -662,9 +693,18 @@ private fun DataSnapshot.toGameState(): GameState? {
         )
     }.sortedBy { it.at }
 
+    val nudge = child("nudge").takeIf { it.exists() }?.let { entry ->
+        val to = entry.child("toPlayerId").getValue(String::class.java)
+        if (to.isNullOrEmpty()) null else Nudge(
+            byName = entry.child("byName").getValue(String::class.java).orEmpty(),
+            toPlayerId = to,
+            at = entry.child("at").getValue(Long::class.java) ?: 0L
+        )
+    }
+
     return GameState(
         roomCode, hostId, status, playerOrder, players,
         currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline,
-        openingRolls, openingRollTied, cardCount, turnSeconds, reactions, chat
+        openingRolls, openingRollTied, cardCount, turnSeconds, reactions, chat, nudge
     )
 }

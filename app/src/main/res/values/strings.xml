@@ -190,6 +190,16 @@
     <string name="chat_send">Send</string>
     <string name="chat_empty">Nothing said yet. Whoever goes first, goes first.</string>
     <string name="chat_open">Chat</string>
+    <string name="chat_delete_title">Delete message</string>
+    <string name="chat_delete_message">Remove “%1$s” for everyone?</string>
+
+    <!-- Nudging whoever the room is waiting on. -->
+    <string name="nudge">Nudge</string>
+    <string name="nudge_sent">Nudged %1$s.</string>
+    <string name="nudge_wait">Give them a moment before nudging again.</string>
+    <string name="nudge_received">%1$s is waiting on you</string>
+    <string name="nudge_received_body">It\'s your turn in room %1$s.</string>
+    <string name="nudge_toast">%1$s is waiting on your turn.</string>
     <string name="chat_unread">Chat · %1$d new</string>
 
     <!-- What the player before you did with their roll. -->

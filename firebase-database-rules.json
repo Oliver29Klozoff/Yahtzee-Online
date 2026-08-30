@@ -160,6 +160,21 @@
         "rollsUsed": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
         },
+        "nudge": {
+          ".validate": "newData.hasChildren(['toPlayerId', 'at'])",
+          "byName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+          },
+          "toPlayerId": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+          },
+          "at": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
         "chat": {
           "$messageId": {
             ".validate": "newData.hasChildren(['senderId', 'text'])",

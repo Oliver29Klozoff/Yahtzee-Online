@@ -152,6 +152,41 @@ object TurnNotifier {
         }
     }
 
+    /**
+     * Somebody in [roomCode] has asked this player to take their turn.
+     *
+     * Kept distinct from the ordinary your-turn notification: this one was sent by a person who is
+     * sitting there waiting, which is a different thing from a background check noticing the turn
+     * came round, and it deserves to say so.
+     */
+    fun notifyNudge(context: Context, roomCode: String, fromName: String) {
+        if (!canNotify(context)) return
+        ensureChannel(context)
+
+        val intent = Intent(context, SplashActivity::class.java)
+            .setData(android.net.Uri.parse("yahtzee://join/$roomCode"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val pending = PendingIntent.getActivity(
+            context,
+            notificationId("nudge:$roomCode"),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stats)
+            .setContentTitle(context.getString(R.string.nudge_received, fromName))
+            .setContentText(context.getString(R.string.nudge_received_body, roomCode))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+
+        runCatching {
+            NotificationManagerCompat.from(context).notify(notificationId("nudge:$roomCode"), notification)
+        }
+    }
+
     fun clear(context: Context, roomCode: String) {
         runCatching {
             NotificationManagerCompat.from(context).cancel(notificationId(roomCode))

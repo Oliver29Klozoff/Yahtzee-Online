@@ -55,7 +55,15 @@ data class GameState(
      * So these accumulate rather than being one slot per player — bounded, because the room is
      * re-read whole on every roll.
      */
-    val chat: List<ChatMessage> = emptyList()
+    val chat: List<ChatMessage> = emptyList(),
+
+    /**
+     * The last prod sent in this room, or null.
+     *
+     * One slot rather than a list: a nudge is a moment, and the only question anyone ever asks of
+     * it is whether one has arrived for them since they last looked.
+     */
+    val nudge: Nudge? = null
 ) {
     companion object {
         const val STATUS_LOBBY = "LOBBY"

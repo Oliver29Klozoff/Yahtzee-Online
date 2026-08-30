@@ -17,8 +17,14 @@ import com.yahtzee.online.game.GameState
  */
 object Reactions {
 
-    /** Small enough to fit a phone width, and broad enough to cover most of what a roll deserves. */
-    val EMOJI = listOf("👏", "😂", "😱", "🔥", "🎲", "😭")
+    /**
+     * Small enough to fit a phone width, and broad enough to cover most of what a roll deserves.
+     *
+     * The dart is the off-the-rip mark. That shout fires by itself when you score off the opening
+     * roll, but only the player who did it sees it — so this is how you say it about somebody
+     * else's roll, which is usually when it most wants saying.
+     */
+    val EMOJI = listOf("👏", "😂", "😱", "🔥", "🎯", "🎲", "😭")
 
     /** How long a reaction stays on screen before it fades. */
     private const val SHOW_MILLIS = 2600L
@@ -65,7 +71,9 @@ object Reactions {
                 minHeight = 0
                 minimumHeight = 0
                 includeFontPadding = false
-                setPadding((8 * density).toInt(), 0, (8 * density).toInt(), 0)
+                // Tight, because seven of these plus the chat and nudge buttons have to share a
+                // narrow phone without the row wrapping or the last emoji falling off the end.
+                setPadding((5 * density).toInt(), 0, (5 * density).toInt(), 0)
                 background = null
                 setOnClickListener {
                     // A tap should feel like it did something even before the room answers.
