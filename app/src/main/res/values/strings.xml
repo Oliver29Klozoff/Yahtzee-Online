@@ -111,7 +111,7 @@
 
     <!-- Invites -->
     <string name="scan_to_join">Scan to join</string>
-    <string name="reaction_from">%1$s %2$s</string>
+    <string name="reaction_from">%1$s\n%2$s</string>
     <string name="scan_code">Scan a code</string>
     <string name="scan_failed">Could not read that code.</string>
     <string name="scan_not_a_room">That is not a Yahtzee invite.</string>

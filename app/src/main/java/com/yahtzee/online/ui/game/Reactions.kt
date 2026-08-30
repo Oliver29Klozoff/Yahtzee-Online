@@ -1,18 +1,14 @@
 package com.yahtzee.online.ui.game
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
 import android.view.Gravity
-import android.view.View
-import android.view.animation.LinearInterpolator
 import android.view.animation.OvershootInterpolator
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.widget.AppCompatButton
 import com.yahtzee.online.R
 import com.yahtzee.online.game.GameState
 
@@ -32,10 +28,14 @@ object Reactions {
     /** How long a reaction stays on screen before it fades. */
     private const val SHOW_MILLIS = 2600L
 
-    /** The emoji against the sender's name. Big enough to be the thing you see, not the caption. */
-    private const val EMOJI_SCALE = 2.4f
-
-    private val handler = Handler(Looper.getMainLooper())
+    /**
+     * How much bigger the emoji is than the name under it.
+     *
+     * Large on purpose. At anything modest the emoji reads as a character inside a sentence, and
+     * the whole point is that it is seen rather than read — it has to carry across a table from
+     * someone else's phone, at a glance, while the reader is looking at their dice.
+     */
+    private const val EMOJI_SCALE = 3.6f
 
     /** Builds the row of buttons once. [onPick] sends; the room does the rest. */
     fun buildRow(context: Context, row: LinearLayout, onPick: (String) -> Unit) {
@@ -43,20 +43,38 @@ object Reactions {
         val density = context.resources.displayMetrics.density
 
         EMOJI.forEach { emoji ->
-            val button = Button(context).apply {
+            // AppCompatButton rather than Button.
+            //
+            // EmojiCompat is what supplies the current emoji set — downloaded, so a phone on an
+            // older Android still draws the modern glyphs instead of whatever shipped with it,
+            // and never draws an empty box for one it has never heard of. It reaches views
+            // through AppCompat, and a plain Button built in code has not been through AppCompat's
+            // inflater, so these were being drawn by the system font and missing all of it.
+            val button = AppCompatButton(context).apply {
                 text = emoji
-                textSize = 20f
+                textSize = 26f
                 minWidth = 0
                 minimumWidth = 0
-                setPadding((10 * density).toInt(), 0, (10 * density).toInt(), 0)
+                minHeight = 0
+                minimumHeight = 0
+                includeFontPadding = false
+                setPadding((8 * density).toInt(), 0, (8 * density).toInt(), 0)
                 background = null
-                setOnClickListener { onPick(emoji) }
+                setOnClickListener {
+                    // A tap should feel like it did something even before the room answers.
+                    animate().cancel()
+                    scaleX = 0.8f
+                    scaleY = 0.8f
+                    animate().scaleX(1f).scaleY(1f).setDuration(180)
+                        .setInterpolator(OvershootInterpolator(3f)).start()
+                    onPick(emoji)
+                }
             }
             row.addView(
                 button,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    (44 * density).toInt()
+                    (48 * density).toInt()
                 )
             )
         }
@@ -87,16 +105,8 @@ object Reactions {
             ?: return lastSeen
 
         val name = state.players[newest.key]?.name.orEmpty()
-        popup.text = label(popup, name, newest.value.first)
         popup.gravity = Gravity.CENTER
-        animateIn(popup)
-
-        handler.removeCallbacksAndMessages(popup)
-        handler.postAtTime(
-            { animateOut(popup) },
-            popup,
-            android.os.SystemClock.uptimeMillis() + SHOW_MILLIS
-        )
+        EmojiPop.show(popup, label(popup, name, newest.value.first), SHOW_MILLIS)
 
         return newest.value.second
     }
@@ -109,65 +119,19 @@ object Reactions {
      * a reaction is that you read it at a glance without reading it at all.
      */
     private fun label(popup: TextView, name: String, emoji: String): CharSequence {
-        val text = popup.context.getString(R.string.reaction_from, name, emoji)
-        val start = text.lastIndexOf(emoji)
-        if (start < 0) return text
+        // Emoji on its own line above the name, rather than beside it. Side by side, the name
+        // sets the line height and the emoji can only grow so far before the row looks broken;
+        // stacked, it can be as large as it likes and the name reads as a caption under it.
+        val text = popup.context.getString(R.string.reaction_from, emoji, name)
+        val end = emoji.length
         return SpannableString(text).apply {
             setSpan(
                 RelativeSizeSpan(EMOJI_SCALE),
-                start,
-                start + emoji.length,
+                0,
+                end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }
     }
 
-    /**
-     * The reaction arrives with a bounce and drifts upward.
-     *
-     * Motion is what separates a reaction from a label. Appearing and disappearing in place reads
-     * as text updating; something that lands, settles and floats away reads as someone reacting.
-     * The overshoot on the way in is what gives it the pop.
-     */
-    private fun animateIn(popup: TextView) {
-        popup.animate().cancel()
-        popup.visibility = View.VISIBLE
-        popup.alpha = 0f
-        popup.scaleX = 0.4f
-        popup.scaleY = 0.4f
-        popup.translationY = popup.height.toFloat() * 0.4f
-
-        popup.animate()
-            .alpha(1f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .translationY(0f)
-            .setDuration(320)
-            .setInterpolator(OvershootInterpolator(2.2f))
-            .withEndAction {
-                // A slow drift while it sits there, so it never looks frozen mid-display.
-                popup.animate()
-                    .translationY(-popup.height.toFloat() * 0.35f)
-                    .setDuration(SHOW_MILLIS - 320)
-                    .setInterpolator(LinearInterpolator())
-                    .start()
-            }
-            .start()
-    }
-
-    private fun animateOut(popup: TextView) {
-        popup.animate().cancel()
-        popup.animate()
-            .alpha(0f)
-            .scaleX(0.8f)
-            .scaleY(0.8f)
-            .setDuration(260)
-            .withEndAction {
-                popup.visibility = View.GONE
-                popup.translationY = 0f
-                popup.scaleX = 1f
-                popup.scaleY = 1f
-            }
-            .start()
-    }
 }

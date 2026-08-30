@@ -10,6 +10,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.widget.AppCompatTextView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
@@ -129,7 +130,7 @@ class ChatSheet(private val activity: Activity) {
             }
 
             block.addView(
-                TextView(activity).apply {
+                AppCompatTextView(activity).apply {
                     text = message.senderName
                     textSize = 11f
                     setTypeface(typeface, Typeface.BOLD)
@@ -139,7 +140,7 @@ class ChatSheet(private val activity: Activity) {
                 }
             )
             block.addView(
-                TextView(activity).apply {
+                AppCompatTextView(activity).apply {
                     text = message.text
                     textSize = 15f
                     setTextColor(activity.getColor(R.color.text_dark))

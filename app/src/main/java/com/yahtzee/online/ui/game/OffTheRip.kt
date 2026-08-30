@@ -1,15 +1,10 @@
 package com.yahtzee.online.ui.game
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
 import android.view.Gravity
-import android.view.View
-import android.view.animation.LinearInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.TextView
 import com.yahtzee.online.R
 import com.yahtzee.online.game.Category
@@ -33,7 +28,8 @@ object OffTheRip {
     /** How long the shout stays up. Shorter than a reaction — it is punctuation, not a message. */
     private const val SHOW_MILLIS = 1900L
 
-    private const val EMOJI_SCALE = 2.2f
+    /** Matched to a reaction's, so the two shouts carry the same weight on the same screen. */
+    private const val EMOJI_SCALE = 3.6f
 
     /**
      * Below this a box is being used as a dustbin rather than being hit. Scoring three in the
@@ -41,16 +37,6 @@ object OffTheRip {
      * are.
      */
     private const val MIN_POINTS = 20
-
-    /**
-     * Built on first use rather than with the object.
-     *
-     * [qualifies] is pure arithmetic and is worth testing on its own, but a [Handler] cannot be
-     * constructed off a device — so creating one in the initialiser made merely *mentioning* this
-     * object throw, and every test of the rule failed for a reason that had nothing to do with the
-     * rule. Deferring it keeps the decision testable without a device.
-     */
-    private val handler by lazy { Handler(Looper.getMainLooper()) }
 
     /**
      * Whether scoring [category] with [dice] after [rollsUsed] rolls deserves the shout.
@@ -63,18 +49,10 @@ object OffTheRip {
         return Scoring.score(category, dice) >= MIN_POINTS
     }
 
-    /** Shows it, reusing the popup the reactions already float over the table. */
+    /** Shows it, reusing the popup and the pop the reactions already use. */
     fun show(context: Context, popup: TextView, category: Category, points: Int) {
-        popup.text = label(context, category, points)
         popup.gravity = Gravity.CENTER
-        animateIn(popup)
-
-        handler.removeCallbacksAndMessages(popup)
-        handler.postAtTime(
-            { animateOut(popup) },
-            popup,
-            android.os.SystemClock.uptimeMillis() + SHOW_MILLIS
-        )
+        EmojiPop.show(popup, label(context, category, points), SHOW_MILLIS)
     }
 
     private fun label(context: Context, category: Category, points: Int): CharSequence {
@@ -90,45 +68,5 @@ object OffTheRip {
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }
-    }
-
-    private fun animateIn(popup: TextView) {
-        popup.animate().cancel()
-        popup.visibility = View.VISIBLE
-        popup.alpha = 0f
-        popup.scaleX = 0.4f
-        popup.scaleY = 0.4f
-        popup.translationY = 0f
-
-        popup.animate()
-            .alpha(1f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .setDuration(300)
-            .setInterpolator(OvershootInterpolator(2.6f))
-            .withEndAction {
-                popup.animate()
-                    .translationY(-popup.height.toFloat() * 0.4f)
-                    .setDuration(SHOW_MILLIS - 300)
-                    .setInterpolator(LinearInterpolator())
-                    .start()
-            }
-            .start()
-    }
-
-    private fun animateOut(popup: TextView) {
-        popup.animate().cancel()
-        popup.animate()
-            .alpha(0f)
-            .scaleX(0.8f)
-            .scaleY(0.8f)
-            .setDuration(240)
-            .withEndAction {
-                popup.visibility = View.GONE
-                popup.translationY = 0f
-                popup.scaleX = 1f
-                popup.scaleY = 1f
-            }
-            .start()
     }
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Somewhere for EmojiPop to hang the animation currently running on a popup.
+
+        A view tag needs a key that cannot collide with anyone else's, and the framework insists
+        that key be an id resource rather than an arbitrary integer.
+    -->
+    <item name="emojiPopTag" type="id" />
+</resources>
