@@ -143,7 +143,13 @@ class GameActivity : ImmersiveActivity() {
 
         listener = repository.listenToRoom(roomCode) { state ->
             if (state == null) return@listenToRoom
+            // Captured before it is replaced: what somebody just scored is the difference between
+            // the room as it was and the room as it now is.
+            val previous = lastState
             lastState = state
+            ScoreAnnounce.detect(previous, state, playerId)?.let { taken ->
+                ScoreAnnounce.show(this, findViewById(R.id.reactionPopup), taken)
+            }
             lastReactionAt = Reactions.render(
                 findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt
             )

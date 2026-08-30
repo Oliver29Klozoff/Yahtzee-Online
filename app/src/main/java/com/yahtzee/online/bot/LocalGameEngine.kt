@@ -13,7 +13,7 @@ import com.yahtzee.online.game.SavedSoloGame
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.grandTotalAllCards
-import com.yahtzee.online.game.hasScoredYahtzee
+import com.yahtzee.online.game.yahtzeeBonusUnlocked
 import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.TurnOrder
 import java.util.UUID
@@ -212,7 +212,7 @@ class LocalGameEngine(
         val points = Scoring.score(category, state.dice)
         // With several cards in play the qualifying Yahtzee may sit on any of them.
         val bonusEarned = category != Category.YAHTZEE &&
-            state.diceAreYahtzee() && player.hasScoredYahtzee(cardCount)
+            state.diceAreYahtzee() && player.yahtzeeBonusUnlocked(cardCount)
 
         val updatedPlayer = player.copy(
             scores = player.scores + (key to points),

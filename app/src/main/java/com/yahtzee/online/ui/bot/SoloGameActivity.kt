@@ -47,6 +47,7 @@ import com.yahtzee.online.ui.game.YahtzeeBanner
 import com.yahtzee.online.ui.game.activeDiceColorOf
 import com.yahtzee.online.ui.game.GameLayout
 import com.yahtzee.online.ui.game.OffTheRip
+import com.yahtzee.online.ui.game.ScoreAnnounce
 import com.yahtzee.online.ui.game.styleHoldChip
 
 class SoloGameActivity : ImmersiveActivity() {
@@ -95,6 +96,15 @@ class SoloGameActivity : ImmersiveActivity() {
     private var rollOffDiceShown = false
     private var botRollOffScheduled = false
     private var rollOffFinishScheduled = false
+
+    /**
+     * The state as of the last announcement, so a newly filled box can be spotted.
+     *
+     * Kept separately from whatever the renderer last drew: the engine reports a change on every
+     * roll and every held die too, and comparing against the previous *announcement* means a
+     * score is found once rather than re-found on each of the updates that follow it.
+     */
+    private var lastAnnouncedState: GameState? = null
 
     /** Non-null when this is a daily challenge, holding the day whose tape is in play. */
     private var dailyId: String? = null
@@ -199,9 +209,16 @@ class SoloGameActivity : ImmersiveActivity() {
         if (saved == null) GameReview.begin(this)
 
         engine.setOnChangeListener {
+            // A bot's whole turn goes by in a couple of seconds, so what it actually did with the
+            // roll is the easiest thing in the game to miss entirely.
+            ScoreAnnounce.detect(lastAnnouncedState, engine.state, engine.humanPlayerId)?.let { taken ->
+                ScoreAnnounce.show(this, findViewById(R.id.reactionPopup), taken)
+            }
+            lastAnnouncedState = engine.state
             persistGame()
             render(engine.state)
         }
+        lastAnnouncedState = engine.state
         persistGame()
         render(engine.state)
     }

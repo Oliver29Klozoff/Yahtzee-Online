@@ -128,9 +128,20 @@ fun Player.scoresForCard(card: Int): Map<Category, Int> =
         ScoreKey.categoryOf(key)?.let { it to value }
     }.toMap()
 
-/** True once this player has a Yahtzee banked as a Yahtzee — 50 in the box, on any card. */
-fun Player.hasScoredYahtzee(cardCount: Int): Boolean =
-    (0 until cardCount.coerceAtLeast(1)).any {
+/**
+ * Whether this player has unlocked the Yahtzee bonus: 50 in the Yahtzee box on *every* card.
+ *
+ * Every card, not any card. With several cards in play there are several Yahtzee boxes, and all
+ * of them have to be banked as Yahtzees before extra ones start paying — so on a three-card game
+ * the fourth Yahtzee is the first one that can be worth a bonus, not the second. Paying out as
+ * soon as one box held 50 made a six-card game hand over hundreds of points it had not earned,
+ * because the remaining five boxes were still sitting there waiting to be filled with 50s of
+ * their own.
+ *
+ * A single card is unaffected: one box, and "all of them" is that one.
+ */
+fun Player.yahtzeeBonusUnlocked(cardCount: Int): Boolean =
+    (0 until cardCount.coerceAtLeast(1)).all {
         scores[ScoreKey.of(it, Category.YAHTZEE)] == 50
     }
 
@@ -151,7 +162,10 @@ enum class YahtzeeState {
     /** Nothing special on the table. */
     NONE,
 
-    /** A Yahtzee, with the box still open — taking 50 here is what unlocks later bonuses. */
+    /**
+     * A Yahtzee with a box still open. Taking 50 there is what unlocks later bonuses — and on a
+     * multi-card game every one of those boxes has to be filled that way before any bonus pays.
+     */
     FIRST,
 
     /** A Yahtzee with 50 already banked: worth +100 in whichever box it is scored. */
@@ -173,11 +187,15 @@ enum class YahtzeeState {
 fun GameState.yahtzeeStateFor(playerId: String): YahtzeeState {
     val player = players[playerId] ?: return YahtzeeState.NONE
     if (rollsUsed == 0 || !diceAreYahtzee()) return YahtzeeState.NONE
-    if (player.hasScoredYahtzee(cardCount)) return YahtzeeState.BONUS
-
     val cards = cardCount.coerceAtLeast(1)
-    val everyBoxFilled = (0 until cards).all { player.scores.containsKey(ScoreKey.of(it, Category.YAHTZEE)) }
-    return if (everyBoxFilled) YahtzeeState.FORFEITED else YahtzeeState.FIRST
+    if (player.yahtzeeBonusUnlocked(cards)) return YahtzeeState.BONUS
+
+    // A box still open is still worth 50, and on a multi-card game filling it is a step toward
+    // the bonus rather than the whole of it.
+    val anyOpen = (0 until cards).any { !player.scores.containsKey(ScoreKey.of(it, Category.YAHTZEE)) }
+    // Every box filled but not every one a 50: some Yahtzee was scratched, so no bonus can ever
+    // be earned however many more turn up.
+    return if (anyOpen) YahtzeeState.FIRST else YahtzeeState.FORFEITED
 }
 
 /**

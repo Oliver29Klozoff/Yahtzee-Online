@@ -192,6 +192,10 @@
     <string name="chat_open">Chat</string>
     <string name="chat_unread">Chat · %1$d new</string>
 
+    <!-- What the player before you did with their roll. -->
+    <string name="score_taken_points">%1$d</string>
+    <string name="score_taken">%1$s\n%2$s took %3$s</string>
+
     <string name="off_the_rip_emoji">🎯</string>
     <string name="off_the_rip">%1$s Off the rip! %2$d</string>
 

@@ -17,7 +17,7 @@ import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.grandTotalAllCards
-import com.yahtzee.online.game.hasScoredYahtzee
+import com.yahtzee.online.game.yahtzeeBonusUnlocked
 import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
 import com.yahtzee.online.game.PlayerProfile
@@ -441,7 +441,7 @@ class GameRepository(private val context: android.content.Context) {
         // play that can be on any of them.
         val earnedBonus = category != Category.YAHTZEE &&
             state.diceAreYahtzee() &&
-            player.hasScoredYahtzee(state.cardCount)
+            player.yahtzeeBonusUnlocked(state.cardCount)
         if (earnedBonus) {
             ref.child("players").child(playerId).child("yahtzeeBonusCount")
                 .setValue(player.yahtzeeBonusCount + 1)
