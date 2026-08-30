@@ -71,28 +71,38 @@ object EmojiBurst {
             setShadowLayer(8f, 0f, 2f, android.graphics.Color.BLACK)
         }
 
+        // Measured before it is added, so its resting place can be worked out in one pass.
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(layer.width, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(layer.height, View.MeasureSpec.AT_MOST)
+        )
+
+        // Placed with margins rather than with x/y.
+        //
+        // x and y are translation, and translation is what the animation drives — so setting the
+        // starting position that way and then animating TRANSLATION_X and TRANSLATION_Y from zero
+        // threw the placement away on the first frame and dropped every emoji into the top-left
+        // corner. Margins put the view where it belongs in layout; translation is left entirely
+        // to the animator.
+        val margin = (12 * density).toInt()
+        val maxX = (layer.width - view.measuredWidth - margin).coerceAtLeast(margin + 1)
         val params = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
             FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply { gravity = Gravity.TOP or Gravity.START }
-        layer.addView(view, params)
-
-        // Placed once measured, since where it can go depends on how wide it turned out.
-        view.post {
-            if (view.parent == null) return@post
-            val margin = 12 * density
-            val maxX = (layer.width - view.width - margin).coerceAtLeast(margin)
-            view.x = Random.nextDouble(margin.toDouble(), maxX.toDouble().coerceAtLeast(margin + 1.0)).toFloat()
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            leftMargin = Random.nextInt(margin, maxX)
             // Starts low over the table and climbs, so the eye follows it upward and away rather
             // than having it appear already in the middle of everything.
-            view.y = layer.height * 0.62f
-            animate(view, layer, density)
+            topMargin = (layer.height * 0.62f).toInt()
         }
+        layer.addView(view, params)
+        animate(view, layer)
     }
 
-    private fun animate(view: View, layer: FrameLayout, density: Float) {
-        val rise = layer.height * Random.nextDouble(0.30, 0.46).toFloat()
-        val sway = (Random.nextFloat() - 0.5f) * 90f * density / 3f
+    private fun animate(view: View, layer: FrameLayout) {
+        val rise = layer.height * (0.30f + Random.nextFloat() * 0.16f)
+        val sway = (Random.nextFloat() - 0.5f) * layer.width * 0.10f
         val spin = (Random.nextFloat() - 0.5f) * 26f
 
         view.alpha = 0f
