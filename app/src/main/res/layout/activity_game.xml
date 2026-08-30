@@ -228,6 +228,19 @@
 </LinearLayout>
 
     <!--
+        Where reaction emoji fly. Full-bleed and untouchable, so a flurry can cross the whole
+        screen without any of it intercepting a tap meant for the dice or the scorecard.
+    -->
+    <FrameLayout
+        android:id="@+id/emojiBurstLayer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="noHideDescendants" />
+
+    <!--
         Floats over the table rather than sitting in the column. In the column it was a row that
         appeared and vanished, shoving the hold row, the roll button and the whole scorecard down
         and back for two and a half seconds — long enough that a reaction arriving while you were

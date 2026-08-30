@@ -1,15 +1,10 @@
 package com.yahtzee.online.ui.game
 
 import android.content.Context
-import android.text.Spannable
-import android.text.SpannableString
-import android.text.style.RelativeSizeSpan
-import android.view.Gravity
 import android.view.animation.OvershootInterpolator
+import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.appcompat.widget.AppCompatButton
-import com.yahtzee.online.R
 import com.yahtzee.online.game.GameState
 
 /**
@@ -37,8 +32,20 @@ object Reactions {
      */
     private const val EMOJI_SCALE = 3.6f
 
-    /** Builds the row of buttons once. [onPick] sends; the room does the rest. */
-    fun buildRow(context: Context, row: LinearLayout, onPick: (String) -> Unit) {
+    /**
+     * Builds the row of buttons once. [onPick] sends; the room does the rest.
+     *
+     * Each tap throws its own emoji onto [burstLayer] immediately, without waiting for the write
+     * to come back. That is not only about latency: a rapid tapper overwrites their own slot in
+     * the room faster than it can echo, so going through the round trip would silently swallow
+     * most of a flurry. Firing locally means every tap the player makes is a tap they see.
+     */
+    fun buildRow(
+        context: Context,
+        row: LinearLayout,
+        burstLayer: FrameLayout,
+        onPick: (String) -> Unit
+    ) {
         if (row.childCount > 0) return
         val density = context.resources.displayMetrics.density
 
@@ -67,6 +74,7 @@ object Reactions {
                     scaleY = 0.8f
                     animate().scaleX(1f).scaleY(1f).setDuration(180)
                         .setInterpolator(OvershootInterpolator(3f)).start()
+                    EmojiBurst.spawn(burstLayer, emoji, "")
                     onPick(emoji)
                 }
             }
@@ -88,8 +96,9 @@ object Reactions {
      * register twice — and what stops every unrelated update to the room replaying the last one.
      */
     fun render(
-        popup: TextView,
+        burstLayer: FrameLayout,
         state: GameState,
+        localPlayerId: String,
         lastSeen: Long
     ): Long {
         // Below zero means this screen has not seen the room yet. Whatever is already there is
@@ -97,41 +106,23 @@ object Reactions {
         // anyone said, possibly from days ago.
         if (lastSeen < 0L) return state.reactions.values.maxOfOrNull { it.second } ?: 0L
 
-        // Your own included. Tapping an emoji and watching nothing happen reads as a control that
-        // did not work, and seeing it fly is half the point of sending one.
-        val newest = state.reactions.entries
+        val arrivals = state.reactions.entries
             .filter { it.value.second > lastSeen }
-            .maxByOrNull { it.value.second }
-            ?: return lastSeen
+            // Your own are already on screen — thrown the instant you tapped, rather than when
+            // the room got round to telling you about something you did yourself.
+            .filterNot { it.key == localPlayerId }
 
-        val name = state.players[newest.key]?.name.orEmpty()
-        popup.gravity = Gravity.CENTER
-        EmojiPop.show(popup, label(popup, name, newest.value.first), SHOW_MILLIS)
-
-        return newest.value.second
-    }
-
-    /**
-     * The emoji is the message; the name is the footnote.
-     *
-     * Both share one view so the pair moves as a unit, with the emoji blown up several times the
-     * label size — at body-text size an emoji is a character in a sentence, and the whole point of
-     * a reaction is that you read it at a glance without reading it at all.
-     */
-    private fun label(popup: TextView, name: String, emoji: String): CharSequence {
-        // Emoji on its own line above the name, rather than beside it. Side by side, the name
-        // sets the line height and the emoji can only grow so far before the row looks broken;
-        // stacked, it can be as large as it likes and the name reads as a caption under it.
-        val text = popup.context.getString(R.string.reaction_from, emoji, name)
-        val end = emoji.length
-        return SpannableString(text).apply {
-            setSpan(
-                RelativeSizeSpan(EMOJI_SCALE),
-                0,
-                end,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+        if (arrivals.isEmpty()) {
+            return maxOf(lastSeen, state.reactions.values.maxOfOrNull { it.second } ?: lastSeen)
         }
-    }
 
+        // Everyone who has said something since last time, not just the latest — with several
+        // people reacting at once, showing only the newest loses the rest.
+        arrivals.sortedBy { it.value.second }.forEach { entry ->
+            val name = state.players[entry.key]?.name.orEmpty()
+            EmojiBurst.spawn(burstLayer, entry.value.first, name)
+        }
+
+        return state.reactions.values.maxOfOrNull { it.second } ?: lastSeen
+    }
 }

@@ -132,7 +132,11 @@ class GameActivity : ImmersiveActivity() {
 
         // Reactions and chat only exist where there is somebody on the other end.
         findViewById<View>(R.id.socialRow).visibility = View.VISIBLE
-        Reactions.buildRow(this, findViewById(R.id.reactionRow)) { emoji ->
+        Reactions.buildRow(
+            this,
+            findViewById(R.id.reactionRow),
+            findViewById(R.id.emojiBurstLayer)
+        ) { emoji ->
             repository.sendReaction(roomCode, emoji)
         }
         findViewById<Button>(R.id.chatButton).setOnClickListener { openChat() }
@@ -141,7 +145,7 @@ class GameActivity : ImmersiveActivity() {
             if (state == null) return@listenToRoom
             lastState = state
             lastReactionAt = Reactions.render(
-                findViewById(R.id.reactionPopup), state, lastReactionAt
+                findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt
             )
             renderChat(state)
             render(state)
