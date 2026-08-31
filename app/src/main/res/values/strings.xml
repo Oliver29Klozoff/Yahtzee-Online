@@ -145,6 +145,14 @@
     <string name="clear_saved_game">Discard saved game?</string>
     <string name="clear_saved_game_warning">Your solo game in progress will be thrown away. This cannot be undone.</string>
     <string name="hold_to_remove">Hold a game to remove it</string>
+
+    <!-- Standing head-to-head records. -->
+    <string name="rivals">RIVALS</string>
+    <string name="rivals_hint">tap to play again</string>
+    <string name="rivals_line">You %1$d · %2$s %3$d</string>
+    <string name="rivals_line_drawn">You %1$d · %2$s %3$d · %4$d drawn</string>
+    <string name="rivals_remove">Remove your record against %1$s?</string>
+    <string name="rivals_invited">Room %1$s open — %2$s has been invited.</string>
     <string name="notify_permission_rationale">Allow notifications and the app will tell you when it\'s your turn in a game you left running.</string>
     <string name="notify_permission_allow">Turn on</string>
     <string name="not_now">Not now</string>

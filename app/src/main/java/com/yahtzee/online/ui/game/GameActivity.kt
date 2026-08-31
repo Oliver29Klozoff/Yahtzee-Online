@@ -29,6 +29,8 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayerStats
+import com.yahtzee.online.game.Rivalries
+import com.yahtzee.online.game.RivalryResult
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.YahtzeeState
@@ -485,9 +487,39 @@ class GameActivity : ImmersiveActivity() {
         }
     }
 
+    /**
+     * Files this game against everyone else who was in it.
+     *
+     * Head to head rather than by who won the table: in a four-player game you beat the two you
+     * outscored and lost to the one who outscored you, and a record that only counted outright
+     * victories would say nothing at all about three of those four games.
+     */
+    private fun recordRivalries(state: GameState) {
+        val mine = state.players[playerId]?.grandTotalAllCards(state.cardCount) ?: return
+        val at = System.currentTimeMillis()
+
+        state.players.values
+            .filterNot { it.id == playerId }
+            .forEach { opponent ->
+                val theirs = opponent.grandTotalAllCards(state.cardCount)
+                Rivalries.record(
+                    context = this,
+                    opponentId = opponent.id,
+                    name = opponent.name,
+                    result = when {
+                        mine > theirs -> RivalryResult.WIN
+                        mine < theirs -> RivalryResult.LOSS
+                        else -> RivalryResult.DRAW
+                    },
+                    at = at
+                )
+            }
+    }
+
     private fun showGameOver(state: GameState) {
         sound.play(SoundEngine.Sound.WIN)
         submitToLeaderboard(state)
+        recordRivalries(state)
         val winnerName = state.players[state.winnerId]?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)

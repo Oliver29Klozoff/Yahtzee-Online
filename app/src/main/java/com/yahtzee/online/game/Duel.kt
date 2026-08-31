@@ -99,6 +99,22 @@ object Duel {
     private fun seenKey(code: String) = "$KEY_SEEN:$code"
 
     /**
+     * Whether this duel has already been counted into the head-to-head records.
+     *
+     * Persisted rather than held in memory, because the duel screen is reopened every time
+     * somebody comes back to look at the result — and a duel counted once per glance would run
+     * up a record that never happened.
+     */
+    fun wasCounted(context: Context, code: String): Boolean =
+        prefs(context).getBoolean(countedKey(code), false)
+
+    fun markCounted(context: Context, code: String) {
+        prefs(context).edit().putBoolean(countedKey(code), true).apply()
+    }
+
+    private fun countedKey(code: String) = "counted:$code"
+
+    /**
      * Code to whether this device has played it, newest first.
      *
      * Insertion order is the whole point of the JSON object here — [JSONObject] preserves the

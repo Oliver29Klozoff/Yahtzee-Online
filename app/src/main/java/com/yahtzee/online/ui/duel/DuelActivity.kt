@@ -18,6 +18,8 @@ import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.Duel
 import com.yahtzee.online.game.DuelState
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.Rivalries
+import com.yahtzee.online.game.RivalryResult
 import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.net.DuelRepository
 import com.yahtzee.online.net.TurnCheckWorker
@@ -53,6 +55,9 @@ class DuelActivity : ImmersiveActivity() {
 
     /** Guards the solver against being asked twice while it is still working. */
     private var computingExpert = false
+
+    /** Set once this duel has been folded into the head-to-head records. */
+    private var rivalriesRecorded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,6 +125,7 @@ class DuelActivity : ImmersiveActivity() {
     }
 
     private fun render(state: DuelState) {
+        recordRivalries(state)
         renderPlayers(state)
         renderVerdict(state)
 
@@ -184,6 +190,46 @@ class DuelActivity : ImmersiveActivity() {
             )
             finish()
         }
+    }
+
+    /**
+     * Files a settled duel against everyone who played it.
+     *
+     * Guarded so it happens once. The room reports itself on every change — somebody joining,
+     * somebody posting — and this screen is also reopened whenever anyone comes back to look at
+     * the result, so without the guard a single duel would be counted again on every glance.
+     *
+     * The solver is left out. Losing to a perfect player is a fact about the dice rather than a
+     * rivalry, and a running record against something that never has an off day is only ever
+     * going to be depressing.
+     */
+    private fun recordRivalries(state: DuelState) {
+        if (rivalriesRecorded || !state.isSettled) return
+        if (Duel.wasCounted(this, code)) {
+            rivalriesRecorded = true
+            return
+        }
+        val mine = state.players.firstOrNull { it.id == repository.localPlayerId }?.score ?: return
+        rivalriesRecorded = true
+        Duel.markCounted(this, code)
+
+        val at = System.currentTimeMillis()
+        state.players
+            .filterNot { it.id == repository.localPlayerId || Duel.isExpert(it.id) }
+            .forEach { opponent ->
+                val theirs = opponent.score ?: return@forEach
+                Rivalries.record(
+                    context = this,
+                    opponentId = opponent.id,
+                    name = opponent.name,
+                    result = when {
+                        mine > theirs -> RivalryResult.WIN
+                        mine < theirs -> RivalryResult.LOSS
+                        else -> RivalryResult.DRAW
+                    },
+                    at = at
+                )
+            }
     }
 
     private fun renderPlayers(state: DuelState) {

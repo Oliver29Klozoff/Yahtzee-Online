@@ -27,6 +27,8 @@ import com.yahtzee.online.net.DuelRepository
 import com.yahtzee.online.ui.duel.DuelActivity
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.Rivalries
+import com.yahtzee.online.game.Rivalry
 import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardEntry
@@ -255,8 +257,101 @@ class MainActivity : ImmersiveActivity() {
 
         renderDailyCard()
         renderDuelCard()
+        renderRivals()
         renderActiveGames()
         observeLeaderboard()
+    }
+
+    /**
+     * Standing records against the people this device has actually played.
+     *
+     * The whole point of keeping them is that they are a way back to a person. Tapping one opens
+     * a room and invites them to it — the invite path already exists and the background check on
+     * their phone turns it into a tracked game and a notification, so a rivalry is a button that
+     * starts the next game rather than a scoreboard to look at.
+     */
+    private fun renderRivals() {
+        val list = findViewById<LinearLayout>(R.id.rivalsList)
+        val section = findViewById<View>(R.id.rivalsSection)
+        val rivals = Rivalries.all(this)
+
+        section.visibility = if (rivals.isEmpty()) View.GONE else View.VISIBLE
+        list.removeAllViews()
+        if (rivals.isEmpty()) return
+
+        val density = resources.displayMetrics.density
+        val accent = AccentColor.resolve(this)
+
+        rivals.take(6).forEach { rival ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(
+                    (14 * density).toInt(), (10 * density).toInt(),
+                    (14 * density).toInt(), (10 * density).toInt()
+                )
+                background = getDrawable(R.drawable.scorecard_card_background)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = (8 * density).toInt() }
+                setOnClickListener { playAgain(rival) }
+                setOnLongClickListener {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setMessage(getString(R.string.rivals_remove, rival.name))
+                        .setPositiveButton(R.string.delete) { _, _ ->
+                            Rivalries.forget(this@MainActivity, rival.opponentId)
+                            renderRivals()
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                    true
+                }
+            }
+
+            row.addView(
+                TextView(this).apply {
+                    text = rival.name
+                    textSize = 15f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setTextColor(getColor(R.color.text_dark))
+                }
+            )
+            row.addView(
+                TextView(this).apply {
+                    text = if (rival.draws > 0) {
+                        getString(
+                            R.string.rivals_line_drawn,
+                            rival.wins, rival.name, rival.losses, rival.draws
+                        )
+                    } else {
+                        getString(R.string.rivals_line, rival.wins, rival.name, rival.losses)
+                    }
+                    textSize = 13f
+                    // Behind gets the accent, which is the state worth doing something about.
+                    setTextColor(if (rival.trailing) accent else getColor(R.color.text_muted))
+                }
+            )
+            list.addView(row)
+        }
+    }
+
+    /** Opens a room and invites this rival straight into it. */
+    private fun playAgain(rival: Rivalry) {
+        repository.createRoom(
+            hostName = playerName(),
+            diceColor = DicePreferences.getColor(this),
+            cardCount = 1
+        ) { code ->
+            if (isFinishing || isDestroyed) return@createRoom
+            repository.invitePlayer(rival.opponentId, code, playerName())
+            trackGame(code)
+            Toast.makeText(
+                this,
+                getString(R.string.rivals_invited, code, rival.name),
+                Toast.LENGTH_LONG
+            ).show()
+            openLobby(code)
+        }
     }
 
     /**
