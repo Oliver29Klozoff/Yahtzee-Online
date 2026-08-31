@@ -398,16 +398,24 @@ class GameActivity : ImmersiveActivity() {
      * currently looking at. The background check raises the notification for the other case.
      */
     private fun renderIncomingNudge(state: GameState) {
+        // The first snapshot is the room as it already was, so whatever nudge it carries is
+        // history and is adopted silently.
+        //
+        // Adopted on the first *snapshot*, not on the first nudge. Keyed to the first nudge, a
+        // room that was clean when you opened it would swallow the next one to arrive — so the
+        // first time anybody nudged you in a session, nothing happened at all, which is the one
+        // occasion it most needed to.
+        if (!nudgeAdopted) {
+            nudgeAdopted = true
+            lastNudgeSeenAt = state.nudge?.at ?: 0L
+            return
+        }
+
         val nudge = state.nudge ?: return
         if (nudge.toPlayerId != playerId) return
         if (nudge.at <= lastNudgeSeenAt) return
         lastNudgeSeenAt = nudge.at
 
-        // Nothing on the first sight of a room: an old nudge still sitting in it is not news.
-        if (!nudgeAdopted) {
-            nudgeAdopted = true
-            return
-        }
         sound.play(SoundEngine.Sound.SCORE)
         Toast.makeText(
             this,
