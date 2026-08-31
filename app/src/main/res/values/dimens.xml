@@ -7,6 +7,6 @@
         whole card has to fit a screen rather than scroll — see values-land, where seventeen rows
         have to share the height of a phone lying down.
     -->
-    <dimen name="score_cell">34dp</dimen>
-    <dimen name="score_cell_text">14sp</dimen>
+    <dimen name="score_cell">30dp</dimen>
+    <dimen name="score_cell_text">13sp</dimen>
 </resources>

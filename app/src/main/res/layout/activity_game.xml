@@ -70,7 +70,7 @@
     <com.yahtzee.online.dice3d.Dice3DView
         android:id="@+id/dice3DView"
         android:layout_width="match_parent"
-        android:layout_height="260dp"
+        android:layout_height="215dp"
         android:layout_marginTop="12dp"
         android:layout_marginBottom="12dp" />
 
@@ -240,13 +240,41 @@
 
         </HorizontalScrollView>
 
-        <ListView
-            android:id="@+id/scorecardList"
+        <!--
+            Two columns when the card will fit that way, one when it will not.
+
+            A single column of seventeen rows needs about 23dp a row to fit the height left after
+            the table and the controls, which is smaller than the numbers can be read at. Side by
+            side the halves are eight and nine rows, which fits comfortably — but only for the
+            classic single card: six cards mean six cells in every row, and six cells plus a
+            label do not fit half a phone's width. The screen picks between them once it knows
+            how many cards are in play.
+        -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:divider="@null"
-            android:dividerHeight="0dp" />
+            android:orientation="horizontal">
+
+            <ListView
+                android:id="@+id/scorecardList"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:divider="@null"
+                android:dividerHeight="0dp"
+                android:scrollbars="none" />
+
+            <ListView
+                android:id="@+id/scorecardListLower"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:divider="@null"
+                android:dividerHeight="0dp"
+                android:scrollbars="none" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

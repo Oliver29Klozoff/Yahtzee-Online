@@ -63,8 +63,11 @@ class GameActivity : ImmersiveActivity() {
     private var listener: ValueEventListener? = null
     private lateinit var scorecardAdapter: ScorecardAdapter
 
-    /** The lower half, in landscape only. Null in portrait, where one list holds it all. */
+    /** The lower half when the card is split in two. Null when one list holds all of it. */
     private var lowerAdapter: ScorecardAdapter? = null
+
+    /** Card count the scorecard is currently built for; -1 until it has been built. */
+    private var scorecardCards = -1
     private var viewingPlayerId: String? = null
 
     private val scoreConfirm by lazy { ScoreConfirm(this) }
@@ -134,23 +137,8 @@ class GameActivity : ImmersiveActivity() {
             }
         }
 
-        // Landscape splits the card into two lists so none of it has to scroll; portrait keeps
-        // one. The second list simply does not exist in the portrait layout, and its absence is
-        // what decides which shape this screen is in.
-        val lowerList = findViewById<ListView?>(R.id.scorecardListLower)
-        scorecardAdapter = ScorecardAdapter(
-            this,
-            if (lowerList != null) ScorecardSection.UPPER else ScorecardSection.BOTH
-        ) { card, category -> onScoreCategory(card, category) }
-        findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
-
-        lowerList?.let { list ->
-            val lower = ScorecardAdapter(this, ScorecardSection.LOWER) { card, category ->
-                onScoreCategory(card, category)
-            }
-            list.adapter = lower
-            lowerAdapter = lower
-        }
+        // Built with one card assumed, and rebuilt if the room turns out to be playing more.
+        configureScorecard(1)
 
         // Button or fling, both reach the same call under the same guard.
         fun rollIfAllowed() {
@@ -310,6 +298,7 @@ class GameActivity : ImmersiveActivity() {
         }
 
         val canScore = myTurn && state.rollsUsed > 0 && viewing == playerId
+        configureScorecard(state.cardCount)
         scorecardAdapter.update(state, viewing, canScore)
         lowerAdapter?.update(state, viewing, canScore)
 
@@ -468,6 +457,36 @@ class GameActivity : ImmersiveActivity() {
             getString(R.string.nudge_toast, nudge.byName.ifEmpty { "Someone" }),
             Toast.LENGTH_LONG
         ).show()
+    }
+
+    /**
+     * Points the scorecard at one list or two, depending on how many cards are in play.
+     *
+     * Rebuilt rather than reconfigured because an adapter decides which rows it owns when it is
+     * created. Guarded on the count so this runs when the answer changes and not on every update
+     * the room sends, which would rebuild both lists several times a turn.
+     */
+    private fun configureScorecard(cardCount: Int) {
+        if (scorecardCards == cardCount) return
+        scorecardCards = cardCount
+
+        val lowerList = findViewById<ListView>(R.id.scorecardListLower)
+        val split = GameLayout.splitsScorecard(cardCount)
+
+        scorecardAdapter = ScorecardAdapter(
+            this,
+            if (split) ScorecardSection.UPPER else ScorecardSection.BOTH
+        ) { card, category -> onScoreCategory(card, category) }
+        findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
+
+        lowerList.visibility = if (split) View.VISIBLE else View.GONE
+        lowerAdapter = if (split) {
+            ScorecardAdapter(this, ScorecardSection.LOWER) { card, category ->
+                onScoreCategory(card, category)
+            }.also { lowerList.adapter = it }
+        } else {
+            null
+        }
     }
 
     private fun renderHoldRow(state: GameState, myTurn: Boolean) {

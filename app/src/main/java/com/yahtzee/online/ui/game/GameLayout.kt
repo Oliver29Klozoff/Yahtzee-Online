@@ -20,8 +20,19 @@ import android.view.View
  */
 object GameLayout {
 
+    /**
+     * Whether the scorecard should be shown as two columns rather than one.
+     *
+     * One column of seventeen rows does not fit the height either orientation has left over, at
+     * any size the numbers can still be read at. Two columns of eight and nine do — but only for
+     * the classic single card. Every extra card adds a cell to every row, and six cells plus a
+     * category name do not fit half a phone's width, so a multi-card game keeps the full width
+     * and scrolls as it always has.
+     */
+    fun splitsScorecard(cardCount: Int): Boolean = cardCount <= 1
+
     /** The height the table has in the layout, and would keep at a normal font. */
-    private const val BASE_HEIGHT_DP = 260f
+    private const val BASE_HEIGHT_DP = 215f
 
     /** Never shrink past this: below it the throw stops reading as dice crossing a table. */
     private const val MIN_HEIGHT_DP = 165f

@@ -122,7 +122,10 @@ class ScorecardAdapter(
 
     private fun bindBonus(convertView: View?, parent: ViewGroup): View {
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_bonus_row, parent, false)
-        view.findViewById<TextView>(R.id.bonusLabel).text = "Bonus if 63+ (get 35 pts)"
+        // Shorter when the card is in halves: the full wording wraps to two lines in a
+        // half-width column, which costs a row's worth of height on a card that has none spare.
+        view.findViewById<TextView>(R.id.bonusLabel).text =
+            if (section == ScorecardSection.BOTH) "Bonus if 63+ (get 35 pts)" else "Bonus 63+"
 
         val cells = view.findViewById<LinearLayout>(R.id.bonusCells)
         cells.removeAllViews()
@@ -146,7 +149,8 @@ class ScorecardAdapter(
      */
     private fun bindYahtzeeBonus(convertView: View?, parent: ViewGroup): View {
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_bonus_row, parent, false)
-        view.findViewById<TextView>(R.id.bonusLabel).text = "Yahtzee bonus (+100 each)"
+        view.findViewById<TextView>(R.id.bonusLabel).text =
+            if (section == ScorecardSection.BOTH) "Yahtzee bonus (+100 each)" else "Yahtzee bonus"
 
         val count = state?.players?.get(playerId)?.yahtzeeBonusCount ?: 0
         // A bonus waiting on the table is called out here too, so the row a player looks at to
@@ -177,6 +181,9 @@ class ScorecardAdapter(
 
         label.text = category.label
         hint.text = category.hint
+        // The hint is what makes a row two lines tall, and a split card is split precisely
+        // because the height is not there. Whole-card mode keeps it; halves drop it.
+        hint.visibility = if (section == ScorecardSection.BOTH) View.VISIBLE else View.GONE
 
         val currentState = state
         cells.removeAllViews()

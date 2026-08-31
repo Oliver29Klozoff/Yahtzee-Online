@@ -86,8 +86,11 @@ class SoloGameActivity : ImmersiveActivity() {
     private val sound by lazy { SoundEngine(this) }
     private lateinit var scorecardAdapter: ScorecardAdapter
 
-    /** The lower half, in landscape only. Null in portrait, where one list holds it all. */
+    /** The lower half when the card is split in two. Null when one list holds all of it. */
     private var lowerAdapter: ScorecardAdapter? = null
+
+    /** Card count the scorecard is currently built for; -1 until it has been built. */
+    private var scorecardCards = -1
     private var viewingPlayerId: String? = null
 
     private var lastTurnPlayerId: String? = null
@@ -185,23 +188,7 @@ class SoloGameActivity : ImmersiveActivity() {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
 
-        // Landscape splits the card into two lists so none of it has to scroll; portrait keeps
-        // one. The second list simply does not exist in the portrait layout, and its absence is
-        // what decides which shape this screen is in.
-        val lowerList = findViewById<ListView?>(R.id.scorecardListLower)
-        scorecardAdapter = ScorecardAdapter(
-            this,
-            if (lowerList != null) ScorecardSection.UPPER else ScorecardSection.BOTH
-        ) { card, category -> onScoreCategory(card, category) }
-        findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
-
-        lowerList?.let { list ->
-            val lower = ScorecardAdapter(this, ScorecardSection.LOWER) { card, category ->
-                onScoreCategory(card, category)
-            }
-            list.adapter = lower
-            lowerAdapter = lower
-        }
+        configureScorecard(engine.state.cardCount)
 
         // Two ways to roll the same roll: the button, and flinging the dice across the table.
         // The gesture is a shortcut to the same call rather than a second path into the game, so
@@ -336,6 +323,36 @@ class SoloGameActivity : ImmersiveActivity() {
      * Scores a box. Lifted out of the adapter's lambda so both halves of a split card can call
      * the same code rather than the landscape half quietly getting a copy that drifts.
      */
+    /**
+     * Points the scorecard at one list or two, depending on how many cards are in play.
+     *
+     * Rebuilt rather than reconfigured because an adapter decides which rows it owns when it is
+     * created. Guarded on the count so it runs when the answer changes rather than on every
+     * engine update, which would rebuild both lists on every held die.
+     */
+    private fun configureScorecard(cardCount: Int) {
+        if (scorecardCards == cardCount) return
+        scorecardCards = cardCount
+
+        val lowerList = findViewById<ListView>(R.id.scorecardListLower)
+        val split = GameLayout.splitsScorecard(cardCount)
+
+        scorecardAdapter = ScorecardAdapter(
+            this,
+            if (split) ScorecardSection.UPPER else ScorecardSection.BOTH
+        ) { card, category -> onScoreCategory(card, category) }
+        findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
+
+        lowerList.visibility = if (split) View.VISIBLE else View.GONE
+        lowerAdapter = if (split) {
+            ScorecardAdapter(this, ScorecardSection.LOWER) { card, category ->
+                onScoreCategory(card, category)
+            }.also { lowerList.adapter = it }
+        } else {
+            null
+        }
+    }
+
     private fun onScoreCategory(card: Int, category: Category) {
         if (scoreConfirm.consumesTap(card, category)) return
         sound.play(SoundEngine.Sound.SCORE)
@@ -423,6 +440,7 @@ class SoloGameActivity : ImmersiveActivity() {
         }
 
         val canScore = myTurn && state.rollsUsed > 0 && viewing == engine.humanPlayerId
+        configureScorecard(state.cardCount)
         scorecardAdapter.update(state, viewing, canScore)
         lowerAdapter?.update(state, viewing, canScore)
 
