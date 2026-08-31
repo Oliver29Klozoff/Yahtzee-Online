@@ -273,9 +273,19 @@ class MainActivity : ImmersiveActivity() {
     private fun renderRivals() {
         val list = findViewById<LinearLayout>(R.id.rivalsList)
         val section = findViewById<View>(R.id.rivalsSection)
+        val empty = findViewById<TextView>(R.id.rivalsEmpty)
         val rivals = Rivalries.all(this)
 
-        section.visibility = if (rivals.isEmpty()) View.GONE else View.VISIBLE
+        // Shown even with nothing in it, saying what will fill it.
+        //
+        // Hidden while empty, this was a feature nobody could find: records only begin when a
+        // game finishes, so on every phone it shipped to there was simply no sign it existed,
+        // and no way to tell that from it being broken.
+        section.visibility = View.VISIBLE
+        empty.visibility = if (rivals.isEmpty()) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.rivalsHint).visibility =
+            if (rivals.isEmpty()) View.GONE else View.VISIBLE
+
         list.removeAllViews()
         if (rivals.isEmpty()) return
 
