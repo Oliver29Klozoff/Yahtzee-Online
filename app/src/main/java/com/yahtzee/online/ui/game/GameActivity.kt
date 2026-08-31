@@ -27,7 +27,9 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.NudgeSeen
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.Rivalries
@@ -437,6 +439,9 @@ class GameActivity : ImmersiveActivity() {
         if (nudge.toPlayerId != playerId) return
         if (nudge.at <= lastNudgeSeenAt) return
         lastNudgeSeenAt = nudge.at
+        // Shared with the background check and the start screen, so the same prod cannot arrive
+        // twice by two different routes.
+        NudgeSeen.mark(this, roomCode, nudge.at)
 
         sound.play(SoundEngine.Sound.SCORE)
         Toast.makeText(
@@ -573,6 +578,7 @@ class GameActivity : ImmersiveActivity() {
         // nothing, and every online game posted a total of zero (silently dropped by the
         // repository's own score <= 0 guard) or, with a Yahtzee bonus, just the bonus.
         val total = me.grandTotalAllCards(state.cardCount)
+        PlayedFormats.record(this, state.cardCount)
         LeaderboardRepository().submitRankedScore(
             cardCount = state.cardCount,
             playerId = PlayerProfile.getId(this),

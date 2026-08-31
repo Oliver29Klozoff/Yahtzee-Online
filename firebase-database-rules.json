@@ -32,7 +32,7 @@
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
           },
           "bestScore": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2000"
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6000"
           },
           "updatedAt": {
             ".validate": "newData.isNumber()"

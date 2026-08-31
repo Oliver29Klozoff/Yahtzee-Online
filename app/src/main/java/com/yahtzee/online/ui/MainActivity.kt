@@ -26,6 +26,8 @@ import com.yahtzee.online.game.Duel
 import com.yahtzee.online.net.DuelRepository
 import com.yahtzee.online.ui.duel.DuelActivity
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.NudgeSeen
+import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.Rivalries
 import com.yahtzee.online.game.Rivalry
@@ -119,8 +121,7 @@ class MainActivity : ImmersiveActivity() {
         }
 
         findViewById<Button>(R.id.leaderboardToggle).setOnClickListener {
-            boardView = BoardView.values()[(boardView.ordinal + 1) % BoardView.values().size]
-            observeLeaderboard()
+            showBoardPicker()
         }
 
         // Cold boot: sweep any APK left behind by a previous update, then quietly look for a new
@@ -514,6 +515,24 @@ class MainActivity : ImmersiveActivity() {
                     // The player is looking at the game right now, so a pending notification
                     // about it is already answered.
                     if (myTurn) TurnNotifier.clear(this, game.roomCode)
+
+                    // A nudge waiting for this player, surfaced here rather than only inside that
+                    // one game. The start screen is where people actually sit — a prod that only
+                    // appears once you have opened the very room it was sent about is a prod that
+                    // mostly waits fifteen minutes for the background check instead.
+                    val nudge = state.nudge
+                    if (nudge != null &&
+                        nudge.toPlayerId == repository.localPlayerId &&
+                        nudge.at > NudgeSeen.lastSeen(this, game.roomCode)
+                    ) {
+                        NudgeSeen.mark(this, game.roomCode, nudge.at)
+                        row.setTextColor(AccentColor.resolve(this))
+                        Toast.makeText(
+                            this,
+                            getString(R.string.nudge_toast, nudge.byName.ifEmpty { "Someone" }),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         }
@@ -596,24 +615,88 @@ class MainActivity : ImmersiveActivity() {
      * you are playing for — left on its own it freezes, and everyone who did not post the top
      * score early is permanently playing for second.
      */
-    private enum class BoardView(val headingRes: Int, val emptyRes: Int) {
-        MONTH(R.string.board_month, R.string.board_month_empty),
-        ALL_TIME(R.string.board_all_time, R.string.leaderboard_empty),
-        DAILY(R.string.daily_board, R.string.daily_board_empty)
+    /**
+     * One entry in the board picker.
+     *
+     * [boardId] null means the board is not one of the format boards: the daily challenge and
+     * the pre-split hall of fame each live in their own node and are read differently.
+     */
+    private data class BoardChoice(
+        val label: String,
+        val boardId: String?,
+        val daily: Boolean = false,
+        val legacy: Boolean = false
+    )
+
+    /**
+     * Every board this player has a reason to look at.
+     *
+     * Built from the formats they actually play rather than from all of them, so somebody who
+     * only ever plays the classic game is offered three boards instead of nine.
+     */
+    private fun boardChoices(): List<BoardChoice> {
+        val formats = PlayedFormats.all(this)
+        val boards = mutableListOf<BoardChoice>()
+
+        formats.forEach { cards ->
+            val format = if (cards == 1) getString(R.string.one_card) else getString(R.string.n_cards, cards)
+            boards += BoardChoice(
+                getString(R.string.board_month_of, format),
+                LeaderboardRepository.monthlyBoardId(cards)
+            )
+            boards += BoardChoice(
+                getString(R.string.board_all_time_of, format),
+                LeaderboardRepository.allTimeBoardId(cards)
+            )
+        }
+        boards += BoardChoice(getString(R.string.daily_board), null, daily = true)
+        // The board as it stood before formats were separated. Every score on it is a multi-card
+        // total — a single card cannot pass 1575 even in theory, and these run to 1662 — and
+        // nothing records which format each was, so they cannot be filed onto the new boards
+        // without guessing. They were real games, so they keep a shelf rather than being dropped.
+        boards += BoardChoice(getString(R.string.board_legacy), null, legacy = true)
+        return boards
     }
 
-    private var boardView = BoardView.MONTH
+    private var boardIndex = 0
+
+    /**
+     * Offers the boards as a list rather than cycling through them.
+     *
+     * A toggle was fine at three, but a player who uses several formats has nine — and reaching
+     * the one you want by tapping past eight others is not a control, it is a penalty for playing
+     * more than one kind of game.
+     */
+    private fun showBoardPicker() {
+        val choices = boardChoices()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.board_choose)
+            .setItems(choices.map { it.label }.toTypedArray()) { _, which ->
+                boardIndex = which
+                observeLeaderboard()
+            }
+            .show()
+    }
 
     private fun observeLeaderboard() {
         detachLeaderboard()
-        val next = BoardView.values()[(boardView.ordinal + 1) % BoardView.values().size]
+        val choices = boardChoices()
+        // The list shortens when a format has not been played on this device, so an index kept
+        // from a previous render could point past the end of it.
+        val choice = choices.getOrNull(boardIndex) ?: choices.first().also { boardIndex = 0 }
 
-        findViewById<TextView>(R.id.leaderboardHeading).setText(boardView.headingRes)
-        findViewById<Button>(R.id.leaderboardToggle).setText(next.headingRes)
-        findViewById<TextView>(R.id.leaderboardEmpty).setText(boardView.emptyRes)
+        findViewById<TextView>(R.id.leaderboardHeading).text = choice.label
+        findViewById<Button>(R.id.leaderboardToggle).setText(R.string.board_change)
+        findViewById<TextView>(R.id.leaderboardEmpty).setText(
+            when {
+                choice.daily -> R.string.daily_board_empty
+                choice.legacy -> R.string.leaderboard_empty
+                else -> R.string.board_month_empty
+            }
+        )
 
-        when (boardView) {
-            BoardView.DAILY -> {
+        when {
+            choice.daily -> {
                 val (query, listener) = leaderboard.observeDailyTop(
                     DailyChallenge.todayId(),
                     LEADERBOARD_SIZE
@@ -621,15 +704,16 @@ class MainActivity : ImmersiveActivity() {
                 dailyQuery = query
                 dailyListener = listener
             }
-            BoardView.MONTH, BoardView.ALL_TIME -> {
-                val boardId = if (boardView == BoardView.MONTH) {
-                    LeaderboardRepository.monthlyBoardId()
-                } else {
-                    LeaderboardRepository.BOARD_ALL_TIME
-                }
-                val (query, listener) = leaderboard.observeBoard(boardId, LEADERBOARD_SIZE) { entries ->
+            choice.legacy -> {
+                leaderboardListener = leaderboard.observeTop(LEADERBOARD_SIZE) { entries ->
                     runOnUiThread { renderLeaderboard(entries) }
                 }
+            }
+            else -> {
+                val (query, listener) = leaderboard.observeBoard(
+                    choice.boardId.orEmpty(),
+                    LEADERBOARD_SIZE
+                ) { entries -> runOnUiThread { renderLeaderboard(entries) } }
                 dailyQuery = query
                 dailyListener = listener
             }

@@ -29,41 +29,32 @@ class LeaderboardRepository {
 
     companion object {
         /**
-         * Only the classic single-card game is ranked globally.
+         * Every format gets its own board.
          *
          * The old board kept one best score per player whatever the format, so a six-card total
          * sat above every one-card total no matter how well either was played — it partly ranked
-         * people by how many cards they happened to choose. Multi-card games still count for
-         * stats and for head-to-head records; they simply are not the same game as each other,
-         * and putting them in one column made the column meaningless. Nearly all games played
-         * are single-card anyway.
+         * people by how many cards they happened to choose. Splitting them keeps every number on
+         * a board comparable to every other on it, without throwing away the games people spent
+         * an evening on.
          */
-        const val RANKED_CARD_COUNT = 1
-
-        /** All-time board for the classic game. */
-        const val BOARD_ALL_TIME = "c1-all"
+        fun allTimeBoardId(cardCount: Int): String = "c$cardCount-all"
 
         /**
-         * The board for a given month, as `c1-YYYY-MM`.
+         * The board for one format in one month, as `cN-YYYY-MM`.
          *
          * A season exists because a best-ever board freezes: once somebody posts a big number,
          * everyone else is playing for second place for good. A month is short enough that a
          * good run wins it and long enough that one lucky game does not.
          */
-        fun monthlyBoardId(at: java.util.Date = java.util.Date()): String =
-            "c1-" + java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).format(at)
+        fun monthlyBoardId(cardCount: Int, at: java.util.Date = java.util.Date()): String =
+            "c$cardCount-" + java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).format(at)
     }
 
-    /**
-     * Files a finished game on both the month's board and the all-time one.
-     *
-     * Silently ignores anything but the ranked format, so callers can hand it every game without
-     * having to know the rule.
-     */
+    /** Files a finished game on both its format's month board and its all-time one. */
     fun submitRankedScore(cardCount: Int, playerId: String, name: String, score: Int) {
-        if (cardCount != RANKED_CARD_COUNT) return
-        submitBest(boardsRef.child(BOARD_ALL_TIME).child(playerId), name, score)
-        submitBest(boardsRef.child(monthlyBoardId()).child(playerId), name, score)
+        val cards = cardCount.coerceAtLeast(1)
+        submitBest(boardsRef.child(allTimeBoardId(cards)).child(playerId), name, score)
+        submitBest(boardsRef.child(monthlyBoardId(cards)).child(playerId), name, score)
     }
 
     /** Streams one board, highest first. */

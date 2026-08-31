@@ -25,6 +25,7 @@ import com.yahtzee.online.net.DuelRepository
 import com.yahtzee.online.ui.duel.DuelActivity
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.SavedSoloGame
@@ -526,6 +527,7 @@ class SoloGameActivity : ImmersiveActivity() {
 
         if (me != null) {
             // Solo results count too — the board ranks people, not game modes.
+            PlayedFormats.record(this, state.cardCount)
             LeaderboardRepository().submitRankedScore(
                 cardCount = state.cardCount,
                 playerId = PlayerProfile.getId(this),

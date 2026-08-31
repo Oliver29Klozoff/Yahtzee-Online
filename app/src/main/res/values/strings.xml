@@ -191,6 +191,11 @@
     <string name="daily_board">Today\'s board</string>
     <string name="board_month">This month</string>
     <string name="board_all_time">All time</string>
+    <string name="board_legacy">Hall of fame</string>
+    <string name="board_month_of">This month · %1$s</string>
+    <string name="board_all_time_of">All time · %1$s</string>
+    <string name="board_change">Change</string>
+    <string name="board_choose">Which board?</string>
     <string name="board_month_empty">Nobody has posted a single-card score this month yet.</string>
     <string name="daily_streak">%1$d days running</string>
     <string name="daily_streak_one">1 day — come back tomorrow to build a run.</string>
