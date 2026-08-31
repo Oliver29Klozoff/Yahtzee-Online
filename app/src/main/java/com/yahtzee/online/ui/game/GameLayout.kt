@@ -24,12 +24,23 @@ object GameLayout {
      * Whether the scorecard should be shown as two columns rather than one.
      *
      * One column of seventeen rows does not fit the height either orientation has left over, at
-     * any size the numbers can still be read at. Two columns of eight and nine do — but only for
-     * the classic single card. Every extra card adds a cell to every row, and six cells plus a
-     * category name do not fit half a phone's width, so a multi-card game keeps the full width
-     * and scrolls as it always has.
+     * any size the numbers can still be read at. Two columns of eight and nine do — so long as a
+     * row's cells and its category name both fit half the width available.
+     *
+     * That is where the orientation matters, and it is why this is not one number. Every card
+     * adds a cell to every row. Half a portrait screen leaves about 61dp for the name once three
+     * cards have taken their cells, and "Small Straight" wants around 82 — so portrait splits for
+     * the classic single card only. Landscape has half again as much width and leaves about
+     * 104dp, so three cards fit there comfortably. Five and six fit neither, and keep the full
+     * width and the scroll they have always had.
      */
-    fun splitsScorecard(cardCount: Int): Boolean = cardCount <= 1
+    fun splitsScorecard(cardCount: Int, landscape: Boolean): Boolean =
+        if (landscape) cardCount <= 3 else cardCount <= 1
+
+    /** True when the screen is on its side, which is what decides how much width a column has. */
+    fun isLandscape(view: View): Boolean =
+        view.resources.configuration.orientation ==
+            android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     /** The height the table has in the layout, and would keep at a normal font. */
     private const val BASE_HEIGHT_DP = 215f

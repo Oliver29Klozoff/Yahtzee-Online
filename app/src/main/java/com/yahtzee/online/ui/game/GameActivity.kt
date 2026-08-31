@@ -471,7 +471,7 @@ class GameActivity : ImmersiveActivity() {
         scorecardCards = cardCount
 
         val lowerList = findViewById<ListView>(R.id.scorecardListLower)
-        val split = GameLayout.splitsScorecard(cardCount)
+        val split = GameLayout.splitsScorecard(cardCount, GameLayout.isLandscape(lowerList))
 
         scorecardAdapter = ScorecardAdapter(
             this,
