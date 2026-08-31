@@ -65,9 +65,6 @@ class MainActivity : ImmersiveActivity() {
     private var dailyQuery: com.google.firebase.database.Query? = null
     private var dailyListener: ValueEventListener? = null
 
-    /** Which board the leaderboard section is currently showing. */
-    private var showingDaily = false
-
     /** Asked at most once per launch, so declining does not re-prompt on every return here. */
     private var askedForNotifications = false
 
@@ -122,7 +119,7 @@ class MainActivity : ImmersiveActivity() {
         }
 
         findViewById<Button>(R.id.leaderboardToggle).setOnClickListener {
-            showingDaily = !showingDaily
+            boardView = BoardView.values()[(boardView.ordinal + 1) % BoardView.values().size]
             observeLeaderboard()
         }
 
@@ -534,8 +531,12 @@ class MainActivity : ImmersiveActivity() {
     private fun renderDailyCard() {
         val played = DailyChallenge.todayScore(this)
         val card = findViewById<View>(R.id.dailyCard)
-        findViewById<TextView>(R.id.dailyStatus).text = when (played) {
-            null -> getString(R.string.daily_subtitle)
+        val streak = DailyChallenge.streak(this)
+        findViewById<TextView>(R.id.dailyStatus).text = when {
+            played == null -> getString(R.string.daily_subtitle)
+            // The run is worth more than the score once there is one to lose.
+            streak > 1 -> getString(R.string.daily_streak, streak)
+            streak == 1 -> getString(R.string.daily_streak_one)
             else -> getString(R.string.daily_played, played)
         }
         card.isEnabled = played == null
@@ -587,28 +588,50 @@ class MainActivity : ImmersiveActivity() {
         )
     }
 
+    /**
+     * Which board is on show. The toggle cycles through them in this order.
+     *
+     * The month leads because it is the one anybody can still win. All-time is kept because a
+     * personal best is worth having somewhere, but as a hall of fame rather than as the thing
+     * you are playing for — left on its own it freezes, and everyone who did not post the top
+     * score early is permanently playing for second.
+     */
+    private enum class BoardView(val headingRes: Int, val emptyRes: Int) {
+        MONTH(R.string.board_month, R.string.board_month_empty),
+        ALL_TIME(R.string.board_all_time, R.string.leaderboard_empty),
+        DAILY(R.string.daily_board, R.string.daily_board_empty)
+    }
+
+    private var boardView = BoardView.MONTH
+
     private fun observeLeaderboard() {
         detachLeaderboard()
-        findViewById<TextView>(R.id.leaderboardHeading).setText(
-            if (showingDaily) R.string.daily_board else R.string.leaderboard
-        )
-        findViewById<Button>(R.id.leaderboardToggle).setText(
-            if (showingDaily) R.string.leaderboard else R.string.daily_board
-        )
-        findViewById<TextView>(R.id.leaderboardEmpty).setText(
-            if (showingDaily) R.string.daily_board_empty else R.string.leaderboard_empty
-        )
+        val next = BoardView.values()[(boardView.ordinal + 1) % BoardView.values().size]
 
-        if (showingDaily) {
-            val (query, listener) = leaderboard.observeDailyTop(
-                DailyChallenge.todayId(),
-                LEADERBOARD_SIZE
-            ) { entries -> runOnUiThread { renderLeaderboard(entries) } }
-            dailyQuery = query
-            dailyListener = listener
-        } else {
-            leaderboardListener = leaderboard.observeTop(LEADERBOARD_SIZE) { entries ->
-                runOnUiThread { renderLeaderboard(entries) }
+        findViewById<TextView>(R.id.leaderboardHeading).setText(boardView.headingRes)
+        findViewById<Button>(R.id.leaderboardToggle).setText(next.headingRes)
+        findViewById<TextView>(R.id.leaderboardEmpty).setText(boardView.emptyRes)
+
+        when (boardView) {
+            BoardView.DAILY -> {
+                val (query, listener) = leaderboard.observeDailyTop(
+                    DailyChallenge.todayId(),
+                    LEADERBOARD_SIZE
+                ) { entries -> runOnUiThread { renderLeaderboard(entries) } }
+                dailyQuery = query
+                dailyListener = listener
+            }
+            BoardView.MONTH, BoardView.ALL_TIME -> {
+                val boardId = if (boardView == BoardView.MONTH) {
+                    LeaderboardRepository.monthlyBoardId()
+                } else {
+                    LeaderboardRepository.BOARD_ALL_TIME
+                }
+                val (query, listener) = leaderboard.observeBoard(boardId, LEADERBOARD_SIZE) { entries ->
+                    runOnUiThread { renderLeaderboard(entries) }
+                }
+                dailyQuery = query
+                dailyListener = listener
             }
         }
     }

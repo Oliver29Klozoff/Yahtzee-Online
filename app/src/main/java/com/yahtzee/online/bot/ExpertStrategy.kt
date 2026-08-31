@@ -32,6 +32,14 @@ object ExpertStrategy {
      * Score a category is worth aiming at, under good play. Used to price what closing a box
      * costs: taking 8 in Fours is not a gain of 8, it is a loss of what Fours was worth.
      */
+    /**
+     * What a competent player tends to make of each box over a game.
+     *
+     * Exposed so the projection can use the same numbers the solver plans against, rather than a
+     * second set that could drift away from them and quietly disagree with the coach.
+     */
+    fun typicalFor(category: Category): Float = TYPICAL[category] ?: 0f
+
     private val TYPICAL = mapOf(
         Category.ONES to 1.9f,
         Category.TWOS to 5.3f,

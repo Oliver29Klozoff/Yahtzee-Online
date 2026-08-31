@@ -203,6 +203,16 @@
                 android:letterSpacing="0.08"
                 android:textColor="@color/text_muted" />
 
+            <!-- Where this card is heading. Off unless the player turned it on in Settings. -->
+            <TextView
+                android:id="@+id/projectionText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:paddingEnd="10dp"
+                android:textColor="@color/text_muted"
+                android:visibility="gone" />
+
             <TextView
                 android:id="@+id/scorecardTotalText"
                 android:layout_width="wrap_content"

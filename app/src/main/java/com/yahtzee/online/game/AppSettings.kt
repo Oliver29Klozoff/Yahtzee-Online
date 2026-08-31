@@ -19,6 +19,7 @@ object AppSettings {
     private const val KEY_HAPTICS = "haptics_enabled"
     private const val KEY_MOTION = "dice_motion"
     private const val KEY_BOT_SKILL = "bot_skill"
+    private const val KEY_PROJECTION = "show_projection"
 
     /** Table felt colours. Black is the original look and stays the default. */
     val TABLE_COLORS: List<Pair<String, Int>> = listOf(
@@ -29,6 +30,20 @@ object AppSettings {
         "Walnut" to 0xFF2A1810.toInt(),
         "Slate" to 0xFF15181C.toInt()
     )
+
+    /**
+     * Shows where each player's card is heading, beside their total.
+     *
+     * Off by default, and a setting rather than always on, because it changes what the game is
+     * for some people: a number telling you that you are behind before the game is over is
+     * exactly what one player wants and exactly what another came here to get away from.
+     */
+    fun showProjection(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_PROJECTION, false)
+
+    fun setShowProjection(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY_PROJECTION, on).apply()
+    }
 
     fun keepScreenOn(context: Context): Boolean =
         prefs(context).getBoolean(KEY_KEEP_SCREEN_ON, true)

@@ -26,6 +26,7 @@ import com.yahtzee.online.ui.duel.DuelActivity
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayerStats
+import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.SavedSoloGame
 import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.game.grandTotalAllCards
@@ -392,6 +393,17 @@ class SoloGameActivity : ImmersiveActivity() {
         val total = state.players[viewing]?.grandTotalAllCards(state.cardCount) ?: 0
         findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)
 
+        val projection = findViewById<TextView>(R.id.projectionText)
+        val viewed = state.players[viewing]
+        val showProjection = AppSettings.showProjection(this) &&
+            viewed != null &&
+            state.status == GameState.STATUS_PLAYING
+        projection.visibility = if (showProjection) View.VISIBLE else View.GONE
+        if (showProjection && viewed != null) {
+            projection.text =
+                getString(R.string.projected, Projection.forPlayer(viewed, state.cardCount))
+        }
+
         if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
             gameOverShown = true
             showGameOver(state)
@@ -514,7 +526,8 @@ class SoloGameActivity : ImmersiveActivity() {
 
         if (me != null) {
             // Solo results count too — the board ranks people, not game modes.
-            LeaderboardRepository().submitScore(
+            LeaderboardRepository().submitRankedScore(
+                cardCount = state.cardCount,
                 playerId = PlayerProfile.getId(this),
                 name = PlayerProfile.getName(this).ifEmpty { me.name },
                 score = score

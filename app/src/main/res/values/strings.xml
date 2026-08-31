@@ -189,6 +189,13 @@
     <string name="daily_result">You scored %1$d on the %2$s challenge.</string>
     <string name="daily_share_text">Yahtzee Daily %1$s — %2$d points. Same dice for everyone. Beat that.</string>
     <string name="daily_board">Today\'s board</string>
+    <string name="board_month">This month</string>
+    <string name="board_all_time">All time</string>
+    <string name="board_month_empty">Nobody has posted a single-card score this month yet.</string>
+    <string name="daily_streak">%1$d days running</string>
+    <string name="daily_streak_one">1 day — come back tomorrow to build a run.</string>
+    <string name="show_projection">Show projected score</string>
+    <string name="projected">on pace for %1$d</string>
     <string name="daily_board_empty">Nobody has posted a score yet today.</string>
     <string name="share_result">Share result</string>
 

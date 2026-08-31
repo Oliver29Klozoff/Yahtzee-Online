@@ -125,6 +125,10 @@ class SettingsActivity : ImmersiveActivity() {
             R.id.confirmScoringButton,
             AppSettings.confirmScoring(this)
         ) { AppSettings.setConfirmScoring(this, it) }
+        setUpToggle(
+            R.id.projectionButton,
+            AppSettings.showProjection(this)
+        ) { AppSettings.setShowProjection(this, it) }
         setUpToggle(R.id.soundButton, AppSettings.soundEnabled(this)) { on ->
             AppSettings.setSoundEnabled(this, on)
             // Play something when switching on, so the setting demonstrates itself.

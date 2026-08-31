@@ -25,6 +25,94 @@ class LeaderboardRepository {
     private val database = FirebaseDatabase.getInstance()
     private val boardRef = database.getReference("leaderboard")
     private val dailyRef = database.getReference("dailyBoard")
+    private val boardsRef = database.getReference("boards")
+
+    companion object {
+        /**
+         * Only the classic single-card game is ranked globally.
+         *
+         * The old board kept one best score per player whatever the format, so a six-card total
+         * sat above every one-card total no matter how well either was played — it partly ranked
+         * people by how many cards they happened to choose. Multi-card games still count for
+         * stats and for head-to-head records; they simply are not the same game as each other,
+         * and putting them in one column made the column meaningless. Nearly all games played
+         * are single-card anyway.
+         */
+        const val RANKED_CARD_COUNT = 1
+
+        /** All-time board for the classic game. */
+        const val BOARD_ALL_TIME = "c1-all"
+
+        /**
+         * The board for a given month, as `c1-YYYY-MM`.
+         *
+         * A season exists because a best-ever board freezes: once somebody posts a big number,
+         * everyone else is playing for second place for good. A month is short enough that a
+         * good run wins it and long enough that one lucky game does not.
+         */
+        fun monthlyBoardId(at: java.util.Date = java.util.Date()): String =
+            "c1-" + java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).format(at)
+    }
+
+    /**
+     * Files a finished game on both the month's board and the all-time one.
+     *
+     * Silently ignores anything but the ranked format, so callers can hand it every game without
+     * having to know the rule.
+     */
+    fun submitRankedScore(cardCount: Int, playerId: String, name: String, score: Int) {
+        if (cardCount != RANKED_CARD_COUNT) return
+        submitBest(boardsRef.child(BOARD_ALL_TIME).child(playerId), name, score)
+        submitBest(boardsRef.child(monthlyBoardId()).child(playerId), name, score)
+    }
+
+    /** Streams one board, highest first. */
+    fun observeBoard(
+        boardId: String,
+        limit: Int = 10,
+        onChange: (List<LeaderboardEntry>) -> Unit
+    ): Pair<com.google.firebase.database.Query, ValueEventListener> {
+        val query = boardsRef.child(boardId).orderByChild("bestScore").limitToLast(limit)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) = onChange(snapshot.toEntries())
+            override fun onCancelled(error: DatabaseError) = onChange(emptyList())
+        }
+        query.addValueEventListener(listener)
+        return query to listener
+    }
+
+    /**
+     * Keeps whichever score is higher, in a transaction.
+     *
+     * The same player may finish games on more than one device, and a plain read/compare/write
+     * could lose the better result to a concurrent update.
+     */
+    private fun submitBest(
+        ref: com.google.firebase.database.DatabaseReference,
+        name: String,
+        score: Int
+    ) {
+        if (name.isEmpty() || score <= 0) return
+        ref.runTransaction(object : com.google.firebase.database.Transaction.Handler {
+            override fun doTransaction(currentData: com.google.firebase.database.MutableData):
+                com.google.firebase.database.Transaction.Result {
+                val existing = currentData.child("bestScore").getValue(Int::class.java) ?: 0
+                if (score > existing) {
+                    currentData.child("bestScore").value = score
+                    currentData.child("updatedAt").value = System.currentTimeMillis()
+                }
+                // A rename takes effect either way, so a board never shows a name nobody uses.
+                currentData.child("name").value = name
+                return com.google.firebase.database.Transaction.success(currentData)
+            }
+
+            override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                snapshot: DataSnapshot?
+            ) = Unit
+        })
+    }
 
     /**
      * Records a finished game, keeping whichever score is higher. Read-then-write is done inside

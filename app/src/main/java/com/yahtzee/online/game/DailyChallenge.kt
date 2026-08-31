@@ -21,6 +21,7 @@ object DailyChallenge {
     private const val PREFS = "daily_challenge"
     private const val KEY_DAY = "day"
     private const val KEY_SCORE = "score"
+    private const val KEY_STREAK = "streak"
 
     /** Turns in a game — one per category, on a single card. */
     const val TURNS = 13
@@ -63,11 +64,53 @@ object DailyChallenge {
     fun todayScore(context: Context): Int? =
         if (playedToday(context)) prefs(context).getInt(KEY_SCORE, 0) else null
 
+    /**
+     * How many days in a row have been played, counting today.
+     *
+     * Zero once a day has been missed. Kept because a daily puzzle with no memory is thirteen
+     * turns and nothing else — the run is the reason to come back on a day you were not going
+     * to, and it is the only part of it that cannot be rebuilt after the fact.
+     */
+    fun streak(context: Context): Int {
+        val last = lastCompletedDay(context) ?: return 0
+        val stored = prefs(context).getInt(KEY_STREAK, 0)
+        // A run only survives while it is current: finished today, or finished yesterday and
+        // still live until midnight. Anything older is a run that has already been broken, and
+        // reporting it would be claiming a streak that ended days ago.
+        return if (last == todayId() || last == dayBefore(todayId())) stored else 0
+    }
+
     fun recordToday(context: Context, score: Int) {
+        val today = todayId()
+        val previous = lastCompletedDay(context)
+        val continued = previous == dayBefore(today)
+        val streak = when {
+            previous == today -> prefs(context).getInt(KEY_STREAK, 1)
+            continued -> prefs(context).getInt(KEY_STREAK, 0) + 1
+            else -> 1
+        }
+
         prefs(context).edit()
-            .putString(KEY_DAY, todayId())
+            .putString(KEY_DAY, today)
             .putInt(KEY_SCORE, score)
+            .putInt(KEY_STREAK, streak)
             .apply()
+    }
+
+    /**
+     * The day before [dayId], as another id.
+     *
+     * Done by parsing and subtracting a day rather than by arithmetic on the string, so months,
+     * year ends and leap days all take care of themselves. Returns [dayId] unchanged if it
+     * cannot be read, which breaks the streak rather than inventing one.
+     */
+    fun dayBefore(dayId: String): String {
+        val parsed = runCatching { formatter().parse(dayId) }.getOrNull() ?: return dayId
+        val calendar = java.util.Calendar.getInstance().apply {
+            time = parsed
+            add(java.util.Calendar.DAY_OF_YEAR, -1)
+        }
+        return formatter().format(calendar.time)
     }
 
     private fun prefs(context: Context) =

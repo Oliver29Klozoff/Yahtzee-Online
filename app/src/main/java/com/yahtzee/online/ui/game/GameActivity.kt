@@ -29,6 +29,7 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayerStats
+import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.Rivalries
 import com.yahtzee.online.game.RivalryResult
 import com.yahtzee.online.game.grandTotalAllCards
@@ -295,6 +296,25 @@ class GameActivity : ImmersiveActivity() {
         // figure regardless of which card is currently open.
         val total = state.players[viewing]?.grandTotalAllCards(state.cardCount) ?: 0
         findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)
+        renderProjection(state, viewing)
+    }
+
+    /**
+     * Where the card on show is heading, if the player asked to be told.
+     *
+     * Hidden once the game is over: a projection of a finished card is just its own total said
+     * twice, and the one number that matters then is the one on the board.
+     */
+    private fun renderProjection(state: GameState, viewingId: String?) {
+        val label = findViewById<TextView>(R.id.projectionText)
+        val player = state.players[viewingId]
+        val show = AppSettings.showProjection(this) &&
+            player != null &&
+            state.status == GameState.STATUS_PLAYING
+
+        label.visibility = if (show) View.VISIBLE else View.GONE
+        if (!show || player == null) return
+        label.text = getString(R.string.projected, Projection.forPlayer(player, state.cardCount))
     }
 
     /**
@@ -553,7 +573,8 @@ class GameActivity : ImmersiveActivity() {
         // nothing, and every online game posted a total of zero (silently dropped by the
         // repository's own score <= 0 guard) or, with a Yahtzee bonus, just the bonus.
         val total = me.grandTotalAllCards(state.cardCount)
-        LeaderboardRepository().submitScore(
+        LeaderboardRepository().submitRankedScore(
+            cardCount = state.cardCount,
             playerId = PlayerProfile.getId(this),
             name = PlayerProfile.getName(this).ifEmpty { me.name },
             score = total
