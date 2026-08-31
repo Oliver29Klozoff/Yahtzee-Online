@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Smaller on a phone lying down, where the card is split into two columns of eight and nine
+        rows and the taller column has to fit about 290dp. At the portrait size of 34dp a row
+        comes to roughly 43dp, nine of which need 390dp — so the last row and a half fell off the
+        bottom. At 26dp a row is about 31dp and the whole card fits with a little to spare.
+    -->
+    <dimen name="score_cell">26dp</dimen>
+    <dimen name="score_cell_text">12sp</dimen>
+</resources>

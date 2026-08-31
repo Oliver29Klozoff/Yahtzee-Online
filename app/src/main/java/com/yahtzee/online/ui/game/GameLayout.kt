@@ -31,6 +31,15 @@ object GameLayout {
 
     fun fitTableToFontScale(table: View) {
         val resources = table.resources
+
+        // Portrait only. On its side the table is a weighted child that already takes whatever
+        // height is left over after the controls, so it shrinks by itself — pinning it to a
+        // fixed number here would undo that and hand the layout the very problem this exists to
+        // solve, in the orientation with least height to spare.
+        if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+            return
+        }
+
         val fontScale = resources.configuration.fontScale
         if (fontScale <= THRESHOLD) return
 

@@ -35,18 +35,32 @@ private sealed class Row {
  * behind a tab. Each cell is tapped directly, so the card is chosen by the same tap that picks
  * the category.
  */
+/**
+ * How much of the card one adapter is responsible for.
+ *
+ * [BOTH] is the whole thing in one column, which is what a phone held upright wants. On its side
+ * there is no height for seventeen rows and plenty of width for two columns, so the card is split
+ * and each half gets its own list — [UPPER] and [LOWER] are those halves.
+ */
+enum class ScorecardSection { BOTH, UPPER, LOWER }
+
 class ScorecardAdapter(
     private val context: android.content.Context,
+    private val section: ScorecardSection = ScorecardSection.BOTH,
     private val onScore: (card: Int, category: Category) -> Unit = { _, _ -> }
 ) : BaseAdapter() {
 
     private val rows: List<Row> = buildList {
-        add(Row.Header("Upper Section"))
-        Category.UPPER.forEach { add(Row.CategoryRow(it)) }
-        add(Row.BonusRow)
-        add(Row.Header("Lower Section"))
-        Category.LOWER.forEach { add(Row.CategoryRow(it)) }
-        add(Row.YahtzeeBonusRow)
+        if (section != ScorecardSection.LOWER) {
+            add(Row.Header("Upper Section"))
+            Category.UPPER.forEach { add(Row.CategoryRow(it)) }
+            add(Row.BonusRow)
+        }
+        if (section != ScorecardSection.UPPER) {
+            add(Row.Header("Lower Section"))
+            Category.LOWER.forEach { add(Row.CategoryRow(it)) }
+            add(Row.YahtzeeBonusRow)
+        }
     }
 
     private var state: GameState? = null
@@ -183,9 +197,11 @@ class ScorecardAdapter(
             val open = existing == null
             val cell = TextView(context).apply {
                 gravity = Gravity.CENTER
-                textSize = 14f
+                setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.score_cell_text))
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
-                val size = (34 * context.resources.displayMetrics.density).toInt()
+                // Sized from a dimension so a phone on its side can use a smaller square; the
+                // cell is what makes a row as tall as it is.
+                val size = context.resources.getDimensionPixelSize(R.dimen.score_cell)
                 layoutParams = LinearLayout.LayoutParams(size, size).also {
                     it.marginStart = (5 * context.resources.displayMetrics.density).toInt()
                 }
@@ -226,12 +242,13 @@ class ScorecardAdapter(
     private fun textCell(text: String, color: Int, wide: Boolean = false) = TextView(context).apply {
         this.text = text
         gravity = Gravity.CENTER
-        textSize = 13f
+        setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.score_cell_text))
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setTextColor(color)
         val density = context.resources.displayMetrics.density
         layoutParams = LinearLayout.LayoutParams(
-            if (wide) LinearLayout.LayoutParams.WRAP_CONTENT else (34 * density).toInt(),
+            if (wide) LinearLayout.LayoutParams.WRAP_CONTENT
+            else context.resources.getDimensionPixelSize(R.dimen.score_cell),
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).also { it.marginStart = (5 * density).toInt() }
     }

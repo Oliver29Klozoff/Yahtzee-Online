@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The square a score sits in on the scorecard.
+
+        It is what sets the height of a scorecard row, so it is the number to change when the
+        whole card has to fit a screen rather than scroll — see values-land, where seventeen rows
+        have to share the height of a phone lying down.
+    -->
+    <dimen name="score_cell">34dp</dimen>
+    <dimen name="score_cell_text">14sp</dimen>
+</resources>

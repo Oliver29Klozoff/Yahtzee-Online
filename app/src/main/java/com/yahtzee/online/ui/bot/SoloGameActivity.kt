@@ -42,6 +42,7 @@ import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.ReviewActivity
 import com.yahtzee.online.ui.game.ScorecardAdapter
+import com.yahtzee.online.ui.game.ScorecardSection
 import com.yahtzee.online.ui.game.RollOffRow
 import com.yahtzee.online.ui.game.ScoreConfirm
 import com.yahtzee.online.ui.game.ScorecardTabs
@@ -84,6 +85,9 @@ class SoloGameActivity : ImmersiveActivity() {
     private lateinit var dice3DView: Dice3DView
     private val sound by lazy { SoundEngine(this) }
     private lateinit var scorecardAdapter: ScorecardAdapter
+
+    /** The lower half, in landscape only. Null in portrait, where one list holds it all. */
+    private var lowerAdapter: ScorecardAdapter? = null
     private var viewingPlayerId: String? = null
 
     private var lastTurnPlayerId: String? = null
@@ -149,6 +153,15 @@ class SoloGameActivity : ImmersiveActivity() {
                 ?: duelCode?.let { Duel.tapeFor(it) }
         )
 
+        // From here on this screen can be rebuilt from the saved game.
+        //
+        // That matters now that turning the phone restarts the activity rather than stretching
+        // the layout: without this the restart would arrive with no resume flag, deal a brand new
+        // game, and write it over the one being played. The game is persisted after every move,
+        // so what comes back is exactly what was on screen.
+        intent.putExtra(EXTRA_RESUME, true)
+        setIntent(intent)
+
         // Solo games have no turn timer / no timer UI needed.
         findViewById<View>(R.id.turnTimerText).visibility = View.GONE
         findViewById<View>(R.id.turnTimerBar).visibility = View.GONE
@@ -172,29 +185,23 @@ class SoloGameActivity : ImmersiveActivity() {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
 
-        scorecardAdapter = ScorecardAdapter(this) { card, category ->
-            if (scoreConfirm.consumesTap(card, category)) return@ScorecardAdapter
-            sound.play(SoundEngine.Sound.SCORE)
-            // Read before submitting: scoring is what consumes the Yahtzee, so afterwards there
-            // is no longer anything on the table to tell the player what they just earned.
-            val earnedBonus = engine.state.yahtzeeStateFor(engine.humanPlayerId) == YahtzeeState.BONUS &&
-                category != Category.YAHTZEE
-            // Noted before submitting: what made the choice a choice is the boxes that were still
-            // open, and scoring closes one of them.
-            if (engine.state.currentPlayerId == engine.humanPlayerId) {
-                GameReview.record(this, engine.state, engine.humanPlayerId, card, category)
-            }
-            // Read before the write, which resets the dice and the roll count.
-            val offTheRip = engine.state.currentPlayerId == engine.humanPlayerId &&
-                OffTheRip.qualifies(engine.state.rollsUsed, category, engine.state.dice)
-            val ripPoints = Scoring.score(category, engine.state.dice)
-            engine.submitScore(category, card)
-            if (offTheRip) {
-                OffTheRip.show(this, findViewById(R.id.reactionPopup), category, ripPoints)
-            }
-            if (earnedBonus) announceYahtzeeBonus()
-        }
+        // Landscape splits the card into two lists so none of it has to scroll; portrait keeps
+        // one. The second list simply does not exist in the portrait layout, and its absence is
+        // what decides which shape this screen is in.
+        val lowerList = findViewById<ListView?>(R.id.scorecardListLower)
+        scorecardAdapter = ScorecardAdapter(
+            this,
+            if (lowerList != null) ScorecardSection.UPPER else ScorecardSection.BOTH
+        ) { card, category -> onScoreCategory(card, category) }
         findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
+
+        lowerList?.let { list ->
+            val lower = ScorecardAdapter(this, ScorecardSection.LOWER) { card, category ->
+                onScoreCategory(card, category)
+            }
+            list.adapter = lower
+            lowerAdapter = lower
+        }
 
         // Two ways to roll the same roll: the button, and flinging the dice across the table.
         // The gesture is a shortcut to the same call rather than a second path into the game, so
@@ -325,6 +332,33 @@ class SoloGameActivity : ImmersiveActivity() {
         )
     }
 
+    /**
+     * Scores a box. Lifted out of the adapter's lambda so both halves of a split card can call
+     * the same code rather than the landscape half quietly getting a copy that drifts.
+     */
+    private fun onScoreCategory(card: Int, category: Category) {
+        if (scoreConfirm.consumesTap(card, category)) return
+        sound.play(SoundEngine.Sound.SCORE)
+        // Read before submitting: scoring is what consumes the Yahtzee, so afterwards there
+        // is no longer anything on the table to tell the player what they just earned.
+        val earnedBonus = engine.state.yahtzeeStateFor(engine.humanPlayerId) == YahtzeeState.BONUS &&
+            category != Category.YAHTZEE
+        // Noted before submitting: what made the choice a choice is the boxes that were still
+        // open, and scoring closes one of them.
+        if (engine.state.currentPlayerId == engine.humanPlayerId) {
+            GameReview.record(this, engine.state, engine.humanPlayerId, card, category)
+        }
+        // Read before the write, which resets the dice and the roll count.
+        val offTheRip = engine.state.currentPlayerId == engine.humanPlayerId &&
+            OffTheRip.qualifies(engine.state.rollsUsed, category, engine.state.dice)
+        val ripPoints = Scoring.score(category, engine.state.dice)
+        engine.submitScore(category, card)
+        if (offTheRip) {
+            OffTheRip.show(this, findViewById(R.id.reactionPopup), category, ripPoints)
+        }
+        if (earnedBonus) announceYahtzeeBonus()
+    }
+
     private fun render(state: GameState) {
         if (renderRollOff(state)) return
 
@@ -390,6 +424,7 @@ class SoloGameActivity : ImmersiveActivity() {
 
         val canScore = myTurn && state.rollsUsed > 0 && viewing == engine.humanPlayerId
         scorecardAdapter.update(state, viewing, canScore)
+        lowerAdapter?.update(state, viewing, canScore)
 
         val total = state.players[viewing]?.grandTotalAllCards(state.cardCount) ?: 0
         findViewById<TextView>(R.id.scorecardTotalText).text = getString(R.string.total_score, total)

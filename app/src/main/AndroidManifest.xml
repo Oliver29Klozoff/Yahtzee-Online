@@ -58,14 +58,24 @@
         <activity android:name=".ui.NameActivity" android:exported="false" />
         <activity android:name=".ui.MainActivity" android:exported="false" />
         <activity android:name=".ui.lobby.LobbyActivity" android:exported="false" />
+        <!--
+            Orientation is deliberately NOT handled here.
+
+            Declaring it meant the screen was never re-inflated when the phone turned, so the
+            portrait column was simply stretched across a landscape window — dice spanning the
+            whole width, the hold row cut off, and no scorecard at all — and the landscape layout
+            could never be reached. Letting these restart is what lets each orientation have the
+            layout built for it. Neither loses anything by restarting: the online game reads its
+            state from the room, and the solo game is written to disk after every move.
+        -->
         <activity
             android:name=".ui.game.GameActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+            android:configChanges="keyboardHidden" />
         <activity
             android:name=".ui.bot.SoloGameActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+            android:configChanges="keyboardHidden" />
         <activity android:name=".ui.SettingsActivity" android:exported="false" />
         <activity android:name=".ui.StatsActivity" android:exported="false" />
 

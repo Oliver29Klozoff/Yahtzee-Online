@@ -62,6 +62,9 @@ class GameActivity : ImmersiveActivity() {
     private lateinit var playerId: String
     private var listener: ValueEventListener? = null
     private lateinit var scorecardAdapter: ScorecardAdapter
+
+    /** The lower half, in landscape only. Null in portrait, where one list holds it all. */
+    private var lowerAdapter: ScorecardAdapter? = null
     private var viewingPlayerId: String? = null
 
     private val scoreConfirm by lazy { ScoreConfirm(this) }
@@ -131,8 +134,23 @@ class GameActivity : ImmersiveActivity() {
             }
         }
 
-        scorecardAdapter = ScorecardAdapter(this) { card, category -> onScoreCategory(card, category) }
+        // Landscape splits the card into two lists so none of it has to scroll; portrait keeps
+        // one. The second list simply does not exist in the portrait layout, and its absence is
+        // what decides which shape this screen is in.
+        val lowerList = findViewById<ListView?>(R.id.scorecardListLower)
+        scorecardAdapter = ScorecardAdapter(
+            this,
+            if (lowerList != null) ScorecardSection.UPPER else ScorecardSection.BOTH
+        ) { card, category -> onScoreCategory(card, category) }
         findViewById<ListView>(R.id.scorecardList).adapter = scorecardAdapter
+
+        lowerList?.let { list ->
+            val lower = ScorecardAdapter(this, ScorecardSection.LOWER) { card, category ->
+                onScoreCategory(card, category)
+            }
+            list.adapter = lower
+            lowerAdapter = lower
+        }
 
         // Button or fling, both reach the same call under the same guard.
         fun rollIfAllowed() {
@@ -293,6 +311,7 @@ class GameActivity : ImmersiveActivity() {
 
         val canScore = myTurn && state.rollsUsed > 0 && viewing == playerId
         scorecardAdapter.update(state, viewing, canScore)
+        lowerAdapter?.update(state, viewing, canScore)
 
         // The header shows the player's total across every card, so it stays a comparable
         // figure regardless of which card is currently open.
