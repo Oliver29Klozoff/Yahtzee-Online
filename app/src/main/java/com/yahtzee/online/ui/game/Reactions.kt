@@ -138,7 +138,8 @@ object Reactions {
     fun arrivalsSince(
         reactions: Map<String, Pair<String, Long>>,
         localPlayerId: String,
-        lastSeen: Map<String, Long>?
+        lastSeen: Map<String, Long>?,
+        notOlderThan: Long? = null
     ): List<Map.Entry<String, Pair<String, Long>>> {
         if (lastSeen == null) return emptyList()
         return reactions.entries
@@ -151,8 +152,30 @@ object Reactions {
                 // first is news by definition.
                 seen == null || entry.value.second > seen
             }
+            .filter { notOlderThan == null || it.value.second >= notOlderThan }
             .sortedBy { it.value.second }
     }
+
+    /**
+     * How far back a game reaches for reactions when you open it.
+     *
+     * The point is to catch the ones sent while you were on your way to the app rather than to
+     * replay a day of them. Somebody reacts, you open the game to take your turn, and you see it —
+     * which is what people expect and what was silently not happening.
+     */
+    const val REPLAY_WINDOW_MS = 5 * 60_000L
+
+    /**
+     * The cutoff for that window, against this device's clock.
+     *
+     * This is a cross-clock comparison — the sender's timestamp against our own now — which is
+     * exactly the thing [arrivalsSince] refuses to do when deciding what is new. It is safe here
+     * and not there because of what the two comparisons are for. Deciding whether one reaction
+     * came after another is a strict ordering, and a phone a second out flips it; deciding whether
+     * something happened in the last five minutes is a rough question, and a phone a second out
+     * moves the edge of a five-minute window by a second. Do not tighten this into an exact one.
+     */
+    fun replayCutoff(now: Long = System.currentTimeMillis()): Long = now - REPLAY_WINDOW_MS
 
     /** The mark to carry into the next snapshot: where every player's clock has reached. */
     fun marksFrom(reactions: Map<String, Pair<String, Long>>): Map<String, Long> =
@@ -172,9 +195,10 @@ object Reactions {
         localPlayerId: String,
         lastSeen: Map<String, Long>?,
         captionSp: Float = EmojiBurst.CAPTION_SP,
-        onShout: ((String) -> Unit)? = null
+        onShout: ((String) -> Unit)? = null,
+        notOlderThan: Long? = null
     ): Map<String, Long> {
-        val arrivals = arrivalsSince(state.reactions, localPlayerId, lastSeen)
+        val arrivals = arrivalsSince(state.reactions, localPlayerId, lastSeen, notOlderThan)
 
         // Everyone who has said something since last time, not just the latest — with several
         // people reacting at once, showing only the newest loses the rest.

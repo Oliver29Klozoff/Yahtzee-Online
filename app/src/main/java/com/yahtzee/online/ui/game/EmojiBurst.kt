@@ -18,6 +18,7 @@ import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.view.doOnLayout
 import com.airbnb.lottie.LottieAnimationView
 import com.airbnb.lottie.LottieCompositionFactory
 import com.airbnb.lottie.LottieDrawable
@@ -80,8 +81,21 @@ object EmojiBurst {
      */
     fun spawn(layer: FrameLayout, emoji: String, name: String, captionSp: Float = CAPTION_SP) {
         if (layer.width == 0 || layer.height == 0) {
-            // Not laid out yet — try again once it is, rather than spawning into nothing.
-            layer.post { if (layer.width > 0) spawn(layer, emoji, name, captionSp) }
+            // Not laid out yet — wait for the layout itself, rather than for the next turn of the
+            // message queue.
+            //
+            // This used to be a bare post, which is a race it lost at exactly the wrong moment.
+            // A reaction arriving while the screen is already up finds the layer measured and
+            // spawns immediately; one arriving in the first snapshot of a cold start does not, and
+            // the posted retry could run before the first layout pass had given the layer a size —
+            // whereupon it found zero again and gave up without a sound. That is precisely the
+            // case the catch-up exists for, so the feature failed in the one situation it was
+            // built for while working perfectly everywhere else.
+            //
+            // doOnLayout fires when there is a layout to speak of, immediately if there already
+            // is. The width check stays as a floor: if a laid-out layer still has no width, there
+            // is nowhere to put an emoji and trying again would only spin.
+            layer.doOnLayout { if (it.width > 0 && it.height > 0) spawn(layer, emoji, name, captionSp) }
             return
         }
 

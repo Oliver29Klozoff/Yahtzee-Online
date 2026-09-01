@@ -28,6 +28,7 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.NudgeSeen
+import com.yahtzee.online.game.ReactionSeen
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerStats
@@ -78,11 +79,23 @@ class GameActivity : ImmersiveActivity() {
     private var lastRollsUsed = 0
 
     /**
-     * How far each player's clock had got when this screen last looked, so an unrelated room
-     * update does not replay a reaction. Per player, because the timestamps come from different
-     * phones and no two agree; see [Reactions.arrivalsSince].
+     * How far each player's clock had got when this room's reactions were last shown, so an
+     * unrelated room update does not replay one. Per player, because the timestamps come from
+     * different phones and no two agree; see [Reactions.arrivalsSince].
+     *
+     * Loaded from [ReactionSeen] in `onCreate` rather than starting empty, so it carries what this
+     * device has already been shown *for this room* across visits.
      */
     private var lastReactionAt: Map<String, Long>? = null
+
+    /**
+     * Whether the opening catch-up has happened yet.
+     *
+     * The first look at a room reaches back a few minutes; every look after it takes whatever
+     * arrives, however it is stamped. Only the catch-up wants a window — applying one to live
+     * arrivals would put us back to judging other people's clocks against our own.
+     */
+    private var reactionsCaughtUp = false
 
     private val chatSheet by lazy { ChatSheet(this) }
 
@@ -122,6 +135,10 @@ class GameActivity : ImmersiveActivity() {
 
         // The board is open, so any standing "it's your turn" nudge for it has served its purpose.
         TurnNotifier.clear(this, roomCode)
+
+        // What this device has already been shown in *this* room. Anything newer, and recent
+        // enough to still be worth seeing, plays once the first snapshot lands.
+        lastReactionAt = ReactionSeen.marks(this, roomCode)
 
         applyDisplaySettings()
 
@@ -180,18 +197,25 @@ class GameActivity : ImmersiveActivity() {
             ScoreAnnounce.detect(previous, state, playerId)?.let { taken ->
                 ScoreAnnounce.show(this, findViewById(R.id.reactionPopup), taken)
             }
+            // The first snapshot catches up on the last few minutes; the rest take whatever comes.
+            val catchUp = if (reactionsCaughtUp) null else Reactions.replayCutoff()
+            reactionsCaughtUp = true
             lastReactionAt = Reactions.render(
                 findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt,
                 onShout = { name ->
                     OffTheRip.showCall(this, findViewById(R.id.reactionPopup), name)
-                }
-            )
+                },
+                notOlderThan = catchUp
+            ).also { ReactionSeen.remember(this, roomCode, it) }
             renderChat(state)
             renderNudge(state)
             renderIncomingNudge(state)
             render(state)
             if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
                 gameOverShown = true
+                // Nothing further can happen in this room, so its marks are dead weight. Dropped
+                // here rather than swept later, since this is the one moment we know it is over.
+                ReactionSeen.forget(this, roomCode)
                 showGameOver(state)
             }
 

@@ -105,4 +105,58 @@ class ReactionArrivalTest {
         val reactions = room("a" to ("🔥" to 30L), "b" to ("👏" to 20L))
         assertEquals(mapOf("a" to 30L, "b" to 20L), Reactions.marksFrom(reactions))
     }
+
+    // The catch-up on opening a game. Reactions used to live only as long as the screen showing
+    // them, so unless the other person was looking at their phone at the moment you tapped, nobody
+    // ever saw it — which in a turn-a-day game is nearly always.
+
+    /** Something sent while you were on your way to the app plays when you get there. */
+    @Test
+    fun `opening a game catches up on a recent reaction`() {
+        val now = 1_000_000L
+        val cutoff = now - Reactions.REPLAY_WINDOW_MS
+        val reactions = room(them to ("🔥" to now - 30_000L))
+        val arrivals = Reactions.arrivalsSince(reactions, me, lastSeen = emptyMap(), notOlderThan = cutoff)
+        assertEquals(listOf(them), arrivals.map { it.key })
+    }
+
+    /** But not a day of them. Opening a long game must not fire off last week's flurry. */
+    @Test
+    fun `opening a game does not replay an old reaction`() {
+        val now = 1_000_000L
+        val cutoff = now - Reactions.REPLAY_WINDOW_MS
+        val reactions = room(them to ("🔥" to now - 24 * 60 * 60_000L))
+        assertTrue(
+            Reactions.arrivalsSince(reactions, me, lastSeen = emptyMap(), notOlderThan = cutoff).isEmpty()
+        )
+    }
+
+    /** And not the same one twice: leaving and reopening the game must not replay what was shown. */
+    @Test
+    fun `a reaction already shown is not caught up on again`() {
+        val now = 1_000_000L
+        val cutoff = now - Reactions.REPLAY_WINDOW_MS
+        val sentAt = now - 30_000L
+        val reactions = room(them to ("🔥" to sentAt))
+        val marks = mapOf(them to sentAt)
+        assertTrue(
+            Reactions.arrivalsSince(reactions, me, lastSeen = marks, notOlderThan = cutoff).isEmpty()
+        )
+    }
+
+    /**
+     * Live arrivals carry no window.
+     *
+     * The window compares somebody else's clock against ours, which is fine for "roughly the last
+     * few minutes" and not fine for anything exact. Applying it to live arrivals would put a
+     * device whose clock lags by more than the window back to being silently dropped — the bug
+     * this whole file exists for.
+     */
+    @Test
+    fun `a live reaction is shown however its clock is set`() {
+        val marks = mapOf(them to 1L)
+        val wayBehind = room(them to ("🔥" to 2L))
+        val arrivals = Reactions.arrivalsSince(wayBehind, me, marks, notOlderThan = null)
+        assertEquals(listOf(them), arrivals.map { it.key })
+    }
 }
