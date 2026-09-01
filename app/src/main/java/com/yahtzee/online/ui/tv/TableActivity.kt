@@ -71,13 +71,17 @@ class TableActivity : ImmersiveActivity() {
     private var lastState: GameState? = null
 
     /**
-     * Newest reaction already thrown, so an unrelated update does not replay it.
+     * How far each player's clock had got when this screen last looked, so an unrelated update
+     * does not replay a reaction.
      *
-     * Starts below zero, which the renderer reads as "this screen has not seen the room yet" and
-     * adopts whatever is already there silently. A television switched on halfway through a game
-     * should not open with a flurry of everything anybody reacted with while it was off.
+     * Per player rather than one mark for the room, because the timestamps come from different
+     * phones and no two agree; see [Reactions.arrivalsSince].
+     *
+     * Starts null, which the renderer reads as "this screen has not seen the room yet" and adopts
+     * whatever is already there silently. A television switched on halfway through a game should
+     * not open with a flurry of everything anybody reacted with while it was off.
      */
-    private var lastReactionAt = -1L
+    private var lastReactionAt: Map<String, Long>? = null
 
     /** Last dice shown, so a roll is animated once rather than on every unrelated update. */
     private var lastDice: List<Int>? = null

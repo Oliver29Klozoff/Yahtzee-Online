@@ -116,38 +116,69 @@ object Reactions {
     }
 
     /**
+     * The reactions in [reactions] that are news, given what has already been shown.
+     *
+     * A mark per player rather than one for the room, which is the whole point.
+     *
+     * A reaction is stamped with the clock of the phone that sent it, and no two phones agree.
+     * Held as a single high-water mark, the room's newest timestamp came from whichever device was
+     * running fastest — and the mark ratcheted up over your own reactions too. So the moment you
+     * reacted, you set the bar to your own clock, and anybody whose phone was running behind yours
+     * became invisible to you until their clock caught up. Between the two phones here that is
+     * fifty-odd milliseconds; against a device that has drifted it is seconds, and for as long as
+     * it lasts their emoji are silently dropped rather than shown late.
+     *
+     * Keyed by player, every comparison is between two readings of the same clock, which is the
+     * only comparison that means anything. Skew stops mattering entirely.
+     *
+     * A null [lastSeen] means this screen has not seen the room yet: whatever is already there is
+     * history rather than news, and replaying it would greet you with the last thing anyone said,
+     * possibly days ago.
+     */
+    fun arrivalsSince(
+        reactions: Map<String, Pair<String, Long>>,
+        localPlayerId: String,
+        lastSeen: Map<String, Long>?
+    ): List<Map.Entry<String, Pair<String, Long>>> {
+        if (lastSeen == null) return emptyList()
+        return reactions.entries
+            // Your own are already on screen — thrown the instant you tapped, rather than when
+            // the room got round to telling you about something you did yourself.
+            .filterNot { it.key == localPlayerId }
+            .filter { entry ->
+                val seen = lastSeen[entry.key]
+                // Nothing seen from this player yet means they joined and reacted since; their
+                // first is news by definition.
+                seen == null || entry.value.second > seen
+            }
+            .sortedBy { it.value.second }
+    }
+
+    /** The mark to carry into the next snapshot: where every player's clock has reached. */
+    fun marksFrom(reactions: Map<String, Pair<String, Long>>): Map<String, Long> =
+        reactions.mapValues { it.value.second }
+
+    /**
      * Shows whatever has arrived since last time.
      *
-     * [lastSeen] is the timestamp of the newest reaction already shown, and the return value
-     * replaces it. Comparing timestamps rather than values is what lets the same emoji sent twice
-     * register twice — and what stops every unrelated update to the room replaying the last one.
+     * [lastSeen] is what each player's clock had reached when this screen last looked, and the
+     * return value replaces it. Comparing timestamps rather than values is what lets the same
+     * emoji sent twice register twice — and what stops every unrelated update to the room
+     * replaying the last one.
      */
     fun render(
         burstLayer: FrameLayout,
         state: GameState,
         localPlayerId: String,
-        lastSeen: Long,
+        lastSeen: Map<String, Long>?,
         captionSp: Float = EmojiBurst.CAPTION_SP,
         onShout: ((String) -> Unit)? = null
-    ): Long {
-        // Below zero means this screen has not seen the room yet. Whatever is already there is
-        // history, not news — adopt it silently, or opening a game would replay the last thing
-        // anyone said, possibly from days ago.
-        if (lastSeen < 0L) return state.reactions.values.maxOfOrNull { it.second } ?: 0L
-
-        val arrivals = state.reactions.entries
-            .filter { it.value.second > lastSeen }
-            // Your own are already on screen — thrown the instant you tapped, rather than when
-            // the room got round to telling you about something you did yourself.
-            .filterNot { it.key == localPlayerId }
-
-        if (arrivals.isEmpty()) {
-            return maxOf(lastSeen, state.reactions.values.maxOfOrNull { it.second } ?: lastSeen)
-        }
+    ): Map<String, Long> {
+        val arrivals = arrivalsSince(state.reactions, localPlayerId, lastSeen)
 
         // Everyone who has said something since last time, not just the latest — with several
         // people reacting at once, showing only the newest loses the rest.
-        arrivals.sortedBy { it.value.second }.forEach { entry ->
+        arrivals.forEach { entry ->
             val name = state.players[entry.key]?.name.orEmpty()
             // The shout is words rather than a flying emoji, so it goes to the popup instead of
             // the burst layer. A caller with nowhere to put it throws the token as an ordinary
@@ -159,6 +190,6 @@ object Reactions {
             }
         }
 
-        return state.reactions.values.maxOfOrNull { it.second } ?: lastSeen
+        return marksFrom(state.reactions)
     }
 }

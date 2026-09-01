@@ -77,8 +77,12 @@ class GameActivity : ImmersiveActivity() {
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = 0
 
-    /** Newest reaction already shown, so an unrelated room update does not replay it. */
-    private var lastReactionAt = -1L
+    /**
+     * How far each player's clock had got when this screen last looked, so an unrelated room
+     * update does not replay a reaction. Per player, because the timestamps come from different
+     * phones and no two agree; see [Reactions.arrivalsSince].
+     */
+    private var lastReactionAt: Map<String, Long>? = null
 
     private val chatSheet by lazy { ChatSheet(this) }
 
