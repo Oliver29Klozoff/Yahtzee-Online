@@ -96,6 +96,7 @@ class SettingsActivity : ImmersiveActivity() {
             null
         }
         versionText.text = getString(R.string.version_label, versionName ?: "—")
+        setUpAbout()
 
         checkButton.setOnClickListener {
             checkButton.isEnabled = false
@@ -561,6 +562,24 @@ class SettingsActivity : ImmersiveActivity() {
      * abandons this device's own leaderboard row and its seat in any game it is part of, and
      * there is no code for the identity being replaced unless the player wrote it down first.
      */
+    /**
+     * The credits, folded away at the foot of the page.
+     *
+     * Collapsed for the same reason the recovery section is: it is not what anyone came here for.
+     * It is here at all because the animated reactions are Google's Noto artwork under CC BY 4.0,
+     * and that licence asks for the creator, the licence and a route back to the original — which
+     * a link on a website nobody visits does not really give.
+     */
+    private fun setUpAbout() {
+        val body = findViewById<LinearLayout>(R.id.aboutBody)
+        val chevron = findViewById<TextView>(R.id.aboutChevron)
+        findViewById<View>(R.id.aboutHeader).setOnClickListener {
+            val opening = body.visibility != View.VISIBLE
+            body.visibility = if (opening) View.VISIBLE else View.GONE
+            chevron.setText(if (opening) R.string.collapse_chevron else R.string.expand_chevron)
+        }
+    }
+
     private fun setUpProfileRecovery() {
         val codeView = findViewById<TextView>(R.id.recoveryCodeText)
         val body = findViewById<LinearLayout>(R.id.recoveryBody)

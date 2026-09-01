@@ -4,6 +4,7 @@ import android.content.Context
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.view.Gravity
 import android.widget.TextView
 import com.yahtzee.online.R
@@ -28,8 +29,8 @@ object OffTheRip {
     /** How long the shout stays up. Shorter than a reaction — it is punctuation, not a message. */
     private const val SHOW_MILLIS = 1900L
 
-    /** Matched to a reaction's, so the two shouts carry the same weight on the same screen. */
-    private const val EMOJI_SCALE = 3.6f
+    /** The score, sized to be seen rather than read. Matched to [ScoreAnnounce]'s headline. */
+    private const val POINTS_SCALE = 2.1f
 
     /**
      * Below this a box is being used as a dustbin rather than being hit. Scoring three in the
@@ -56,23 +57,33 @@ object OffTheRip {
     }
 
     /**
-     * The dart on its own line with the words beneath it.
+     * The score on its own line with the words beneath it.
      *
-     * Side by side, the sentence sets the line height and the emoji can only grow so far before
-     * the row looks broken — the same reason a reaction stacks its name under the emoji rather
-     * than beside it. Stacked, the dart is the thing you see and the words are what you read if
-     * you care to.
+     * The dart used to sit on that first line, and it was the thing the eye landed on. Taking it
+     * out would have left a shout with nothing to see and only something to read, so the number
+     * takes the space instead — which says more anyway, being the part that differs between one
+     * of these and the next. The dart is still the mark for this; it lives in the reaction row,
+     * where it is a button somebody presses rather than decoration on a popup.
+     *
+     * Sized like [ScoreAnnounce]'s headline on purpose. They are the same popup, a moment apart,
+     * and a number that changed size between them would read as two different kinds of thing.
      */
     private fun label(context: Context, category: Category, points: Int): CharSequence {
-        val emoji = context.getString(R.string.off_the_rip_emoji)
-        val text = context.getString(R.string.off_the_rip, emoji, points)
-        val start = text.indexOf(emoji)
+        val headline = points.toString()
+        val text = context.getString(R.string.off_the_rip, points)
+        val start = text.indexOf(headline)
         if (start < 0) return text
         return SpannableString(text).apply {
             setSpan(
-                RelativeSizeSpan(EMOJI_SCALE),
+                RelativeSizeSpan(POINTS_SCALE),
                 start,
-                start + emoji.length,
+                start + headline.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            setSpan(
+                StyleSpan(android.graphics.Typeface.BOLD),
+                start,
+                start + headline.length,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }

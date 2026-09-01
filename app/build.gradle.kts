@@ -21,8 +21,8 @@ android {
         applicationId = "com.yahtzee.online"
         minSdk = 24
         targetSdk = 36
-        versionCode = 125
-        versionName = "2.23"
+        versionCode = 126
+        versionName = "2.24"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -71,6 +71,13 @@ dependencies {
     // turn watch is a periodic job that reads the rooms this device is in and raises a local
     // notification itself.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // Plays the animated reaction emoji in assets/emoji.
+    //
+    // Those are vector, which is the reason for a library rather than a folder of GIFs: the same
+    // file is drawn at reaction size in a hand and at three times that on a television, and a
+    // raster of either would be soft at the other. See EmojiBurst.
+    implementation("com.airbnb.android:lottie:6.6.6")
 
     // Drawing the invite QR. Encoding only — the bitmap is rendered here, so none of ZXing's
     // Android layer is pulled in.

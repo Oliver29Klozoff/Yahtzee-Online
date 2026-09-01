@@ -83,6 +83,15 @@
     <string name="profile_recovery_explainer">This code is your identity: your leaderboard place, your daily results and your seat in every unfinished game. Save it somewhere, and you can pick all of it up on another phone.</string>
     <string name="expand_chevron">Show</string>
     <string name="collapse_chevron">Hide</string>
+
+    <!--
+        Credits. The emoji line is not optional politeness: the animations are Google's artwork
+        under CC BY 4.0, which asks for the creator, the licence and a way to find the original.
+    -->
+    <string name="about_section">About</string>
+    <string name="about_emoji_credit">Animated reactions are Noto Animated Emoji by Google, used under the Creative Commons Attribution 4.0 licence. The artwork is unmodified.</string>
+    <string name="about_emoji_links">https://googlefonts.github.io/noto-emoji-animation/\nhttps://creativecommons.org/licenses/by/4.0/</string>
+    <string name="about_libraries">Also built with Lottie, ZXing and Firebase.</string>
     <string name="copy_code">Copy code</string>
     <string name="restore_profile">Use a code</string>
     <string name="restore_profile_warning">Entering a code replaces this phone\'s identity with the one it belongs to. Whatever this phone has now — its leaderboard place and its seat in any game — is left behind unless you saved its code first.</string>
@@ -106,7 +115,7 @@
     <string name="tv_host_marker">%1$s · starts the game</string>
     <string name="tv_keeping">Keeping</string>
     <string name="tv_chat_line">%1$s: %2$s</string>
-    <string name="tv_off_the_rip">🎯\n%1$s took %2$s off the rip — %3$d</string>
+    <string name="tv_off_the_rip">%1$s took %2$s off the rip — %3$d</string>
     <string name="tv_total">Total</string>
     <string name="pass_control">Pass control to another player</string>
     <string name="pass_control_done">%1$s now controls the game.</string>
@@ -229,8 +238,7 @@
     <string name="score_taken_points">%1$d</string>
     <string name="score_taken">%1$s\n%2$s took %3$s</string>
 
-    <string name="off_the_rip_emoji">🎯</string>
-    <string name="off_the_rip">%1$s\nOff the rip! %2$d</string>
+    <string name="off_the_rip">%1$d\nOff the rip!</string>
 
     <!-- Duels: same dice, one attempt each, highest score wins. -->
     <string name="duel_title">Duel a friend</string>

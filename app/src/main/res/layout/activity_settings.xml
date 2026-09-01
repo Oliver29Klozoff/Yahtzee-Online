@@ -615,6 +615,82 @@
         android:layout_marginTop="16dp"
         android:paddingBottom="8dp" />
 
+    <!--
+        Who made the parts of this that were not made here.
+
+        Collapsed, like the recovery section above it, and for the same reason: nobody opens
+        Settings looking for it. It exists because the animated reactions are Google's artwork
+        under a licence that asks to be credited, and a credit nobody can find is not a credit.
+    -->
+    <LinearLayout
+        android:id="@+id/aboutHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?attr/selectableItemBackground"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/about_section"
+            android:textAllCaps="true"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.08"
+            android:textColor="@color/text_muted" />
+
+        <TextView
+            android:id="@+id/aboutChevron"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/expand_chevron"
+            android:textSize="13sp"
+            android:tag="accentText"
+            android:textColor="?attr/colorPrimary" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/aboutBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:paddingBottom="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/about_emoji_credit"
+            android:textSize="13sp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/text_muted" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/about_emoji_links"
+            android:textSize="13sp"
+            android:lineSpacingExtra="3dp"
+            android:autoLink="web"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/text_muted" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/about_libraries"
+            android:textSize="13sp"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginTop="14dp"
+            android:textColor="@color/text_muted" />
+
+    </LinearLayout>
+
 </LinearLayout>
 
 </ScrollView>

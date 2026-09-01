@@ -6,15 +6,21 @@ import android.animation.AnimatorSet
 import android.animation.Keyframe
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
+import android.content.Context
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
+import com.airbnb.lottie.LottieAnimationView
+import com.airbnb.lottie.LottieCompositionFactory
+import com.airbnb.lottie.LottieDrawable
 import com.yahtzee.online.R
 import kotlin.random.Random
 
@@ -37,8 +43,20 @@ object EmojiBurst {
     private const val RISE_MILLIS = 2200L
     private const val POP_MILLIS = 380L
 
-    /** Emoji size against the name caption under it. */
+    /** Emoji size against the name caption under it, as a font glyph. */
     private const val EMOJI_SCALE = 3.4f
+
+    /**
+     * The same, for the artwork — larger, to land at the same size on screen.
+     *
+     * A glyph scaled by [EMOJI_SCALE] does not draw at that height: a colour emoji overshoots its
+     * em box, so the font path was putting a flame on screen about twice the size the number
+     * suggests. A Lottie view fills exactly the box it is given, so matching the two means asking
+     * for the size that was actually appearing rather than the one that was nominally requested.
+     * Measured against the font path on a 4K panel rather than derived — there is no clean ratio
+     * to derive, it depends on the glyph.
+     */
+    private const val ART_SCALE = 6.4f
 
     /** The caption size on a screen held in a hand, which the emoji is then scaled against. */
     const val CAPTION_SP = 15f
@@ -76,14 +94,8 @@ object EmojiBurst {
 
         val context = layer.context
         val density = context.resources.displayMetrics.density
-        val view = AppCompatTextView(context).apply {
-            text = label(emoji, name)
-            textSize = captionSp
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            setTextColor(context.getColor(R.color.text_dark))
-            setShadowLayer(8f, 0f, 2f, android.graphics.Color.BLACK)
-        }
+        val view = animatedView(context, emoji, name, captionSp)
+            ?: staticView(context, emoji, name, captionSp)
 
         // Measured before it is added, so its resting place can be worked out in one pass.
         view.measure(
@@ -172,6 +184,125 @@ object EmojiBurst {
         })
         set.start()
     }
+
+    /**
+     * The reaction as the moving artwork Google publishes for it, or null if there is none.
+     *
+     * The emoji font draws a still picture. Everything that made a reaction feel alive was
+     * therefore motion this file applied to that picture from the outside — it flew, but the fire
+     * did not burn and the laughing face did not laugh. These are the same emoji drawn as short
+     * animations, so the glyph itself moves and the flight is on top of it rather than instead of
+     * it.
+     *
+     * Vector, so one file serves both the size a phone shows it at and the much larger size a
+     * television does. A raster set would have meant shipping the television size and letting the
+     * phone waste it, or shipping the phone size and letting the television blur it.
+     *
+     * Returning null rather than throwing is what keeps this optional: an emoji with no animation
+     * — a new one added to the row, or a build where the assets were left out — quietly falls back
+     * to the font glyph, which is exactly what shipped before.
+     */
+    private fun animatedView(
+        context: Context,
+        emoji: String,
+        name: String,
+        captionSp: Float
+    ): View? {
+        val asset = assetFor(context, emoji) ?: return null
+
+        // Parsed here and now rather than by setAnimation, which does it on a background thread.
+        // Asynchronous is the right default for a screen that is about to sit there, and the wrong
+        // one for something that lives for two seconds: the emoji arrived a third of a second into
+        // its own flight, so the reaction opened with a caption floating under an empty space. The
+        // parse happens once per emoji — Lottie caches by asset name — and every reaction after
+        // the first is a cache read.
+        val composition = LottieCompositionFactory.fromAssetSync(context, asset).value ?: return null
+
+        val size = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            captionSp * ART_SCALE,
+            context.resources.displayMetrics
+        ).toInt()
+
+        val art = LottieAnimationView(context).apply {
+            setComposition(composition)
+            // Loops for as long as it is on screen. These are one-second cycles and the flight
+            // lasts rather longer, so playing once would leave most of the rise showing a
+            // motionless final frame — the very thing this replaces.
+            repeatCount = LottieDrawable.INFINITE
+            playAnimation()
+        }
+
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(art, LinearLayout.LayoutParams(size, size))
+        }
+        if (name.isNotEmpty()) {
+            // Its own width, explicitly. A vertical LinearLayout hands its children MATCH_PARENT
+            // by default, which inside a wrapping parent means the caption is measured against
+            // whatever the emoji above it happens to be — so "King Eric" was being squeezed into
+            // the width of a flame and losing half of itself.
+            container.addView(
+                caption(context, name, captionSp).apply { maxLines = 1 },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        return container
+    }
+
+    /** The font glyph, flown the way it always was. Used when there is no animation for it. */
+    private fun staticView(
+        context: Context,
+        emoji: String,
+        name: String,
+        captionSp: Float
+    ): View = caption(context, label(emoji, name), captionSp)
+
+    /** The sender's name, styled the same whichever of the two paths drew the emoji above it. */
+    private fun caption(context: Context, text: CharSequence, captionSp: Float) =
+        AppCompatTextView(context).apply {
+            this.text = text
+            textSize = captionSp
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            setTextColor(context.getColor(R.color.text_dark))
+            setShadowLayer(8f, 0f, 2f, android.graphics.Color.BLACK)
+        }
+
+    /**
+     * Asset path for [emoji], or null if it has no animation.
+     *
+     * Named by code point, which is how Google names them, so adding one is a matter of dropping
+     * the file in and nothing else. The directory is listed once and remembered: [spawn] runs on
+     * every tap of a seven-button row, and hitting the asset manager each time to ask a question
+     * whose answer cannot change would be work for nothing.
+     */
+    private fun assetFor(context: Context, emoji: String): String? {
+        if (emoji.isEmpty()) return null
+        val available = animatedCodePoints ?: runCatching {
+            context.assets.list(ASSET_DIR)
+                .orEmpty()
+                .filter { it.endsWith(".json") }
+                .map { it.removeSuffix(".json") }
+                .toSet()
+        }.getOrDefault(emptySet()).also { animatedCodePoints = it }
+
+        // The first code point alone. A reaction is one character, and taking it this way means a
+        // variation selector or a skin tone arriving later picks the base animation rather than
+        // silently falling back to the still.
+        val code = emoji.codePointAt(0).toString(16)
+        return if (code in available) "$ASSET_DIR/$code.json" else null
+    }
+
+    private const val ASSET_DIR = "emoji"
+
+    /** Populated on first use; the contents of an APK do not change while it is running. */
+    @Volatile
+    private var animatedCodePoints: Set<String>? = null
 
     private fun label(emoji: String, name: String): CharSequence {
         if (name.isEmpty()) {
