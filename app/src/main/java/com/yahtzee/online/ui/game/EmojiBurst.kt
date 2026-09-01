@@ -40,16 +40,30 @@ object EmojiBurst {
     /** Emoji size against the name caption under it. */
     private const val EMOJI_SCALE = 3.4f
 
+    /** The caption size on a screen held in a hand, which the emoji is then scaled against. */
+    const val CAPTION_SP = 15f
+
+    /**
+     * The same, for a screen across a room.
+     *
+     * Not a nicety: a phone is read at arm's length and a television at ten feet, so the size that
+     * reads well in the hand arrives on the big screen as a detail nobody sitting on the sofa can
+     * make out — which for something whose whole job is to be seen at a glance is the same as not
+     * showing it. Sized so the emoji lands about as large in the eye from the sofa as the phone's
+     * does from the hand.
+     */
+    const val TV_CAPTION_SP = 30f
+
     /**
      * Puts one emoji on the layer and sets it going.
      *
      * [name] is captioned underneath because in a four-player room the interesting part of a
      * reaction is often who sent it. Left blank it is simply omitted.
      */
-    fun spawn(layer: FrameLayout, emoji: String, name: String) {
+    fun spawn(layer: FrameLayout, emoji: String, name: String, captionSp: Float = CAPTION_SP) {
         if (layer.width == 0 || layer.height == 0) {
             // Not laid out yet — try again once it is, rather than spawning into nothing.
-            layer.post { if (layer.width > 0) spawn(layer, emoji, name) }
+            layer.post { if (layer.width > 0) spawn(layer, emoji, name, captionSp) }
             return
         }
 
@@ -64,7 +78,7 @@ object EmojiBurst {
         val density = context.resources.displayMetrics.density
         val view = AppCompatTextView(context).apply {
             text = label(emoji, name)
-            textSize = 15f
+            textSize = captionSp
             gravity = Gravity.CENTER
             includeFontPadding = false
             setTextColor(context.getColor(R.color.text_dark))

@@ -107,7 +107,8 @@ object Reactions {
         burstLayer: FrameLayout,
         state: GameState,
         localPlayerId: String,
-        lastSeen: Long
+        lastSeen: Long,
+        captionSp: Float = EmojiBurst.CAPTION_SP
     ): Long {
         // Below zero means this screen has not seen the room yet. Whatever is already there is
         // history, not news — adopt it silently, or opening a game would replay the last thing
@@ -128,7 +129,7 @@ object Reactions {
         // people reacting at once, showing only the newest loses the rest.
         arrivals.sortedBy { it.value.second }.forEach { entry ->
             val name = state.players[entry.key]?.name.orEmpty()
-            EmojiBurst.spawn(burstLayer, entry.value.first, name)
+            EmojiBurst.spawn(burstLayer, entry.value.first, name, captionSp)
         }
 
         return state.reactions.values.maxOfOrNull { it.second } ?: lastSeen

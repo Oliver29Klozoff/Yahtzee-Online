@@ -105,6 +105,8 @@
     <string name="tv_turn_of">%1$s to roll</string>
     <string name="tv_host_marker">%1$s · starts the game</string>
     <string name="tv_keeping">Keeping</string>
+    <string name="tv_chat_line">%1$s: %2$s</string>
+    <string name="tv_off_the_rip">🎯\n%1$s took %2$s off the rip — %3$d</string>
     <string name="tv_total">Total</string>
     <string name="pass_control">Pass control to another player</string>
     <string name="pass_control_done">%1$s now controls the game.</string>

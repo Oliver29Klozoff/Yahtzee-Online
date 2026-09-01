@@ -9,11 +9,15 @@
     is the scorecards — but the code stays, shrunk into the corner, because a latecomer can still
     take a seat and a room nobody can find is no use to them.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:background="@color/background"
     android:padding="28dp">
 
     <LinearLayout
@@ -186,6 +190,58 @@
             android:orientation="vertical"
             android:layout_marginTop="8dp" />
 
+        <!--
+            The last few things said in the room, on the screen everyone is already facing.
+
+            A television cannot answer, so this is a read-only window onto the chat rather than a
+            copy of it — which is the useful half here anyway: somebody says something on their
+            phone and the room sees it without anybody having to look down.
+        -->
+        <LinearLayout
+            android:id="@+id/tableChat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="14dp" />
+
     </LinearLayout>
 
 </LinearLayout>
+
+    <!--
+        Where reactions fly. Full-bleed and inert, so a flurry can cross the whole screen.
+    -->
+    <FrameLayout
+        android:id="@+id/emojiBurstLayer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="noHideDescendants" />
+
+    <!--
+        What somebody just scored, and the off-the-rip shout. Larger than the phone's, because it
+        is being read from across a room rather than from a hand.
+    -->
+    <TextView
+        android:id="@+id/reactionPopup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="56dp"
+        android:gravity="center"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFFFF"
+        android:background="@drawable/reaction_popup_background"
+        android:elevation="8dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
+</FrameLayout>

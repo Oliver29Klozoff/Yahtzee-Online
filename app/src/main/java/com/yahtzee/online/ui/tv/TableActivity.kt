@@ -18,9 +18,14 @@ import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.seatAngle
+import com.yahtzee.online.net.FirebaseSignIn
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.QrCode
+import com.yahtzee.online.ui.game.EmojiBurst
+import com.yahtzee.online.ui.game.EmojiPop
+import com.yahtzee.online.ui.game.Reactions
+import com.yahtzee.online.ui.game.ScoreAnnounce
 
 /**
  * The television's view of a game in progress.
@@ -42,6 +47,12 @@ class TableActivity : ImmersiveActivity() {
          * to a phone's tall strip, and at the phone framing the dice overrun the top of it.
          */
         const val TV_CAMERA_SCALE = 1.35f
+
+        /** Messages kept on screen. Enough to follow, few enough not to crowd the scores. */
+        const val CHAT_LINES = 4
+
+        /** Matches the phone's bar for calling a hand worth shouting about. */
+        const val OFF_THE_RIP_POINTS = 20
     }
 
     private val repository by lazy { GameRepository(this) }
@@ -50,8 +61,22 @@ class TableActivity : ImmersiveActivity() {
     private var roomCode: String = ""
     private var listener: ValueEventListener? = null
 
-    /** Kept only so [onDestroy] can tell an empty room from one with a game going on in it. */
+    /**
+     * The room as it last stood.
+     *
+     * Two jobs: [onDestroy] uses it to tell an empty room from one with a game in it, and the
+     * room events are worked out by comparing it against whatever arrives next.
+     */
     private var lastState: GameState? = null
+
+    /**
+     * Newest reaction already thrown, so an unrelated update does not replay it.
+     *
+     * Starts below zero, which the renderer reads as "this screen has not seen the room yet" and
+     * adopts whatever is already there silently. A television switched on halfway through a game
+     * should not open with a flurry of everything anybody reacted with while it was off.
+     */
+    private var lastReactionAt = -1L
 
     /** Last dice shown, so a roll is animated once rather than on every unrelated update. */
     private var lastDice: List<Int>? = null
@@ -77,14 +102,29 @@ class TableActivity : ImmersiveActivity() {
         openRoom()
     }
 
+    /**
+     * Creates the room this screen is showing, once there is a session to create it with.
+     *
+     * Held behind [FirebaseSignIn.awaitReady] because of what a television does that a phone does
+     * not: it goes straight here on launch. Every phone path reaches the database through a menu,
+     * minutes of a first run, or at the very least a splash screen — by which time the first-ever
+     * anonymous sign-in has long finished. This screen asks for a room in `onCreate`, so on a
+     * device that has never run the app the write went out before there was any session to sign it
+     * with and the rules refused it. What the room saw was a television sitting on the join screen
+     * with no code and no QR on it and nothing saying why, and the only way through was to launch
+     * it a second time. Waiting costs a fraction of a second on that one launch and nothing at all
+     * on every launch after, since the session is restored from disk.
+     */
     private fun openRoom() {
-        repository.createSpectatorRoom { code ->
-            roomCode = code
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                findViewById<TextView>(R.id.tableRoomCode).text = code
-                renderQr(code)
-                watchRoom(code)
+        FirebaseSignIn.awaitReady {
+            repository.createSpectatorRoom { code ->
+                roomCode = code
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    findViewById<TextView>(R.id.tableRoomCode).text = code
+                    renderQr(code)
+                    watchRoom(code)
+                }
             }
         }
     }
@@ -105,9 +145,13 @@ class TableActivity : ImmersiveActivity() {
     private fun watchRoom(code: String) {
         listener = repository.listenToRoom(code) { state ->
             if (state == null) return@listenToRoom
+            // Held before it is replaced: what somebody just scored, and how many rolls it took
+            // them, are both differences between this snapshot and the one before it.
+            val previous = lastState
             lastState = state
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
+                renderRoomEvents(previous, state)
                 render(state)
             }
         }
@@ -120,6 +164,64 @@ class TableActivity : ImmersiveActivity() {
         renderHeld(state)
         renderScorecards(state)
         renderScores(state)
+        renderChat(state)
+    }
+
+    /**
+     * The things a room says to itself, shown on the screen the room is facing.
+     *
+     * A television is nobody's seat, and that is what makes it the right place for all of this.
+     * Both helpers take the viewer's own id so a phone does not announce things back at the
+     * player who did them; here there is no such player, so an empty id is passed and everything
+     * that happens is shown — which is exactly what a spectator screen is for.
+     */
+    private fun renderRoomEvents(previous: GameState?, state: GameState) {
+        // What somebody just scored, and whether they did it straight off the opening roll.
+        //
+        // Off the rip is worked out from the pair of snapshots rather than from a field: the roll
+        // count is reset the instant a box is filled, so the only place the "how many rolls did
+        // that take" answer survives is in the state as it was a moment ago.
+        ScoreAnnounce.detect(previous, state, localPlayerId = "")?.let { taken ->
+            val popup = findViewById<TextView>(R.id.reactionPopup)
+            if (previous != null && previous.rollsUsed == 1 && taken.points >= OFF_THE_RIP_POINTS) {
+                EmojiPop.show(
+                    popup,
+                    getString(R.string.tv_off_the_rip, taken.playerName, taken.label, taken.points),
+                    ScoreAnnounce.SHOW_MILLIS
+                )
+            } else {
+                ScoreAnnounce.show(this, popup, taken)
+            }
+        }
+
+        lastReactionAt = Reactions.render(
+            findViewById(R.id.emojiBurstLayer),
+            state,
+            localPlayerId = "",
+            lastSeen = lastReactionAt,
+            captionSp = EmojiBurst.TV_CAPTION_SP
+        )
+    }
+
+    /** The last few messages, oldest first, so the newest sits nearest the eye at the bottom. */
+    private fun renderChat(state: GameState) {
+        val list = findViewById<LinearLayout>(R.id.tableChat)
+        val recent = state.chat.takeLast(CHAT_LINES)
+        list.removeAllViews()
+        list.visibility = if (recent.isEmpty()) View.GONE else View.VISIBLE
+
+        recent.forEach { message ->
+            list.addView(
+                androidx.appcompat.widget.AppCompatTextView(this).apply {
+                    text = getString(R.string.tv_chat_line, message.senderName, message.text)
+                    textSize = 15f
+                    maxLines = 2
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setTextColor(getColor(R.color.text_muted))
+                    setPadding(0, (2 * resources.displayMetrics.density).toInt(), 0, 0)
+                }
+            )
+        }
     }
 
     /**
