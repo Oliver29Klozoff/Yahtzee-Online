@@ -160,6 +160,12 @@ class GameActivity : ImmersiveActivity() {
         }
         findViewById<Button>(R.id.chatButton).setOnClickListener { openChat() }
         findViewById<Button>(R.id.nudgeButton).setOnClickListener { sendNudge() }
+        findViewById<Button>(R.id.offTheRipButton).setOnClickListener {
+            // Shown here before the room answers, for the same reason a tapped emoji is: the
+            // press should look like it did something without waiting on a round trip.
+            OffTheRip.showCall(this, findViewById(R.id.reactionPopup), PlayerProfile.getName(this))
+            repository.sendReaction(roomCode, Reactions.OFF_THE_RIP)
+        }
 
         listener = repository.listenToRoom(roomCode) { state ->
             if (state == null) return@listenToRoom
@@ -171,7 +177,10 @@ class GameActivity : ImmersiveActivity() {
                 ScoreAnnounce.show(this, findViewById(R.id.reactionPopup), taken)
             }
             lastReactionAt = Reactions.render(
-                findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt
+                findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt,
+                onShout = { name ->
+                    OffTheRip.showCall(this, findViewById(R.id.reactionPopup), name)
+                }
             )
             renderChat(state)
             renderNudge(state)

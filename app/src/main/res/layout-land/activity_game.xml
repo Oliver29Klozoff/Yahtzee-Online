@@ -114,13 +114,35 @@
             android:paddingEnd="4dp"
             android:visibility="gone">
 
-            <LinearLayout
-                android:id="@+id/reactionRow"
+            <!-- Scrolls rather than clips; see the portrait layout. -->
+            <HorizontalScrollView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center" />
+                android:fillViewport="true"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/reactionRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center" />
+
+            </HorizontalScrollView>
+
+            <Button
+                android:id="@+id/offTheRipButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="0dp"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:textSize="11sp"
+                android:text="@string/off_the_rip_button"
+                android:tag="accentText"
+                android:textColor="?attr/colorPrimary" />
 
             <Button
                 android:id="@+id/nudgeButton"

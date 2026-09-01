@@ -57,6 +57,37 @@ object OffTheRip {
     }
 
     /**
+     * The same shout, called by a person rather than worked out from the scorecard.
+     *
+     * [qualifies] only fires for the player who did it, on a roll the rules agree was worth
+     * remarking on. Plenty of rolls are worth remarking on that it will never fire for — somebody
+     * else's, or one that fell just under the bar — and the only person who can judge that is
+     * whoever is watching. So this says the same words with a name against them and no score,
+     * because a called shout is an opinion about a roll rather than a reading of a box.
+     */
+    fun showCall(context: Context, popup: TextView, name: String) {
+        popup.gravity = Gravity.CENTER
+        EmojiPop.show(popup, callLabel(context, name), SHOW_MILLIS)
+    }
+
+    private fun callLabel(context: Context, name: String): CharSequence {
+        val headline = context.getString(R.string.off_the_rip_call_headline)
+        val text = context.getString(R.string.off_the_rip_call, headline, name)
+        return SpannableString(text).apply {
+            setSpan(RelativeSizeSpan(CALL_SCALE), 0, headline.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(
+                StyleSpan(android.graphics.Typeface.BOLD),
+                0,
+                headline.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+    }
+
+    /** The words carry a called shout, so they take the size the score takes in an automatic one. */
+    private const val CALL_SCALE = 1.6f
+
+    /**
      * The score on its own line with the words beneath it.
      *
      * The dart used to sit on that first line, and it was the thing the eye landed on. Taking it

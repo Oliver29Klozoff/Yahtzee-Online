@@ -105,13 +105,43 @@
         android:layout_marginBottom="6dp"
         android:visibility="gone">
 
-        <LinearLayout
-            android:id="@+id/reactionRow"
+        <!--
+            Scrolls rather than clips. Seven emoji plus three buttons is more than a narrow phone
+            has room for at a large system font, and a row that runs out of space would otherwise
+            take it out of the emoji — silently cutting the last of them off the end.
+        -->
+        <HorizontalScrollView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center" />
+            android:fillViewport="true"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/reactionRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center" />
+
+        </HorizontalScrollView>
+
+        <!--
+            Calls it on somebody else's roll. The automatic shout only fires for the player who did
+            it, on a roll the rules judged worth it; this is how the rest of the table says so.
+        -->
+        <Button
+            android:id="@+id/offTheRipButton"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textSize="12sp"
+            android:text="@string/off_the_rip_button"
+            android:tag="accentText"
+            android:textColor="?attr/colorPrimary" />
 
         <!-- Only shown while the room is waiting on somebody who is not you. -->
         <Button

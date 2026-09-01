@@ -6,6 +6,45 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
+ * The called shout, which travels down the reaction channel as a reserved token.
+ *
+ * Worth pinning separately from the automatic one. The token has to stay distinct from the plain
+ * dart reaction sitting next to it in the same row, and it has to stay inside the length the
+ * database rules allow for a reaction — a token that outgrew that limit would be refused by the
+ * server, and the only symptom would be a button that silently does nothing on other people's
+ * screens.
+ */
+class OffTheRipCallTest {
+
+    /** The rules cap an emoji at eight characters; see firebase-database-rules.json. */
+    private val emojiFieldLimit = 8
+
+    @Test
+    fun `the shout token is not the plain dart reaction`() {
+        assertFalse(Reactions.isShout("🎯"))
+        assertTrue(Reactions.isShout(Reactions.OFF_THE_RIP))
+    }
+
+    @Test
+    fun `the dart stays available as an ordinary reaction`() {
+        assertTrue(Reactions.EMOJI.contains("🎯"))
+    }
+
+    /** Sending the token must not be something the database will refuse. */
+    @Test
+    fun `the shout token fits what the rules accept`() {
+        assertTrue(Reactions.OFF_THE_RIP.isNotEmpty())
+        assertTrue(Reactions.OFF_THE_RIP.length <= emojiFieldLimit)
+    }
+
+    /** Nothing else in the row may collide with it, or a tap would read as a shout. */
+    @Test
+    fun `no ordinary reaction is mistaken for the shout`() {
+        Reactions.EMOJI.forEach { assertFalse(Reactions.isShout(it)) }
+    }
+}
+
+/**
  * A shout that goes up for everything is noise. These pin down the two things that make it mean
  * something: it happened on the opening roll, and what was scored was actually worth having.
  */

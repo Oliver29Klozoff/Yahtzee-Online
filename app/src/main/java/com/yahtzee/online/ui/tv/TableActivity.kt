@@ -24,6 +24,7 @@ import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.QrCode
 import com.yahtzee.online.ui.game.EmojiBurst
 import com.yahtzee.online.ui.game.EmojiPop
+import com.yahtzee.online.ui.game.OffTheRip
 import com.yahtzee.online.ui.game.Reactions
 import com.yahtzee.online.ui.game.ScoreAnnounce
 
@@ -199,7 +200,10 @@ class TableActivity : ImmersiveActivity() {
             state,
             localPlayerId = "",
             lastSeen = lastReactionAt,
-            captionSp = EmojiBurst.TV_CAPTION_SP
+            captionSp = EmojiBurst.TV_CAPTION_SP,
+            onShout = { name ->
+                OffTheRip.showCall(this, findViewById(R.id.reactionPopup), name)
+            }
         )
     }
 

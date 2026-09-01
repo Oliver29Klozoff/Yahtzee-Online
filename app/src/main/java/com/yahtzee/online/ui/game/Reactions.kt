@@ -26,6 +26,25 @@ object Reactions {
      */
     val EMOJI = listOf("👏", "😂", "😱", "🔥", "🎯", "🎲", "😭")
 
+    /**
+     * What the off-the-rip button sends, carried down the reaction channel rather than a node of
+     * its own.
+     *
+     * Reusing the channel is worth a little strangeness. A new node would mean new database rules,
+     * which have to be pasted into the console by hand and which every device must be running the
+     * matching build for before they land — a lot of ceremony for one button. This travels on
+     * plumbing that already exists, is already validated, and is already read by the television.
+     *
+     * A dart with an exclamation mark rather than an invented word, because of what happens on a
+     * phone that has not updated yet: it does not know the token, so it throws it as a reaction,
+     * and what that player sees is a dart — which is the off-the-rip mark anyway. The shout
+     * degrades into the gesture it stands for instead of into nonsense.
+     */
+    const val OFF_THE_RIP = "🎯!"
+
+    /** Whether an arriving reaction is the shout rather than an emoji somebody threw. */
+    fun isShout(emoji: String): Boolean = emoji == OFF_THE_RIP
+
     /** How long a reaction stays on screen before it fades. */
     private const val SHOW_MILLIS = 2600L
 
@@ -108,7 +127,8 @@ object Reactions {
         state: GameState,
         localPlayerId: String,
         lastSeen: Long,
-        captionSp: Float = EmojiBurst.CAPTION_SP
+        captionSp: Float = EmojiBurst.CAPTION_SP,
+        onShout: ((String) -> Unit)? = null
     ): Long {
         // Below zero means this screen has not seen the room yet. Whatever is already there is
         // history, not news — adopt it silently, or opening a game would replay the last thing
@@ -129,7 +149,14 @@ object Reactions {
         // people reacting at once, showing only the newest loses the rest.
         arrivals.sortedBy { it.value.second }.forEach { entry ->
             val name = state.players[entry.key]?.name.orEmpty()
-            EmojiBurst.spawn(burstLayer, entry.value.first, name, captionSp)
+            // The shout is words rather than a flying emoji, so it goes to the popup instead of
+            // the burst layer. A caller with nowhere to put it throws the token as an ordinary
+            // reaction, which draws the dart it is made of — the same thing an older build does.
+            if (isShout(entry.value.first) && onShout != null) {
+                onShout(name)
+            } else {
+                EmojiBurst.spawn(burstLayer, entry.value.first, name, captionSp)
+            }
         }
 
         return state.reactions.values.maxOfOrNull { it.second } ?: lastSeen
