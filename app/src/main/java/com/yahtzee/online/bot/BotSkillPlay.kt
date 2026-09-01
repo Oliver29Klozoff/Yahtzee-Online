@@ -33,7 +33,13 @@ object BotSkillPlay {
         // Expert is a different method rather than a stronger setting of the same one: it works
         // the keep out by search instead of matching the dice against a list of rules.
         if (skill == AppSettings.BotSkill.EXPERT) {
-            return ExpertStrategy.chooseHolds(dice, openCategories, rollsLeft, upperTotalSoFar)
+            return ExpertStrategy.chooseHolds(
+                dice,
+                openCategories,
+                rollsLeft,
+                upperTotalSoFar,
+                ExpertStrategy.IGNORES_UPPER_BONUS
+            )
         }
         val best = BotStrategy.chooseHolds(dice, openCategories, rollsLeft)
         return when (skill) {
@@ -58,8 +64,16 @@ object BotSkillPlay {
         return when (skill) {
             // Priced the same way the search prices it, so where it scores agrees with what it
             // kept — the two halves of a turn pulling different directions is its own weakness.
+            // The bot does not steer for the upper bonus; see ExpertStrategy. Passed here as well
+            // as to the keep, so where it scores agrees with what it kept — the two halves of a
+            // turn pricing a hand differently is its own weakness.
             AppSettings.BotSkill.EXPERT ->
-                ExpertStrategy.chooseCategory(dice, openCategories, upperTotalSoFar)
+                ExpertStrategy.chooseCategory(
+                    dice,
+                    openCategories,
+                    upperTotalSoFar,
+                    ExpertStrategy.IGNORES_UPPER_BONUS
+                )
             AppSettings.BotSkill.HARD ->
                 BotStrategy.chooseCategory(dice, openCategories, upperTotalSoFar)
             AppSettings.BotSkill.NORMAL ->
