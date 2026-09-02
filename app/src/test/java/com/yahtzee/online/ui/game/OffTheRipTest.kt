@@ -25,9 +25,16 @@ class OffTheRipCallTest {
         assertTrue(Reactions.isShout(Reactions.OFF_THE_RIP))
     }
 
+    /**
+     * The dart left the row when the button took its job, but the token is still made of one, and
+     * an older build still has it in its row. Both mean the animation has to stay shipped.
+     */
     @Test
-    fun `the dart stays available as an ordinary reaction`() {
-        assertTrue(Reactions.EMOJI.contains("🎯"))
+    fun `the dart's animation is still shipped`() {
+        assertTrue(
+            "the shout token is drawn from this code point on any client that throws it as an emoji",
+            Reactions.OFF_THE_RIP.startsWith("🎯")
+        )
     }
 
     /** Sending the token must not be something the database will refuse. */

@@ -12,19 +12,24 @@ import com.yahtzee.online.game.GameState
  *
  * A turn-a-day game is silent by nature — the whole point of playing someone rather than a bot is
  * lost if the only thing that ever arrives is a number on a scorecard. These are deliberately not
- * a chat: a fixed handful of taps needs no keyboard, no moderation, and cannot say anything worth
- * reporting, which for a game strangers can join is the difference between shipping it and not.
+ * a chat: a fixed handful of taps needs no keyboard and no moderation queue, because the room can
+ * only ever say one of seven things.
  */
 object Reactions {
 
     /**
      * Small enough to fit a phone width, and broad enough to cover most of what a roll deserves.
      *
-     * The dart is the off-the-rip mark. That shout fires by itself when you score off the opening
-     * roll, but only the player who did it sees it — so this is how you say it about somebody
-     * else's roll, which is usually when it most wants saying.
+     * The dart used to sit here as the off-the-rip mark, from before there was a button that says
+     * so in words. Two ways to make the same point is one too many, and the row is the scarcer
+     * space of the two, so the button kept the job.
+     *
+     * Which left room for the rude one. It is what people reach for when somebody takes the box
+     * they were saving, and a game between friends that cannot say so is missing something the
+     * table would have said out loud. Worth knowing what it costs: this is a room a stranger can
+     * join off a code, and a row that could previously only be enthusiastic can now be pointed.
      */
-    val EMOJI = listOf("👏", "😂", "😱", "🔥", "🎯", "🎲", "😭")
+    val EMOJI = listOf("👏", "😂", "😱", "🔥", "🖕", "🎲", "😭")
 
     /**
      * What the off-the-rip button sends, carried down the reaction channel rather than a node of
@@ -39,6 +44,11 @@ object Reactions {
      * phone that has not updated yet: it does not know the token, so it throws it as a reaction,
      * and what that player sees is a dart — which is the off-the-rip mark anyway. The shout
      * degrades into the gesture it stands for instead of into nonsense.
+     *
+     * The dart's own animation stays in the assets even though it has left the row above, for the
+     * two paths that can still ask for it: an older build sending a plain dart from the row it
+     * still has, and this token being thrown as an emoji by any caller that passes no shout
+     * handler.
      */
     const val OFF_THE_RIP = "🎯!"
 
