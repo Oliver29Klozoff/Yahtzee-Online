@@ -89,13 +89,28 @@ class GameActivity : ImmersiveActivity() {
     private var lastReactionAt: Map<String, Long>? = null
 
     /**
-     * Whether the opening catch-up has happened yet.
+     * Whether the catch-up has happened since this screen was last brought to the front.
      *
-     * The first look at a room reaches back a few minutes; every look after it takes whatever
-     * arrives, however it is stamped. Only the catch-up wants a window — applying one to live
-     * arrivals would put us back to judging other people's clocks against our own.
+     * The first look reaches back over the window; every look after it takes whatever arrives,
+     * however it is stamped. Only the catch-up wants a window — applying one to live arrivals
+     * would put us back to judging other people's clocks against our own.
+     *
+     * Cleared in [onStop] rather than set once in [onCreate], so coming back to a game that was
+     * left open in the background catches up the same way opening it fresh does.
      */
     private var reactionsCaughtUp = false
+
+    /**
+     * Whether this screen is actually in front of somebody.
+     *
+     * Reactions are only shown, and only written down as shown, while it is. The room listener
+     * outlives the screen going to the background — it has to, so the board is current the moment
+     * you come back — and it was quietly rendering arrivals into a window nobody was looking at
+     * and then recording them as seen. The reaction was never drawn on any screen a person was
+     * facing, and because it had been marked seen it never would be. Put a phone in a pocket
+     * mid-game and every reaction sent to it vanished exactly that way.
+     */
+    private var screenVisible = false
 
     private val chatSheet by lazy { ChatSheet(this) }
 
@@ -197,16 +212,20 @@ class GameActivity : ImmersiveActivity() {
             ScoreAnnounce.detect(previous, state, playerId)?.let { taken ->
                 ScoreAnnounce.show(this, findViewById(R.id.reactionPopup), taken)
             }
-            // The first snapshot catches up on the last few minutes; the rest take whatever comes.
-            val catchUp = if (reactionsCaughtUp) null else Reactions.replayCutoff()
-            reactionsCaughtUp = true
-            lastReactionAt = Reactions.render(
-                findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt,
-                onShout = { name ->
-                    OffTheRip.showCall(this, findViewById(R.id.reactionPopup), name)
-                },
-                notOlderThan = catchUp
-            ).also { ReactionSeen.remember(this, roomCode, it) }
+            // Only while somebody is looking. Off screen, the marks are left exactly where they
+            // are, so whatever arrived is still owed to them when they come back.
+            if (screenVisible) {
+                // The first look catches up over the window; the rest take whatever comes.
+                val catchUp = if (reactionsCaughtUp) null else Reactions.replayCutoff()
+                reactionsCaughtUp = true
+                lastReactionAt = Reactions.render(
+                    findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt,
+                    onShout = { name ->
+                        OffTheRip.showCall(this, findViewById(R.id.reactionPopup), name)
+                    },
+                    notOlderThan = catchUp
+                ).also { ReactionSeen.remember(this, roomCode, it) }
+            }
             renderChat(state)
             renderNudge(state)
             renderIncomingNudge(state)
@@ -668,6 +687,30 @@ class GameActivity : ImmersiveActivity() {
             won = state.winnerId == playerId,
             opponents = state.playerOrder.size - 1
         )
+    }
+
+    override fun onStart() {
+        super.onStart()
+        screenVisible = true
+        // Coming back counts as opening it: catch up on whatever arrived while this was away.
+        reactionsCaughtUp = false
+        // A snapshot may not be due for a while — a room with nobody rolling is quiet for hours —
+        // so the catch-up runs against the room as it last stood rather than waiting for one.
+        lastState?.let { state ->
+            lastReactionAt = Reactions.render(
+                findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt,
+                onShout = { name ->
+                    OffTheRip.showCall(this, findViewById(R.id.reactionPopup), name)
+                },
+                notOlderThan = Reactions.replayCutoff()
+            ).also { ReactionSeen.remember(this, roomCode, it) }
+            reactionsCaughtUp = true
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        screenVisible = false
     }
 
     override fun onDestroy() {

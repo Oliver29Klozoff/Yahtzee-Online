@@ -120,12 +120,29 @@ class ReactionArrivalTest {
         assertEquals(listOf(them), arrivals.map { it.key })
     }
 
-    /** But not a day of them. Opening a long game must not fire off last week's flurry. */
+    /**
+     * The window has to outlast somebody putting their phone down.
+     *
+     * It was five minutes, and that is the window for a game two people watch together. This one
+     * is played a turn at a time across a day: react, and the other person picks their phone up an
+     * hour later to take their turn. At five minutes what they got was nothing, which read as the
+     * feature being broken rather than as a window expiring.
+     */
     @Test
-    fun `opening a game does not replay an old reaction`() {
-        val now = 1_000_000L
+    fun `a reaction from an hour ago still plays`() {
+        val now = 100_000_000L
         val cutoff = now - Reactions.REPLAY_WINDOW_MS
-        val reactions = room(them to ("🔥" to now - 24 * 60 * 60_000L))
+        val reactions = room(them to ("🔥" to now - 60 * 60_000L))
+        val arrivals = Reactions.arrivalsSince(reactions, me, lastSeen = emptyMap(), notOlderThan = cutoff)
+        assertEquals(listOf(them), arrivals.map { it.key })
+    }
+
+    /** But not last week's. Opening an old room must not fire off a flurry nobody remembers. */
+    @Test
+    fun `opening a game does not replay an ancient reaction`() {
+        val now = 100_000_000L
+        val cutoff = now - Reactions.REPLAY_WINDOW_MS
+        val reactions = room(them to ("🔥" to now - 7 * 24 * 60 * 60_000L))
         assertTrue(
             Reactions.arrivalsSince(reactions, me, lastSeen = emptyMap(), notOlderThan = cutoff).isEmpty()
         )

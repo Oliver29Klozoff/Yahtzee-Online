@@ -182,11 +182,17 @@ object Reactions {
     /**
      * How far back a game reaches for reactions when you open it.
      *
-     * The point is to catch the ones sent while you were on your way to the app rather than to
-     * replay a day of them. Somebody reacts, you open the game to take your turn, and you see it —
-     * which is what people expect and what was silently not happening.
+     * Was five minutes, which was wrong, and wrong in a way that looked like the feature simply
+     * not working: you react, the other person is not holding their phone, and by the time they
+     * pick it up the thing you sent has been written off as history. Five minutes is the window
+     * for a game two people are watching together, and that is not this game — this is one played
+     * a turn at a time across a day.
+     *
+     * A day, then, and it is the marks rather than the window that stop anything being shown
+     * twice. All this does now is keep the first-ever open of an old room from firing off a
+     * flurry of things nobody remembers sending.
      */
-    const val REPLAY_WINDOW_MS = 5 * 60_000L
+    const val REPLAY_WINDOW_MS = 24 * 60 * 60_000L
 
     /**
      * The cutoff for that window, against this device's clock.
