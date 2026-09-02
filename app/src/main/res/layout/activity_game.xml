@@ -324,6 +324,37 @@
         android:importantForAccessibility="noHideDescendants" />
 
     <!--
+        What happened while this game was closed.
+
+        Floats rather than sitting in the column, for the same reason the reaction popup does: it
+        appears on arrival and goes away again, and a block of text shoving the scorecard down and
+        back would move a category out from under a thumb already reaching for it. Tappable, unlike
+        everything else on this layer, because it is the one thing here somebody may want gone
+        before it decides to go by itself.
+    -->
+    <TextView
+        android:id="@+id/recapPanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="90dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:gravity="center_horizontal"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:textSize="14sp"
+        android:lineSpacingExtra="4dp"
+        android:textColor="#FFFFFFFF"
+        android:background="@drawable/reaction_popup_background"
+        android:elevation="10dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+
+    <!--
         Floats over the table rather than sitting in the column. In the column it was a row that
         appeared and vanished, shoving the hold row, the roll button and the whole scorecard down
         and back for two and a half seconds — long enough that a reaction arriving while you were

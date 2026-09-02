@@ -29,6 +29,7 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.NudgeSeen
 import com.yahtzee.online.game.ReactionSeen
+import com.yahtzee.online.game.RecapSeen
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerStats
@@ -56,6 +57,9 @@ class GameActivity : ImmersiveActivity() {
 
         /** How long before the same player can be nudged again from this device. */
         private const val NUDGE_COOLDOWN_MS = 60_000L
+
+        /** How long the recap stays up if nobody taps it away. Six lines, unhurried. */
+        private const val RECAP_MILLIS = 9_000L
     }
 
     private val repository by lazy { GameRepository(this) }
@@ -112,6 +116,18 @@ class GameActivity : ImmersiveActivity() {
      */
     private var screenVisible = false
 
+    /**
+     * The room's scorecards as this device last saw them, for working out what it missed.
+     *
+     * Null until the first look, which the recap reads as "never seen" and stays quiet about —
+     * telling somebody opening a game for the first time everything that has happened in it would
+     * be a wall of text about turns they were sitting through.
+     */
+    private var lastSeenCards: Map<String, String>? = null
+
+    /** Whether the recap has already had its say since this screen came to the front. */
+    private var recapShown = false
+
     private val chatSheet by lazy { ChatSheet(this) }
 
     /**
@@ -154,6 +170,9 @@ class GameActivity : ImmersiveActivity() {
         // What this device has already been shown in *this* room. Anything newer, and recent
         // enough to still be worth seeing, plays once the first snapshot lands.
         lastReactionAt = ReactionSeen.marks(this, roomCode)
+        lastSeenCards = RecapSeen.marks(this, roomCode)
+
+        findViewById<TextView>(R.id.recapPanel).setOnClickListener { it.visibility = View.GONE }
 
         applyDisplaySettings()
 
@@ -215,6 +234,7 @@ class GameActivity : ImmersiveActivity() {
             // Only while somebody is looking. Off screen, the marks are left exactly where they
             // are, so whatever arrived is still owed to them when they come back.
             if (screenVisible) {
+                showRecapIfDue(state)
                 // The first look catches up over the window; the rest take whatever comes.
                 val catchUp = if (reactionsCaughtUp) null else Reactions.replayCutoff()
                 reactionsCaughtUp = true
@@ -235,6 +255,7 @@ class GameActivity : ImmersiveActivity() {
                 // Nothing further can happen in this room, so its marks are dead weight. Dropped
                 // here rather than swept later, since this is the one moment we know it is over.
                 ReactionSeen.forget(this, roomCode)
+                RecapSeen.forget(this, roomCode)
                 showGameOver(state)
             }
 
@@ -689,14 +710,48 @@ class GameActivity : ImmersiveActivity() {
         )
     }
 
+    /**
+     * Says what changed on the scorecards since this device last had the game in front of it.
+     *
+     * Once per visit, and only for turns actually missed. The marks are moved on afterwards
+     * whether or not there was anything to say, so a turn is only ever recapped to the person who
+     * was not there for it.
+     */
+    private fun showRecapIfDue(state: GameState) {
+        if (recapShown) return
+        recapShown = true
+
+        val panel = findViewById<TextView>(R.id.recapPanel)
+        val lines = Recap.since(lastSeenCards, state, playerId)
+        val text = Recap.text(this, state, lines, multiCard = state.cardCount > 1)
+
+        lastSeenCards = RecapSeen.snapshot(state)
+        RecapSeen.remember(this, roomCode, lastSeenCards.orEmpty())
+
+        if (text == null) {
+            panel.visibility = View.GONE
+            return
+        }
+        panel.text = text
+        panel.visibility = View.VISIBLE
+        // Long enough to read half a dozen lines without hurrying, and it can be tapped away
+        // sooner. Cancelled on the way out so it cannot hide a panel a later visit just raised.
+        timerHandler.removeCallbacks(hideRecap)
+        timerHandler.postDelayed(hideRecap, RECAP_MILLIS)
+    }
+
+    private val hideRecap = Runnable { findViewById<TextView>(R.id.recapPanel).visibility = View.GONE }
+
     override fun onStart() {
         super.onStart()
         screenVisible = true
         // Coming back counts as opening it: catch up on whatever arrived while this was away.
         reactionsCaughtUp = false
+        recapShown = false
         // A snapshot may not be due for a while — a room with nobody rolling is quiet for hours —
         // so the catch-up runs against the room as it last stood rather than waiting for one.
         lastState?.let { state ->
+            showRecapIfDue(state)
             lastReactionAt = Reactions.render(
                 findViewById(R.id.emojiBurstLayer), state, playerId, lastReactionAt,
                 onShout = { name ->

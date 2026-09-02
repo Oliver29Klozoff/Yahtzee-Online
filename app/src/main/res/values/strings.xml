@@ -239,6 +239,11 @@
     <string name="score_taken">%1$s\n%2$s took %3$s</string>
 
     <string name="off_the_rip">%1$d\nOff the rip!</string>
+    <string name="recap_heading">While you were away</string>
+    <string name="recap_line">%1$s took %2$s — %3$d</string>
+    <string name="recap_line_card">%1$s took %2$s on card %3$d — %4$d</string>
+    <string name="recap_dismiss">Tap to dismiss</string>
+
     <string name="off_the_rip_button">Off the rip</string>
     <string name="off_the_rip_call_headline">Off the rip!</string>
     <string name="off_the_rip_call">%1$s\n%2$s</string>

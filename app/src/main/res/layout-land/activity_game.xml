@@ -318,6 +318,29 @@
         android:focusable="false"
         android:importantForAccessibility="noHideDescendants" />
 
+    <!-- What happened while this game was closed; see the portrait layout. -->
+    <TextView
+        android:id="@+id/recapPanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="34dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:gravity="center_horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="#FFFFFFFF"
+        android:background="@drawable/reaction_popup_background"
+        android:elevation="10dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/reactionPopup"
         android:layout_width="wrap_content"
