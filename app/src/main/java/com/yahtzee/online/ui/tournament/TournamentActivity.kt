@@ -1,0 +1,289 @@
+package com.yahtzee.online.ui.tournament
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.Gravity
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import com.google.firebase.database.ValueEventListener
+import com.yahtzee.online.R
+import com.yahtzee.online.game.AccentColor
+import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.Match
+import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.Tournament
+import com.yahtzee.online.game.TournamentState
+import com.yahtzee.online.net.GameRepository
+import com.yahtzee.online.net.TournamentRepository
+import com.yahtzee.online.ui.ImmersiveActivity
+import com.yahtzee.online.ui.game.GameActivity
+
+/**
+ * A knockout tournament: the lobby before the draw, the bracket after it.
+ *
+ * Each match is an ordinary room, created when the first of its two players asks to play and
+ * joined by the second from the code the match then carries. That is what keeps a tournament from
+ * being a second game engine — everything about actually playing is the game that already exists,
+ * and this screen only decides who plays whom and what it meant.
+ */
+class TournamentActivity : ImmersiveActivity() {
+
+    companion object {
+        const val EXTRA_CODE = "tourney_code"
+    }
+
+    private val repository by lazy { TournamentRepository(this) }
+    private val games by lazy { GameRepository(this) }
+
+    private var code: String = ""
+    private var listener: ValueEventListener? = null
+    private var state: TournamentState? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_tournament)
+
+        findViewById<ImageButton>(R.id.backButton).setOnClickListener { finish() }
+        findViewById<Button>(R.id.createTourneyButton).setOnClickListener { create() }
+        findViewById<Button>(R.id.joinTourneyButton).setOnClickListener { joinTyped() }
+        findViewById<Button>(R.id.startDrawButton).setOnClickListener {
+            state?.let { repository.start(it) }
+        }
+
+        intent.getStringExtra(EXTRA_CODE)?.takeIf { it.isNotEmpty() }?.let { open(it) }
+    }
+
+    private fun create() {
+        val typed = findViewById<EditText>(R.id.tourneyNameInput).text.toString().trim()
+        val name = typed.ifEmpty { getString(R.string.tourney_default_name) }
+        repository.create(name, PlayerProfile.getName(this), cardCount = 1) { created ->
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (created.isEmpty()) {
+                    Toast.makeText(this, R.string.tourney_not_found, Toast.LENGTH_SHORT).show()
+                } else {
+                    open(created)
+                }
+            }
+        }
+    }
+
+    private fun joinTyped() {
+        val typed = findViewById<EditText>(R.id.tourneyCodeInput).text.toString().trim().uppercase()
+        if (typed.isEmpty()) return
+        repository.join(typed, PlayerProfile.getName(this)) { result ->
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                when (result) {
+                    TournamentRepository.JOIN_OK -> open(typed)
+                    TournamentRepository.JOIN_FULL ->
+                        Toast.makeText(this, R.string.tourney_full, Toast.LENGTH_SHORT).show()
+                    TournamentRepository.JOIN_STARTED ->
+                        Toast.makeText(this, R.string.tourney_started, Toast.LENGTH_SHORT).show()
+                    else ->
+                        Toast.makeText(this, R.string.tourney_not_found, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun open(tourneyCode: String) {
+        code = tourneyCode
+        findViewById<View>(R.id.tourneyEntry).visibility = View.GONE
+        findViewById<TextView>(R.id.tourneyCode).apply {
+            text = tourneyCode
+            visibility = View.VISIBLE
+        }
+        listener?.let { repository.stopListening(code, it) }
+        listener = repository.listen(code) { fresh ->
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                state = fresh
+                fresh?.let { render(it) }
+            }
+        }
+    }
+
+    private fun render(state: TournamentState) {
+        findViewById<TextView>(R.id.tourneyTitle).text =
+            state.name.ifEmpty { getString(R.string.tourney_title) }
+
+        val isHost = state.hostId == repository.localPlayerId
+        val canStart = isHost && state.status == Tournament.OPEN &&
+            state.players.size >= Tournament.MIN_PLAYERS
+        findViewById<Button>(R.id.startDrawButton).visibility =
+            if (canStart) View.VISIBLE else View.GONE
+
+        val status = findViewById<TextView>(R.id.tourneyStatus)
+        status.visibility = View.VISIBLE
+        status.text = when {
+            state.status != Tournament.OPEN -> getString(R.string.tourney_share, state.code)
+            state.players.size < Tournament.MIN_PLAYERS -> getString(R.string.tourney_need_players)
+            isHost -> getString(R.string.tourney_share, state.code)
+            else -> getString(R.string.tourney_waiting)
+        }
+
+        val champion = state.champion
+        findViewById<TextView>(R.id.championLine).apply {
+            if (state.status == Tournament.DONE && champion.isNotEmpty()) {
+                text = getString(
+                    R.string.tourney_champion,
+                    state.players[champion]?.name.orEmpty(),
+                    state.name.ifEmpty { getString(R.string.tourney_title) }
+                )
+                visibility = View.VISIBLE
+            } else {
+                visibility = View.GONE
+            }
+        }
+
+        if (state.status == Tournament.OPEN) renderEntrants(state) else renderBracket(state)
+    }
+
+    private fun renderEntrants(state: TournamentState) {
+        val body = findViewById<LinearLayout>(R.id.tourneyBody)
+        body.removeAllViews()
+        body.addView(heading(getString(R.string.tourney_entrants)))
+        state.entrants.forEach { entrant ->
+            body.addView(TextView(this).apply {
+                text = entrant.name
+                textSize = 16f
+                setPadding(0, pad(7), 0, pad(7))
+                setTextColor(resources.getColor(R.color.text_dark, theme))
+            })
+        }
+    }
+
+    private fun renderBracket(state: TournamentState) {
+        val body = findViewById<LinearLayout>(R.id.tourneyBody)
+        body.removeAllViews()
+        val rounds = state.rounds
+        val mine = state.nextMatchFor(repository.localPlayerId)
+
+        for (round in 0 until rounds) {
+            val label = if (rounds - round > 3) {
+                getString(R.string.tourney_round_n, round + 1)
+            } else {
+                getString(Tournament.roundName(round, rounds))
+            }
+            body.addView(heading(label))
+            state.matchesIn(round).forEach { match ->
+                body.addView(matchRow(state, match, isMine = match.id == mine?.id))
+            }
+        }
+    }
+
+    /**
+     * One fixture.
+     *
+     * A match you are in and could play right now gets the button; everything else is a line of
+     * text. The button is on the row rather than in one place at the top because a bracket is read
+     * by finding your own name in it, and the thing to do next should be where you found it.
+     */
+    private fun matchRow(state: TournamentState, match: Match, isMine: Boolean): View {
+        val nameOf = { id: String -> state.players[id]?.name.orEmpty() }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, pad(8), 0, pad(8))
+        }
+
+        val text = when {
+            match.decided && match.bId.isEmpty() -> getString(R.string.tourney_bye, nameOf(match.aId))
+            match.decided -> getString(
+                R.string.tourney_result,
+                nameOf(match.aId), match.aScore, match.bScore, nameOf(match.bId)
+            )
+            match.ready -> getString(R.string.tourney_vs, nameOf(match.aId), nameOf(match.bId))
+            else -> getString(R.string.tourney_awaiting)
+        }
+
+        row.addView(TextView(this).apply {
+            this.text = text
+            textSize = 15f
+            setTextColor(
+                when {
+                    isMine -> AccentColor.resolve(this@TournamentActivity)
+                    match.ready || match.decided -> resources.getColor(R.color.text_dark, theme)
+                    else -> resources.getColor(R.color.text_muted, theme)
+                }
+            )
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+
+        if (isMine && match.ready && !match.decided) {
+            row.addView(Button(this).apply {
+                setText(R.string.tourney_play)
+                textSize = 13f
+                minWidth = 0
+                minimumWidth = 0
+                setPadding(pad(12), 0, pad(12), 0)
+                setOnClickListener { playMatch(state, match) }
+            })
+        }
+        return row
+    }
+
+    /**
+     * Puts the two of you in a room for this fixture.
+     *
+     * Whoever asks first creates the room and writes its code onto the match; whoever asks second
+     * finds the code already there and joins it. No coordination beyond the match itself, and no
+     * new kind of game — from the moment both are in, it is an ordinary two-player room that
+     * happens to know which fixture it settles.
+     */
+    private fun playMatch(state: TournamentState, match: Match) {
+        val name = PlayerProfile.getName(this)
+        val colour = DicePreferences.getColor(this)
+
+        if (match.roomCode.isNotEmpty()) {
+            games.joinRoom(match.roomCode, name, colour) { joined ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (joined) enterGame(match.roomCode, state, match)
+                    else Toast.makeText(this, R.string.tourney_not_found, Toast.LENGTH_SHORT).show()
+                }
+            }
+            return
+        }
+
+        games.createRoom(name, colour, cardCount = state.cardCount, turnSeconds = 0) { room ->
+            repository.claimRoom(state.code, match.id, room)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                enterGame(room, state, match)
+            }
+        }
+    }
+
+    private fun enterGame(roomCode: String, state: TournamentState, match: Match) {
+        startActivity(
+            Intent(this, GameActivity::class.java)
+                .putExtra(GameActivity.EXTRA_ROOM_CODE, roomCode)
+                .putExtra(GameActivity.EXTRA_PLAYER_ID, repository.localPlayerId)
+                .putExtra(GameActivity.EXTRA_TOURNEY_CODE, state.code)
+                .putExtra(GameActivity.EXTRA_MATCH_ID, match.id)
+        )
+    }
+
+    private fun heading(label: String) = TextView(this).apply {
+        text = label
+        textSize = 13f
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        letterSpacing = 0.08f
+        setPadding(0, pad(18), 0, pad(6))
+        setTextColor(resources.getColor(R.color.text_muted, theme))
+    }
+
+    private fun pad(dp: Int) = (dp * resources.displayMetrics.density).toInt()
+
+    override fun onDestroy() {
+        super.onDestroy()
+        listener?.let { repository.stopListening(code, it) }
+    }
+}

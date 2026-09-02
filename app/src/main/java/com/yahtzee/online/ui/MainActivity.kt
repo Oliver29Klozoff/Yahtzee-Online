@@ -107,6 +107,14 @@ class MainActivity : ImmersiveActivity() {
 
         findViewById<View>(R.id.dailyCard).setOnClickListener { startDailyChallenge() }
         findViewById<View>(R.id.duelCard).setOnClickListener { startDuel() }
+        findViewById<View>(R.id.tourneyCard).setOnClickListener {
+            startActivity(
+                android.content.Intent(
+                    this,
+                    com.yahtzee.online.ui.tournament.TournamentActivity::class.java
+                )
+            )
+        }
         findViewById<Button>(R.id.scanCodeButton).setOnClickListener { scanRoomCode() }
 
         // Followed an invite link: join straight away rather than making them retype the code

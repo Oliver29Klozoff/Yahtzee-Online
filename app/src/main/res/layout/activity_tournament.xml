@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A tournament, in its two lives.
+
+    Before the draw it is a lobby: a code to pass round and a list of who is in. After it, it is
+    the bracket, which is the thing people come back to between matches. Both live in one screen
+    because they are one thing at different moments, and because coming back to a tournament
+    should land you on whatever it currently is without a decision to make.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageButton
+                android:id="@+id/backButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_back"
+                android:contentDescription="@string/back" />
+
+            <TextView
+                android:id="@+id/tourneyTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/tourney_title"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:paddingStart="8dp"
+                android:textColor="@color/text_dark" />
+        </LinearLayout>
+
+        <!-- Getting in: make one, or join one somebody read out to you. -->
+        <LinearLayout
+            android:id="@+id/tourneyEntry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="20dp">
+
+            <EditText
+                android:id="@+id/tourneyNameInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/tourney_name_hint"
+                android:inputType="textCapWords"
+                android:maxLength="40"
+                android:textColor="@color/text_dark"
+                android:autofillHints="" />
+
+            <Button
+                android:id="@+id/createTourneyButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:tag="accentBg"
+                android:backgroundTint="?attr/colorPrimary"
+                android:text="@string/tourney_create" />
+
+            <EditText
+                android:id="@+id/tourneyCodeInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:hint="@string/tourney_code_hint"
+                android:inputType="textCapCharacters"
+                android:maxLength="5"
+                android:textColor="@color/text_dark"
+                android:autofillHints="" />
+
+            <Button
+                android:id="@+id/joinTourneyButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/tourney_join"
+                android:tag="accentText"
+                android:textColor="?attr/colorPrimary" />
+        </LinearLayout>
+
+        <!-- The code, kept visible in both lives: latecomers before the draw, bragging after it. -->
+        <TextView
+            android:id="@+id/tourneyCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.2"
+            android:layout_marginTop="14dp"
+            android:tag="accentText"
+            android:textColor="?attr/colorPrimary"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tourneyStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/text_muted"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/championLine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/text_dark"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/startDrawButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
+            android:text="@string/tourney_start"
+            android:visibility="gone" />
+
+        <!-- Entrants before the draw, the bracket after it. Built in code either way. -->
+        <LinearLayout
+            android:id="@+id/tourneyBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="22dp" />
+
+    </LinearLayout>
+
+</ScrollView>

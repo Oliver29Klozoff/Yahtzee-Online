@@ -43,6 +43,7 @@ import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.TournamentRepository
 import com.yahtzee.online.net.TurnNotifier
 import com.yahtzee.online.ui.ImmersiveActivity
 
@@ -51,6 +52,9 @@ class GameActivity : ImmersiveActivity() {
     companion object {
         const val EXTRA_ROOM_CODE = "room_code"
         const val EXTRA_PLAYER_ID = "player_id"
+        /** Set when this room is settling a tournament fixture; empty otherwise. */
+        const val EXTRA_TOURNEY_CODE = "tourney_code"
+        const val EXTRA_MATCH_ID = "tourney_match"
 
         /** Gap between automatic actions, long enough for the dice to finish landing. */
         private const val AUTO_ACTION_INTERVAL_MS = 1500L
@@ -660,6 +664,7 @@ class GameActivity : ImmersiveActivity() {
         sound.play(SoundEngine.Sound.WIN)
         submitToLeaderboard(state)
         recordRivalries(state)
+        reportTournamentResult(state)
         val winnerName = state.players[state.winnerId]?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
@@ -741,6 +746,29 @@ class GameActivity : ImmersiveActivity() {
     }
 
     private val hideRecap = Runnable { findViewById<TextView>(R.id.recapPanel).visibility = View.GONE }
+
+    /**
+     * Sends a finished game back to the bracket it was played for, if it was played for one.
+     *
+     * Both players report, from their own copy of the same finished board, and the two reports say
+     * the same thing. The repository ignores the second, which is cheaper and far less fragile
+     * than electing one of them to be the reporter and then working out what to do when that one
+     * closes the app before the dialog appears.
+     *
+     * Scores are read against the match's own seats rather than against who is sitting where in
+     * this room, since the room has no idea which of its players was drawn on which side.
+     */
+    private fun reportTournamentResult(state: GameState) {
+        val tourney = intent.getStringExtra(EXTRA_TOURNEY_CODE).orEmpty()
+        val matchId = intent.getStringExtra(EXTRA_MATCH_ID).orEmpty()
+        if (tourney.isEmpty() || matchId.isEmpty()) return
+
+        TournamentRepository(this).reportFrom(tourney, matchId) { aId, bId ->
+            val a = state.players[aId]?.grandTotalAllCards(state.cardCount) ?: 0
+            val b = state.players[bId]?.grandTotalAllCards(state.cardCount) ?: 0
+            a to b
+        }
+    }
 
     override fun onStart() {
         super.onStart()

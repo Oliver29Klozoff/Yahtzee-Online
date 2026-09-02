@@ -78,6 +78,7 @@
             android:configChanges="keyboardHidden" />
         <activity android:name=".ui.SettingsActivity" android:exported="false" />
         <activity android:name=".ui.StatsActivity" android:exported="false" />
+        <activity android:name=".ui.tournament.TournamentActivity" android:exported="false" />
 
         <!--
             The television entry point. A TV launcher lists only what carries LEANBACK_LAUNCHER,

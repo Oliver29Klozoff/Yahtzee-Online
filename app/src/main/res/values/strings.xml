@@ -285,6 +285,35 @@
     <string name="stats_recent">RECENT GAMES</string>
 
     <!-- Things the app was already counting and had nowhere to show. -->
+    <!-- Tournaments. -->
+    <string name="tourney_title">Tournament</string>
+    <string name="tourney_menu">Tournament</string>
+    <string name="tourney_menu_sub">A knockout bracket. Winner of each match goes through.</string>
+    <string name="tourney_create">CREATE TOURNAMENT</string>
+    <string name="tourney_join">JOIN</string>
+    <string name="tourney_code_hint">Tournament code</string>
+    <string name="tourney_name_hint">What is it called?</string>
+    <string name="tourney_default_name">Yahtzee Cup</string>
+    <string name="tourney_entrants">ENTRANTS</string>
+    <string name="tourney_waiting">Waiting for the host to start the draw.</string>
+    <string name="tourney_need_players">At least two people have to be in before it can start.</string>
+    <string name="tourney_start">START THE DRAW</string>
+    <string name="tourney_share">Tournament code: %1$s</string>
+    <string name="tourney_round_final">FINAL</string>
+    <string name="tourney_round_semi">SEMI-FINALS</string>
+    <string name="tourney_round_quarter">QUARTER-FINALS</string>
+    <string name="tourney_round_n">ROUND %1$d</string>
+    <string name="tourney_bye">%1$s — bye</string>
+    <string name="tourney_vs">%1$s  v  %2$s</string>
+    <string name="tourney_result">%1$s %2$d  —  %3$d %4$s</string>
+    <string name="tourney_awaiting">Waiting on the round before</string>
+    <string name="tourney_play">PLAY</string>
+    <string name="tourney_your_match">Your match</string>
+    <string name="tourney_champion">🏆 %1$s wins the %2$s</string>
+    <string name="tourney_not_found">No tournament with that code.</string>
+    <string name="tourney_full">That tournament is full.</string>
+    <string name="tourney_started">That tournament has already started.</string>
+
     <string name="stats_rivals">RIVALS</string>
     <string name="stats_rival_record">%1$d–%2$d</string>
     <string name="stats_rival_record_draws">%1$d–%2$d–%3$d</string>
