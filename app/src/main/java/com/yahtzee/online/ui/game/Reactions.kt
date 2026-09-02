@@ -225,7 +225,8 @@ object Reactions {
         lastSeen: Map<String, Long>?,
         captionSp: Float = EmojiBurst.CAPTION_SP,
         onShout: ((String) -> Unit)? = null,
-        notOlderThan: Long? = null
+        notOlderThan: Long? = null,
+        onAnnounce: ((String, String) -> Unit)? = null
     ): Map<String, Long> {
         val arrivals = arrivalsSince(state.reactions, localPlayerId, lastSeen, notOlderThan)
 
@@ -240,6 +241,15 @@ object Reactions {
                 onShout(name)
             } else {
                 EmojiBurst.spawn(burstLayer, entry.value.first, name, captionSp)
+                // Said in words as well as thrown.
+                //
+                // The burst is artwork animated across a layer that sits over a GL surface, and on
+                // at least one device nothing drawn there is visible at all — which looks exactly
+                // like reactions never arriving, and cannot be told apart from it by the person
+                // not seeing them. This goes through the same plain popup the score announcements
+                // use, which is known to draw everywhere, so a reaction can fail to be pretty but
+                // can no longer fail to be noticed.
+                onAnnounce?.invoke(name, entry.value.first)
             }
         }
 

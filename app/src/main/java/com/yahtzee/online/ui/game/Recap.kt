@@ -80,8 +80,14 @@ object Recap {
      * as well, because "took Full House" is ambiguous when there are six of them and only one is
      * the one you were watching.
      */
-    fun text(context: Context, state: GameState, lines: List<Line>, multiCard: Boolean): CharSequence? {
-        if (lines.isEmpty()) return null
+    fun text(
+        context: Context,
+        state: GameState,
+        lines: List<Line>,
+        multiCard: Boolean,
+        reactions: List<Pair<String, String>> = emptyList()
+    ): CharSequence? {
+        if (lines.isEmpty() && reactions.isEmpty()) return null
 
         val builder = SpannableStringBuilder()
         val heading = context.getString(R.string.recap_heading)
@@ -104,6 +110,19 @@ object Recap {
                     context.getString(R.string.recap_line, line.playerName, line.label, line.points)
                 }
             )
+        }
+
+        // Reactions in words as well as in flight.
+        //
+        // The flying emoji is a two-second animation that has to be on screen at the moment it
+        // arrives, and every way that can fail has failed at least once: the app in a pocket, the
+        // screen off, a build without the fix. Saying it here costs a line and cannot be missed,
+        // because the recap is text on a panel that waits to be read rather than a thing that
+        // happens. If the burst plays too, so much the better — it is the flourish, this is the
+        // record.
+        reactions.forEach { (name, emoji) ->
+            builder.append("\n")
+            builder.append(context.getString(R.string.recap_reaction, name, emoji))
         }
 
         // Where it leaves everybody, which is the question the list makes you ask.

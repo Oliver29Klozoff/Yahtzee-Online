@@ -64,6 +64,9 @@ class GameActivity : ImmersiveActivity() {
 
         /** How long the recap stays up if nobody taps it away. Six lines, unhurried. */
         private const val RECAP_MILLIS = 9_000L
+
+        /** Short: it is a note that somebody reacted, not an announcement. */
+        private const val REACTION_NOTE_MILLIS = 1_400L
     }
 
     private val repository by lazy { GameRepository(this) }
@@ -247,7 +250,8 @@ class GameActivity : ImmersiveActivity() {
                     onShout = { name ->
                         OffTheRip.showCall(this, findViewById(R.id.reactionPopup), name)
                     },
-                    notOlderThan = catchUp
+                    notOlderThan = catchUp,
+                    onAnnounce = ::announceReaction
                 ).also { ReactionSeen.remember(this, roomCode, it) }
             }
             renderChat(state)
@@ -728,7 +732,20 @@ class GameActivity : ImmersiveActivity() {
 
         val panel = findViewById<TextView>(R.id.recapPanel)
         val lines = Recap.since(lastSeenCards, state, playerId)
-        val text = Recap.text(this, state, lines, multiCard = state.cardCount > 1)
+
+        // Read before the burst renderer moves the marks on, which it does moments later on the
+        // same snapshot. Same arrivals, said twice on purpose: once as something that flies past
+        // and once as something that waits to be read.
+        val missedReactions = Reactions
+            .arrivalsSince(state.reactions, playerId, lastReactionAt, Reactions.replayCutoff())
+            .map { (state.players[it.key]?.name.orEmpty()) to it.value.first }
+            .filterNot { it.first.isEmpty() }
+
+        val text = Recap.text(
+            this, state, lines,
+            multiCard = state.cardCount > 1,
+            reactions = missedReactions
+        )
 
         lastSeenCards = RecapSeen.snapshot(state)
         RecapSeen.remember(this, roomCode, lastSeenCards.orEmpty())
@@ -746,6 +763,14 @@ class GameActivity : ImmersiveActivity() {
     }
 
     private val hideRecap = Runnable { findViewById<TextView>(R.id.recapPanel).visibility = View.GONE }
+
+    /** Who reacted and with what, in the popup that draws on every device. */
+    private fun announceReaction(name: String, emoji: String) {
+        if (name.isEmpty()) return
+        val popup = findViewById<TextView>(R.id.reactionPopup)
+        popup.gravity = Gravity.CENTER
+        EmojiPop.show(popup, getString(R.string.reaction_announce, name, emoji), REACTION_NOTE_MILLIS)
+    }
 
     /**
      * Sends a finished game back to the bracket it was played for, if it was played for one.

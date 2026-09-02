@@ -243,6 +243,8 @@
     <string name="recap_line">%1$s took %2$s — %3$d</string>
     <string name="recap_line_card">%1$s took %2$s on card %3$d — %4$d</string>
     <string name="recap_dismiss">Tap to dismiss</string>
+    <string name="recap_reaction">%1$s reacted %2$s</string>
+    <string name="reaction_announce">%1$s  %2$s</string>
 
     <string name="off_the_rip_button">Off the rip</string>
     <string name="off_the_rip_call_headline">Off the rip!</string>
