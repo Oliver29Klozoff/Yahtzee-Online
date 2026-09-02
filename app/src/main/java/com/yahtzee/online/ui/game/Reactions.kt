@@ -28,8 +28,22 @@ object Reactions {
      * they were saving, and a game between friends that cannot say so is missing something the
      * table would have said out loud. Worth knowing what it costs: this is a room a stranger can
      * join off a code, and a row that could previously only be enthusiastic can now be pointed.
+     *
+     * The peeking face replaced the screaming one, which was the second of two ways to say the
+     * same thing — the sobbing face already covers dismay. Peeking says something the row could
+     * not: watching a turn you cannot bear to watch, which in a game decided by other people's
+     * dice is most of it.
+     *
+     * The pile of poo replaced the laughing face on the same reasoning from the other end. Two
+     * faces cannot both be the laugh, and between them the crying-laughing one was the redundant
+     * half — what a bad roll actually wants is a verdict on it rather than amusement at it.
+     *
+     * Animations for the ones that have left live on in the assets. During a rollout half the room
+     * is still on a build whose row has them, and a reaction is drawn from whatever arrives rather
+     * than from this list — so dropping the file would leave those players' taps landing as flat
+     * font glyphs on everyone else's screen. Safe to prune once nobody is on an older build.
      */
-    val EMOJI = listOf("👏", "😂", "😱", "🔥", "🖕", "🎲", "😭")
+    val EMOJI = listOf("👏", "💩", "🫣", "🔥", "🖕", "🎲", "😭")
 
     /**
      * What the off-the-rip button sends, carried down the reaction channel rather than a node of
@@ -45,10 +59,9 @@ object Reactions {
      * and what that player sees is a dart — which is the off-the-rip mark anyway. The shout
      * degrades into the gesture it stands for instead of into nonsense.
      *
-     * The dart's own animation stays in the assets even though it has left the row above, for the
-     * two paths that can still ask for it: an older build sending a plain dart from the row it
-     * still has, and this token being thrown as an emoji by any caller that passes no shout
-     * handler.
+     * The dart's own animation stays in the assets even though it has left the row above. Unlike
+     * the other retired ones it has a permanent reason to: this token is drawn from it by any
+     * caller that passes no shout handler, so it outlives the rollout.
      */
     const val OFF_THE_RIP = "🎯!"
 
