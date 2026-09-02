@@ -283,6 +283,15 @@
     <string name="stats_empty">No games yet. Play a game and your record shows up here — best and average score, which categories you score well, and which ones you keep throwing away.</string>
     <string name="stats_by_category">BY CATEGORY</string>
     <string name="stats_recent">RECENT GAMES</string>
+
+    <!-- Things the app was already counting and had nowhere to show. -->
+    <string name="stats_rivals">RIVALS</string>
+    <string name="stats_rival_record">%1$d–%2$d</string>
+    <string name="stats_rival_record_draws">%1$d–%2$d–%3$d</string>
+    <string name="stats_streak_safe">Daily streak: %1$d days. Today\'s is done.</string>
+    <string name="stats_streak_at_risk">Daily streak: %1$d days — today\'s challenge is still open.</string>
+    <string name="stats_boards">Your scores are on the %1$s boards.</string>
+    <string name="stats_board_one">1 card</string>
     <string name="stats_reset">Reset stats</string>
     <string name="stats_reset_confirm">This clears your whole record on this device. Leaderboard scores are not affected.</string>
     <string name="stat_best">Best score</string>

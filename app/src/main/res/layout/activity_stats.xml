@@ -55,6 +55,50 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
 
+        <!--
+            The things this app has been quietly counting for months and never showing anybody:
+            the daily streak, the record against each person, and which boards a score has been
+            put on. All three were being written on every game and read by nothing.
+        -->
+        <TextView
+            android:id="@+id/streakLine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/text_dark"
+            android:layout_marginTop="18dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/rivalsHeading"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/stats_rivals"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_muted"
+            android:letterSpacing="0.08"
+            android:layout_marginTop="28dp"
+            android:layout_marginBottom="10dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/rivalsList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/boardsLine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/text_muted"
+            android:layout_marginTop="20dp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/categoryHeading"
             android:layout_width="match_parent"

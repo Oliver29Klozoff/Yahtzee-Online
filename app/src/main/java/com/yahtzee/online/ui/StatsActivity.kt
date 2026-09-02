@@ -11,7 +11,10 @@ import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.Category
+import com.yahtzee.online.game.DailyChallenge
+import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerStats
+import com.yahtzee.online.game.Rivalries
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,8 +50,95 @@ class StatsActivity : ImmersiveActivity() {
         }
 
         renderSummary(totals)
+        renderStreak()
+        renderRivals()
+        renderBoards()
         renderCategories()
         renderRecent()
+    }
+
+    /**
+     * The daily streak, which the app has been counting since daily challenges landed and has
+     * never once mentioned anywhere a player could see it.
+     */
+    private fun renderStreak() {
+        val line = findViewById<TextView>(R.id.streakLine)
+        val streak = DailyChallenge.streak(this)
+        if (streak <= 0) {
+            line.visibility = View.GONE
+            return
+        }
+        line.visibility = View.VISIBLE
+        line.text = if (DailyChallenge.playedToday(this)) {
+            getString(R.string.stats_streak_safe, streak)
+        } else {
+            // Worth saying out loud: a streak is lost by doing nothing, which is the one way to
+            // lose something that nobody notices until it has happened.
+            getString(R.string.stats_streak_at_risk, streak)
+        }
+    }
+
+    /**
+     * The head-to-head record against everyone this device has played.
+     *
+     * Collected on every finished game and duel since rivals were added, and shown here for the
+     * first time. Ordered by how recently you played them rather than by record — the person you
+     * played last night is the one you want to see, not the one you beat twice in June.
+     */
+    private fun renderRivals() {
+        val list = findViewById<LinearLayout>(R.id.rivalsList)
+        val heading = findViewById<View>(R.id.rivalsHeading)
+        list.removeAllViews()
+
+        val rivals = Rivalries.all(this).filter { it.played > 0 }
+        heading.visibility = if (rivals.isEmpty()) View.GONE else View.VISIBLE
+        if (rivals.isEmpty()) return
+
+        val density = resources.displayMetrics.density
+        rivals.forEach { rival ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, (7 * density).toInt(), 0, (7 * density).toInt())
+            }
+            row.addView(TextView(this).apply {
+                text = rival.name
+                textSize = 15f
+                maxLines = 1
+                setTextColor(resources.getColor(R.color.text_dark, theme))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            row.addView(TextView(this).apply {
+                text = if (rival.draws > 0) {
+                    getString(R.string.stats_rival_record_draws, rival.wins, rival.losses, rival.draws)
+                } else {
+                    getString(R.string.stats_rival_record, rival.wins, rival.losses)
+                }
+                textSize = 15f
+                // Accent while you are ahead, plain while you are not. Being behind is stated
+                // rather than coloured — a red number against a friend's name reads as a telling-off.
+                setTextColor(
+                    if (rival.wins > rival.losses) AccentColor.resolve(this@StatsActivity)
+                    else resources.getColor(R.color.text_dark, theme)
+                )
+            })
+            list.addView(row)
+        }
+    }
+
+    /** Which seasonal boards this device's scores are eligible for, from the formats played. */
+    private fun renderBoards() {
+        val line = findViewById<TextView>(R.id.boardsLine)
+        val formats = PlayedFormats.all(this).sorted()
+        if (formats.isEmpty()) {
+            line.visibility = View.GONE
+            return
+        }
+        line.visibility = View.VISIBLE
+        val names = formats.joinToString(", ") {
+            if (it == 1) getString(R.string.stats_board_one) else getString(R.string.n_cards, it)
+        }
+        line.text = getString(R.string.stats_boards, names)
     }
 
     private fun renderSummary(totals: PlayerStats.Totals) {

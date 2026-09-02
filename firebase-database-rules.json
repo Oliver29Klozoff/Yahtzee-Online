@@ -131,6 +131,96 @@
       }
     },
 
+    "tournaments": {
+      ".read": "auth != null",
+      ".indexOn": ["updatedAt"],
+      "$tourneyCode": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['code', 'hostId', 'status'])",
+
+        "code": {
+          ".validate": "newData.val() === $tourneyCode"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+        },
+        "hostId": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'OPEN' || newData.val() === 'RUNNING' || newData.val() === 'DONE')"
+        },
+        "cardCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "players": {
+          "$playerId": {
+            ".validate": "newData.hasChildren(['id', 'name'])",
+            "id": {
+              ".validate": "newData.val() === $playerId"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "seed": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 64"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "matches": {
+          "$matchId": {
+            ".validate": "newData.hasChildren(['round', 'slot'])",
+            "round": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 8"
+            },
+            "slot": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 64"
+            },
+            "aId": {
+              ".validate": "newData.isString() && newData.val().length <= 64"
+            },
+            "bId": {
+              ".validate": "newData.isString() && newData.val().length <= 64"
+            },
+            "aScore": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6000"
+            },
+            "bScore": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 6000"
+            },
+            "winnerId": {
+              ".validate": "newData.isString() && newData.val().length <= 64"
+            },
+            "roomCode": {
+              ".validate": "newData.isString() && newData.val().length <= 8"
+            },
+            "status": {
+              ".validate": "newData.isString() && (newData.val() === 'PENDING' || newData.val() === 'PLAYING' || newData.val() === 'DONE')"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
     "games": {
       ".read": "auth != null",
       ".indexOn": ["updatedAt"],
