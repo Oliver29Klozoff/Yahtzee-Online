@@ -152,13 +152,32 @@
             android:textColor="?attr/colorPrimary"
             android:visibility="gone" />
 
-        <!-- Entrants before the draw, the bracket after it. Built in code either way. -->
+        <!-- Entrants before the draw. -->
         <LinearLayout
             android:id="@+id/tourneyBody"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:layout_marginTop="22dp" />
+
+        <!--
+            The draw after it. Scrolls sideways because a bracket is as wide as it has rounds, and
+            four rounds do not fit across a phone at any type size worth reading.
+        -->
+        <HorizontalScrollView
+            android:id="@+id/bracketScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <com.yahtzee.online.ui.tournament.BracketView
+                android:id="@+id/bracketView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+        </HorizontalScrollView>
 
     </LinearLayout>
 

@@ -179,6 +179,7 @@ class TournamentActivity : ImmersiveActivity() {
     private fun renderEntrants(state: TournamentState) {
         val body = findViewById<LinearLayout>(R.id.tourneyBody)
         body.removeAllViews()
+        findViewById<View>(R.id.bracketScroll).visibility = View.GONE
         body.addView(heading(getString(R.string.tourney_entrants)))
         state.entrants.forEach { entrant ->
             body.addView(TextView(this).apply {
@@ -191,21 +192,11 @@ class TournamentActivity : ImmersiveActivity() {
     }
 
     private fun renderBracket(state: TournamentState) {
-        val body = findViewById<LinearLayout>(R.id.tourneyBody)
-        body.removeAllViews()
-        val rounds = state.rounds
-        val mine = state.nextMatchFor(repository.localPlayerId)
-
-        for (round in 0 until rounds) {
-            val label = if (rounds - round > 3) {
-                getString(R.string.tourney_round_n, round + 1)
-            } else {
-                getString(Tournament.roundName(round, rounds))
-            }
-            body.addView(heading(label))
-            state.matchesIn(round).forEach { match ->
-                body.addView(matchRow(state, match, isMine = match.id == mine?.id))
-            }
+        findViewById<LinearLayout>(R.id.tourneyBody).removeAllViews()
+        findViewById<View>(R.id.bracketScroll).visibility = View.VISIBLE
+        findViewById<BracketView>(R.id.bracketView).apply {
+            onPlay = { match -> playMatch(state, match) }
+            setBracket(state, repository.localPlayerId)
         }
     }
 
