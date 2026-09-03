@@ -99,7 +99,9 @@ class BracketView @JvmOverloads constructor(
         val rounds = state?.rounds ?: 0
         val firstRound = state?.matchesIn(0)?.size ?: 0
         val width = if (rounds == 0) 0f else rounds * boxWidth + (rounds - 1) * columnGap
-        val height = if (firstRound == 0) 0f else headerHeight + firstRound * pitch
+        // The PLAY label hangs below its box, so the last row needs room for it or it is cut in
+        // half by the bottom of the view — which is exactly where it lands in a two-player draw.
+        val height = if (firstRound == 0) 0f else headerHeight + firstRound * pitch + dp(14f)
         setMeasuredDimension(
             resolveSize(width.toInt(), widthMeasureSpec),
             resolveSize(height.toInt(), heightMeasureSpec)

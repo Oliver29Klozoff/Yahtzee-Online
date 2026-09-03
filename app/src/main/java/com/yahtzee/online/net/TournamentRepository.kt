@@ -90,18 +90,28 @@ class TournamentRepository(private val context: android.content.Context) {
         }.addOnFailureListener { onResult(JOIN_NOT_FOUND) }
     }
 
-    /** Seats a bot, so a short field can still make a bracket. */
-    fun addBot(state: TournamentState, name: String) {
-        val id = Tournament.nextBotId(state.players.keys)
-        ref(state.code).child("players").child(id).setValue(
-            mapOf(
-                "id" to id,
-                "name" to name,
-                "joinedAt" to System.currentTimeMillis(),
-                "seed" to state.players.size
+    /**
+     * Seats a bot, so a short field can still make a bracket.
+     *
+     * The free seat is worked out from the database rather than from the caller's copy of it.
+     * Tapping the button three times in a second is the obvious way to add three bots, and off a
+     * snapshot that had not caught up yet all three picked the same id and wrote over each other —
+     * three taps, one bot.
+     */
+    fun addBot(code: String, nameFor: (Int) -> String) {
+        ref(code).child("players").get().addOnSuccessListener { snapshot ->
+            val taken = snapshot.children.mapNotNull { it.key }.toSet()
+            val id = Tournament.nextBotId(taken)
+            ref(code).child("players").child(id).setValue(
+                mapOf(
+                    "id" to id,
+                    "name" to nameFor(taken.size),
+                    "joinedAt" to System.currentTimeMillis(),
+                    "seed" to taken.size
+                )
             )
-        )
-        touch(state.code)
+            touch(code)
+        }
     }
 
     /** Makes the draw and locks the field. Only the host's screen offers this. */

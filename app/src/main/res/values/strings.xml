@@ -302,6 +302,7 @@
     <string name="tourney_need_players">At least two people have to be in before it can start.</string>
     <string name="tourney_start">START THE DRAW</string>
     <string name="tourney_add_bot">ADD A BOT</string>
+    <string name="tourney_leave">Leave this tournament</string>
     <string name="tourney_bot_name">Bot %1$d</string>
     <string name="nobody">nobody</string>
     <string name="tourney_share">Tournament code: %1$s</string>

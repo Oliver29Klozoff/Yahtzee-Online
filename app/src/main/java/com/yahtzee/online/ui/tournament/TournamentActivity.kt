@@ -20,6 +20,7 @@ import com.yahtzee.online.game.Match
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.Tournament
 import com.yahtzee.online.game.TournamentState
+import com.yahtzee.online.game.TournamentStore
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.TournamentRepository
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -47,6 +48,15 @@ class TournamentActivity : ImmersiveActivity() {
     private var listener: ValueEventListener? = null
     private var state: TournamentState? = null
 
+    /**
+     * Bot fixtures already being played out, so a redraw does not start them again.
+     *
+     * The bracket redraws on every update to the tournament, and reporting a result is itself an
+     * update — so without this each bot fixture kicked off another pair of games on every echo of
+     * its own result.
+     */
+    private val resolving = mutableSetOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_tournament)
@@ -58,10 +68,34 @@ class TournamentActivity : ImmersiveActivity() {
             state?.let { repository.start(it) }
         }
         findViewById<Button>(R.id.addBotButton).setOnClickListener {
-            state?.let { repository.addBot(it, getString(R.string.tourney_bot_name, it.players.size)) }
+            state?.let { repository.addBot(it.code) { seats -> getString(R.string.tourney_bot_name, seats) } }
         }
 
-        intent.getStringExtra(EXTRA_CODE)?.takeIf { it.isNotEmpty() }?.let { open(it) }
+        findViewById<Button>(R.id.leaveTourneyButton).setOnClickListener { leave() }
+
+        // Whatever this device is already in, unless the intent names something else. Backing out
+        // of a bracket should be leaving the room, not leaving the tournament.
+        val opening = intent.getStringExtra(EXTRA_CODE)?.takeIf { it.isNotEmpty() }
+            ?: TournamentStore.current(this).takeIf { it.isNotEmpty() }
+        opening?.let { open(it) }
+    }
+
+    /** Steps out of this tournament so a different one can be made or joined. */
+    private fun leave() {
+        listener?.let { repository.stopListening(code, it) }
+        listener = null
+        state = null
+        code = ""
+        resolving.clear()
+        TournamentStore.forget(this)
+
+        findViewById<View>(R.id.tourneyEntry).visibility = View.VISIBLE
+        listOf(
+            R.id.tourneyCode, R.id.tourneyStatus, R.id.championLine,
+            R.id.startDrawButton, R.id.addBotButton, R.id.leaveTourneyButton, R.id.bracketScroll
+        ).forEach { findViewById<View>(it).visibility = View.GONE }
+        findViewById<LinearLayout>(R.id.tourneyBody).removeAllViews()
+        findViewById<TextView>(R.id.tourneyTitle).setText(R.string.tourney_title)
     }
 
     private fun create() {
@@ -100,6 +134,8 @@ class TournamentActivity : ImmersiveActivity() {
 
     private fun open(tourneyCode: String) {
         code = tourneyCode
+        TournamentStore.remember(this, tourneyCode)
+        findViewById<Button>(R.id.leaveTourneyButton).visibility = View.VISIBLE
         findViewById<View>(R.id.tourneyEntry).visibility = View.GONE
         findViewById<TextView>(R.id.tourneyCode).apply {
             text = tourneyCode
@@ -169,11 +205,29 @@ class TournamentActivity : ImmersiveActivity() {
      */
     private fun resolveBotMatches(state: TournamentState) {
         val skill = AppSettings.botSkill(this)
-        state.matches.values
-            .filter { it.ready && !it.decided && Tournament.isBot(it.aId) && Tournament.isBot(it.bId) }
-            .forEach { match ->
-                repository.report(state.code, match.id, BotRun.play(skill), BotRun.play(skill))
+        val due = state.matches.values.filter {
+            it.ready && !it.decided &&
+                Tournament.isBot(it.aId) && Tournament.isBot(it.bId) &&
+                resolving.add(it.id)
+        }
+        if (due.isEmpty()) return
+
+        // Off the main thread, and this is not a nicety.
+        //
+        // At Expert the bot's decisions come from an exact search over every distinct hand, and
+        // two whole games of that is seconds of work. Run inline it froze the screen for long
+        // enough that Android offered to close the app — which from the sofa is indistinguishable
+        // from a crash, and is what this looked like.
+        Thread {
+            due.forEach { match ->
+                val a = BotRun.play(skill)
+                val b = BotRun.play(skill)
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    repository.report(state.code, match.id, a, b)
+                }
             }
+        }.start()
     }
 
     private fun renderEntrants(state: TournamentState) {
