@@ -90,6 +90,20 @@ class TournamentRepository(private val context: android.content.Context) {
         }.addOnFailureListener { onResult(JOIN_NOT_FOUND) }
     }
 
+    /** Seats a bot, so a short field can still make a bracket. */
+    fun addBot(state: TournamentState, name: String) {
+        val id = Tournament.nextBotId(state.players.keys)
+        ref(state.code).child("players").child(id).setValue(
+            mapOf(
+                "id" to id,
+                "name" to name,
+                "joinedAt" to System.currentTimeMillis(),
+                "seed" to state.players.size
+            )
+        )
+        touch(state.code)
+    }
+
     /** Makes the draw and locks the field. Only the host's screen offers this. */
     fun start(state: TournamentState) {
         val matches = Tournament.draw(state.entrants)

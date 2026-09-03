@@ -30,6 +30,7 @@ import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.SavedSoloGame
 import com.yahtzee.online.game.SoloGameStore
+import com.yahtzee.online.game.decidedWinner
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.seatAngle
@@ -75,6 +76,10 @@ class SoloGameActivity : ImmersiveActivity() {
          * the only differences are where the tape's seed comes from and where the score is posted.
          */
         const val EXTRA_DUEL_CODE = "duel_code"
+
+        /** Set when this game settles a tournament fixture against a bot. */
+        const val EXTRA_TOURNEY_CODE = "tourney_code"
+        const val EXTRA_MATCH_ID = "tourney_match"
         private const val ROLL_SETTLE_DELAY_MS = 1300L
 
         /** How long the finished roll-off is held before play begins. */
@@ -601,6 +606,8 @@ class SoloGameActivity : ImmersiveActivity() {
             )
         }
 
+        reportTournamentResult(score, state)
+
         duelCode?.let {
             showDuelResult(it, score)
             return
@@ -611,7 +618,7 @@ class SoloGameActivity : ImmersiveActivity() {
             return
         }
 
-        val winnerName = state.players[state.winnerId]?.name ?: "?"
+        val winnerName = state.decidedWinner()?.name ?: getString(R.string.nobody)
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
             .setMessage(getString(R.string.winner_is, winnerName))
@@ -699,4 +706,27 @@ class SoloGameActivity : ImmersiveActivity() {
         sound.release()
         botHandler.removeCallbacksAndMessages(null)
     }
+
+    /**
+     * Sends a finished bot match back to the bracket it was played for.
+     *
+     * A tournament fixture against a bot has no room and no second phone, so it is an ordinary
+     * solo game that happens to know which fixture it settles. The seats are read off the match
+     * rather than off this game, because the draw decided which side each of them is on and this
+     * screen has no idea.
+     */
+    private fun reportTournamentResult(score: Int, state: com.yahtzee.online.game.GameState) {
+        val code = intent.getStringExtra(EXTRA_TOURNEY_CODE).orEmpty()
+        val matchId = intent.getStringExtra(EXTRA_MATCH_ID).orEmpty()
+        if (code.isEmpty() || matchId.isEmpty()) return
+
+        val botScore = state.players.values
+            .firstOrNull { it.id != engine.humanPlayerId }
+            ?.grandTotalAllCards(state.cardCount) ?: 0
+        val me = com.yahtzee.online.game.PlayerProfile.getId(this)
+        com.yahtzee.online.net.TournamentRepository(this).reportFrom(code, matchId) { aId, _ ->
+            if (aId == me) score to botScore else botScore to score
+        }
+    }
+
 }

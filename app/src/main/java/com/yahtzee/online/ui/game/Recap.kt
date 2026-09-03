@@ -84,7 +84,6 @@ object Recap {
         context: Context,
         state: GameState,
         lines: List<Line>,
-        multiCard: Boolean,
         reactions: List<Pair<String, String>> = emptyList()
     ): CharSequence? {
         if (lines.isEmpty() && reactions.isEmpty()) return null
@@ -99,16 +98,13 @@ object Recap {
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
         )
 
+        // The card is deliberately not named, even in a six-card room. What the recap is for is
+        // "what did I miss", and the answer to that is a category and a number; which of six
+        // identical grids it landed on is detail for the scorecard, which is right there.
         lines.forEach { line ->
             builder.append("\n")
             builder.append(
-                if (multiCard) {
-                    context.getString(
-                        R.string.recap_line_card, line.playerName, line.label, line.card + 1, line.points
-                    )
-                } else {
-                    context.getString(R.string.recap_line, line.playerName, line.label, line.points)
-                }
+                context.getString(R.string.recap_line, line.playerName, line.label, line.points)
             )
         }
 

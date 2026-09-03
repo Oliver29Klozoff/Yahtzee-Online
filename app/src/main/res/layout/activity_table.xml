@@ -244,4 +244,27 @@
         android:focusable="false"
         android:visibility="gone" />
 
+    <!--
+        Five of a kind, said out loud. Overlaid and inert so it never eats a tap, and centred
+        because it is the one thing on this screen that is not information.
+    -->
+    <TextView
+        android:id="@+id/yahtzeeShout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:paddingStart="26dp"
+        android:paddingEnd="26dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFFFF"
+        android:background="@drawable/reaction_popup_background"
+        android:elevation="12dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
 </FrameLayout>

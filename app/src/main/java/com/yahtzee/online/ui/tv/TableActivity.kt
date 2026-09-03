@@ -15,6 +15,7 @@ import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.TableLogoStore
+import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.decidedWinner
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
@@ -28,6 +29,7 @@ import com.yahtzee.online.ui.game.EmojiPop
 import com.yahtzee.online.ui.game.OffTheRip
 import com.yahtzee.online.ui.game.Reactions
 import com.yahtzee.online.ui.game.ScoreAnnounce
+import com.yahtzee.online.ui.game.YahtzeeShout
 
 /**
  * The television's view of a game in progress.
@@ -88,6 +90,9 @@ class TableActivity : ImmersiveActivity() {
     private var lastDice: List<Int>? = null
     private var lastRollsUsed = -1
 
+    /** Who rolled five of a kind, waiting for the dice to stop before it is announced. */
+    private var pendingYahtzee: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_table)
@@ -103,6 +108,13 @@ class TableActivity : ImmersiveActivity() {
         // A television pane is far wider than the phone strip the camera was framed for, so the
         // table needs pulling back to sit inside it rather than running off the top.
         dice.setCameraScale(TV_CAMERA_SCALE)
+        // The shout waits for the dice to stop, so the room reads the news off the table rather
+        // than off a banner that beat the dice to it.
+        dice.setOnSettledListener {
+            val who = pendingYahtzee ?: return@setOnSettledListener
+            pendingYahtzee = null
+            YahtzeeShout.show(this, findViewById(R.id.yahtzeeShout), who, isYou = false)
+        }
 
         findViewById<TextView>(R.id.tableHint).setText(R.string.tv_waiting)
         openRoom()
@@ -333,6 +345,12 @@ class TableActivity : ImmersiveActivity() {
         lastDice = state.dice
         lastRollsUsed = state.rollsUsed
         if (!rolled || state.rollsUsed == 0) return
+
+        // Five of a kind, on the screen the whole room is already facing — which is the one place
+        // it most wants saying. Held until the dice land, so the throw is not given away.
+        if (state.diceAreYahtzee()) {
+            pendingYahtzee = state.players[state.currentPlayerId]?.name.orEmpty()
+        }
 
         // Thrown from the seat of whoever is rolling, so the dice arrive from their side of the
         // table. The TV has no seat of its own, so the first player stands in as the viewpoint.

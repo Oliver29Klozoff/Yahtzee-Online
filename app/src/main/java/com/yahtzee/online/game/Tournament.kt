@@ -91,6 +91,25 @@ object Tournament {
     /** Stable and derivable, so a match can be found without carrying its key around. */
     fun matchId(round: Int, slot: Int): String = "r${round}s$slot"
 
+    /**
+     * Entrants who are not people.
+     *
+     * Marked in the id rather than by a flag beside it, so every screen that already has an id can
+     * answer the question without going and fetching the entrant. Four people cannot make a
+     * bracket of eight and should not have to find four more; a couple of bots fill it out, and a
+     * bot drawn against a bot plays itself out rather than stalling the round above.
+     */
+    const val BOT_PREFIX = "bot-"
+
+    fun isBot(id: String): Boolean = id.startsWith(BOT_PREFIX)
+
+    /** The next free bot seat, so adding one twice does not overwrite the first. */
+    fun nextBotId(taken: Set<String>): String {
+        var n = 1
+        while ("$BOT_PREFIX$n" in taken) n++
+        return "$BOT_PREFIX$n"
+    }
+
     /** The bracket size a field of [players] is drawn into: the next power of two. */
     fun bracketSize(players: Int): Int {
         var size = 1

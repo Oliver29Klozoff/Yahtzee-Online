@@ -241,7 +241,8 @@
     <string name="off_the_rip">%1$d\nOff the rip!</string>
     <string name="recap_heading">While you were away</string>
     <string name="recap_line">%1$s took %2$s — %3$d</string>
-    <string name="recap_line_card">%1$s took %2$s on card %3$d — %4$d</string>
+    <string name="yahtzee_shout">YAHTZEE!!</string>
+    <string name="yahtzee_shout_by">%1$s\n%2$s</string>
     <string name="recap_dismiss">Tap to dismiss</string>
     <string name="recap_reaction">%1$s reacted %2$s</string>
     <string name="reaction_announce">%1$s  %2$s</string>
@@ -300,6 +301,9 @@
     <string name="tourney_waiting">Waiting for the host to start the draw.</string>
     <string name="tourney_need_players">At least two people have to be in before it can start.</string>
     <string name="tourney_start">START THE DRAW</string>
+    <string name="tourney_add_bot">ADD A BOT</string>
+    <string name="tourney_bot_name">Bot %1$d</string>
+    <string name="nobody">nobody</string>
     <string name="tourney_share">Tournament code: %1$s</string>
     <string name="tourney_round_final">FINAL</string>
     <string name="tourney_round_semi">SEMI-FINALS</string>

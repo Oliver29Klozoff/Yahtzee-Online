@@ -36,6 +36,7 @@ import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.Rivalries
 import com.yahtzee.online.game.RivalryResult
+import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.decidedWinner
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
@@ -153,6 +154,9 @@ class GameActivity : ImmersiveActivity() {
 
     /** True while the dice are mid-throw, so the values are not revealed before they land. */
     private var diceRolling = false
+
+    /** Five of a kind is on the table but still rolling; shouted when it lands. */
+    private var pendingYahtzee = false
     private lateinit var dice3DView: Dice3DView
     private val sound by lazy { SoundEngine(this) }
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -197,6 +201,17 @@ class GameActivity : ImmersiveActivity() {
             if (diceRolling) {
                 diceRolling = false
                 lastState?.let { render(it) }
+            }
+            if (pendingYahtzee) {
+                pendingYahtzee = false
+                lastState?.let { state ->
+                    YahtzeeShout.show(
+                        this,
+                        findViewById(R.id.yahtzeeShout),
+                        state.players[state.currentPlayerId]?.name.orEmpty(),
+                        isYou = state.currentPlayerId == playerId
+                    )
+                }
             }
         }
 
@@ -422,6 +437,9 @@ class GameActivity : ImmersiveActivity() {
     private fun renderDice(state: GameState, myTurn: Boolean) {
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
+            // Held rather than shouted here: the dice are still in the air, and announcing what
+            // they say before they have landed gives the throw away.
+            pendingYahtzee = state.diceAreYahtzee()
             diceRolling = true
             scoreConfirm.reset()
             sound.play(SoundEngine.Sound.ROLL)
@@ -744,7 +762,6 @@ class GameActivity : ImmersiveActivity() {
 
         val text = Recap.text(
             this, state, lines,
-            multiCard = state.cardCount > 1,
             reactions = missedReactions
         )
 

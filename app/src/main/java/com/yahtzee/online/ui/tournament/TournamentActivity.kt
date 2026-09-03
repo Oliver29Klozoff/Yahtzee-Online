@@ -12,7 +12,9 @@ import android.widget.TextView
 import android.widget.Toast
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.R
+import com.yahtzee.online.bot.BotRun
 import com.yahtzee.online.game.AccentColor
+import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.Match
 import com.yahtzee.online.game.PlayerProfile
@@ -22,6 +24,7 @@ import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.TournamentRepository
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.game.GameActivity
+import com.yahtzee.online.ui.bot.SoloGameActivity
 
 /**
  * A knockout tournament: the lobby before the draw, the bracket after it.
@@ -53,6 +56,9 @@ class TournamentActivity : ImmersiveActivity() {
         findViewById<Button>(R.id.joinTourneyButton).setOnClickListener { joinTyped() }
         findViewById<Button>(R.id.startDrawButton).setOnClickListener {
             state?.let { repository.start(it) }
+        }
+        findViewById<Button>(R.id.addBotButton).setOnClickListener {
+            state?.let { repository.addBot(it, getString(R.string.tourney_bot_name, it.players.size)) }
         }
 
         intent.getStringExtra(EXTRA_CODE)?.takeIf { it.isNotEmpty() }?.let { open(it) }
@@ -142,7 +148,32 @@ class TournamentActivity : ImmersiveActivity() {
             }
         }
 
-        if (state.status == Tournament.OPEN) renderEntrants(state) else renderBracket(state)
+        findViewById<Button>(R.id.addBotButton).visibility =
+            if (isHost && state.status == Tournament.OPEN &&
+                state.players.size < Tournament.MAX_PLAYERS
+            ) View.VISIBLE else View.GONE
+
+        if (state.status == Tournament.OPEN) renderEntrants(state) else {
+            renderBracket(state)
+            resolveBotMatches(state)
+        }
+    }
+
+    /**
+     * Plays out any fixture with a bot on both sides.
+     *
+     * Nobody is going to sit down at one, and an unplayed match stalls every round above it. They
+     * are settled the moment a bracket with one in it is looked at — by whoever is looking, which
+     * is a little arbitrary but needs no coordination and cannot deadlock. The repository ignores
+     * a result for a match already decided, so two people opening the bracket at once is harmless.
+     */
+    private fun resolveBotMatches(state: TournamentState) {
+        val skill = AppSettings.botSkill(this)
+        state.matches.values
+            .filter { it.ready && !it.decided && Tournament.isBot(it.aId) && Tournament.isBot(it.bId) }
+            .forEach { match ->
+                repository.report(state.code, match.id, BotRun.play(skill), BotRun.play(skill))
+            }
     }
 
     private fun renderEntrants(state: TournamentState) {
@@ -240,6 +271,20 @@ class TournamentActivity : ImmersiveActivity() {
     private fun playMatch(state: TournamentState, match: Match) {
         val name = PlayerProfile.getName(this)
         val colour = DicePreferences.getColor(this)
+
+        // A bot has no phone to join a room from, so a fixture against one is played on this
+        // device as an ordinary solo game that happens to know which fixture it settles.
+        if (Tournament.isBot(match.opponentOf(repository.localPlayerId))) {
+            startActivity(
+                Intent(this, SoloGameActivity::class.java)
+                    .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, name)
+                    .putExtra(SoloGameActivity.EXTRA_BOT_COUNT, 1)
+                    .putExtra(SoloGameActivity.EXTRA_CARD_COUNT, state.cardCount)
+                    .putExtra(SoloGameActivity.EXTRA_TOURNEY_CODE, state.code)
+                    .putExtra(SoloGameActivity.EXTRA_MATCH_ID, match.id)
+            )
+            return
+        }
 
         if (match.roomCode.isNotEmpty()) {
             games.joinRoom(match.roomCode, name, colour) { joined ->
