@@ -15,6 +15,7 @@ import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.TableLogoStore
+import com.yahtzee.online.game.decidedWinner
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.seatAngle
@@ -293,7 +294,7 @@ class TableActivity : ImmersiveActivity() {
             state.status == GameState.STATUS_FINISHED -> {
                 turnText.text = getString(
                     R.string.winner_is,
-                    state.players[state.winnerId]?.name.orEmpty()
+                    state.decidedWinner()?.name.orEmpty()
                 )
                 hint.setText(R.string.tv_finished)
             }

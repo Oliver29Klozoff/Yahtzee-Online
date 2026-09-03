@@ -36,6 +36,7 @@ import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.Rivalries
 import com.yahtzee.online.game.RivalryResult
+import com.yahtzee.online.game.decidedWinner
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.YahtzeeState
@@ -669,7 +670,7 @@ class GameActivity : ImmersiveActivity() {
         submitToLeaderboard(state)
         recordRivalries(state)
         reportTournamentResult(state)
-        val winnerName = state.players[state.winnerId]?.name ?: "?"
+        val winnerName = state.decidedWinner()?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
             .setMessage(getString(R.string.winner_is, winnerName))

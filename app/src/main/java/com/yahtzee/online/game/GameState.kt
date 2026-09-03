@@ -129,6 +129,20 @@ fun GameState.seatAngle(viewerId: String, ofPlayerId: String?): Float {
     return (2.0 * Math.PI * seatsAway / playerOrder.size).toFloat()
 }
 
+/**
+ * Who won, worked out rather than merely looked up.
+ *
+ * The room records a winner, and the recorded one is believed when it is there. But it is written
+ * by whichever client happened to play the last box, and a screen that asks the question at the
+ * wrong moment — or a client that never wrote one — is left with a game that is plainly over and
+ * an id that names nobody. The scorecards are right there and say the same thing, so the fallback
+ * is to read them.
+ *
+ * Only meaningful once the game is over; before that it names whoever is ahead.
+ */
+fun GameState.decidedWinner(): Player? =
+    players[winnerId] ?: players.values.maxByOrNull { it.grandTotalAllCards(cardCount) }
+
 /** This player's filled categories on one card. */
 fun Player.scoresForCard(card: Int): Map<Category, Int> =
     scores.entries.mapNotNull { (key, value) ->

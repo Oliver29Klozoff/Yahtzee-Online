@@ -506,8 +506,19 @@ class GameRepository(private val context: android.content.Context) {
                 } else it
                 withLatest.grandTotalAllCards(state.cardCount)
             }
-            ref.child("status").setValue(GameState.STATUS_FINISHED)
-            ref.child("winnerId").setValue(winner?.id ?: "")
+            // One write, not two.
+            //
+            // Written separately, the status arrived first and the winner a moment later, so every
+            // client — including this one — got a snapshot that said the game was over and did not
+            // yet say who had won. The game-over dialog fires on exactly that snapshot and is
+            // guarded against firing twice, so it read the empty id, showed "Winner: ?", and never
+            // corrected itself when the name landed a beat later.
+            ref.updateChildren(
+                mapOf(
+                    "status" to GameState.STATUS_FINISHED,
+                    "winnerId" to (winner?.id ?: "")
+                )
+            )
         }
     }
 
