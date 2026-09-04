@@ -61,6 +61,7 @@ class GameRepository(private val context: android.content.Context) {
         diceColor: Int,
         cardCount: Int = 1,
         turnSeconds: Int = 30,
+        scorepad: Boolean = false,
         onResult: (String) -> Unit
     ) {
         val code = generateRoomCode()
@@ -78,7 +79,8 @@ class GameRepository(private val context: android.content.Context) {
             playerOrder = listOf(localPlayerId),
             players = mapOf(localPlayerId to host),
             cardCount = cardCount,
-            turnSeconds = turnSeconds
+            turnSeconds = turnSeconds,
+            scorepad = scorepad
         )
         ref.setValue(state.toMap()).addOnSuccessListener {
             touch(code)
@@ -158,6 +160,26 @@ class GameRepository(private val context: android.content.Context) {
                 onResult(true)
             }
         }.addOnFailureListener { onResult(false) }
+    }
+
+    /**
+     * Puts the dice somebody actually rolled on the table.
+     *
+     * The scorepad's version of rolling. `rollsUsed` is set to one rather than counted, because a
+     * physical roll cannot be counted and the number is only ever asked one question here — has
+     * this player got dice down yet, and may they therefore score. Anything that wanted the real
+     * count, like the off-the-rip shout, stays quiet in a scorepad room rather than guessing.
+     */
+    fun setDice(code: String, dice: List<Int>) {
+        if (dice.size != 5 || dice.any { it !in 1..6 }) return
+        roomRef(code).updateChildren(
+            mapOf(
+                "dice" to dice,
+                "rollsUsed" to 1,
+                "held" to List(5) { false }
+            )
+        )
+        touch(code)
     }
 
     fun listenToRoom(code: String, onUpdate: (GameState?) -> Unit): ValueEventListener {
@@ -635,7 +657,8 @@ private fun GameState.toMap(): Map<String, Any?> = mapOf(
     "openingRolls" to openingRolls,
     "openingRollTied" to openingRollTied,
     "cardCount" to cardCount,
-    "turnSeconds" to turnSeconds
+    "turnSeconds" to turnSeconds,
+    "scorepad" to scorepad
 )
 
 private fun Player.toMap(): Map<String, Any?> = mapOf(
@@ -689,6 +712,7 @@ private fun DataSnapshot.toGameState(): GameState? {
     }.toMap()
     val cardCount = child("cardCount").getValue(Int::class.java) ?: 1
     val turnSeconds = child("turnSeconds").getValue(Int::class.java) ?: 30
+    val scorepad = child("scorepad").getValue(Boolean::class.java) ?: false
     // Sorted here rather than trusted: Firebase orders children by key, and the push ids these
     // use do sort chronologically, but the reading is not worth leaving to a property of the
     // key format when the timestamp is right there.
@@ -716,6 +740,6 @@ private fun DataSnapshot.toGameState(): GameState? {
     return GameState(
         roomCode, hostId, status, playerOrder, players,
         currentTurnIndex, rollsUsed, dice, held, winnerId, turnDeadline,
-        openingRolls, openingRollTied, cardCount, turnSeconds, reactions, chat, nudge
+        openingRolls, openingRollTied, cardCount, turnSeconds, reactions, chat, nudge, scorepad
     )
 }

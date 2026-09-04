@@ -156,6 +156,9 @@ class GameActivity : ImmersiveActivity() {
     /** True while the dice are mid-throw, so the values are not revealed before they land. */
     private var diceRolling = false
 
+    /** The dice being typed in on a scorepad turn, before they are put down. */
+    private var pendingDice = DiceEntry.freshValues()
+
     /** Five of a kind is on the table but still rolling; shouted when it lands. */
     private var pendingYahtzee = false
     private lateinit var dice3DView: Dice3DView
@@ -436,6 +439,7 @@ class GameActivity : ImmersiveActivity() {
      * not reset by turn changes the way the player tabs are.
      */
     private fun renderDice(state: GameState, myTurn: Boolean) {
+        if (state.scorepad) renderScorepad(state, myTurn)
         val isNewRoll = state.rollsUsed > 0 && state.rollsUsed != lastRollsUsed
         if (isNewRoll) {
             // Held rather than shouted here: the dice are still in the air, and announcing what
@@ -455,7 +459,9 @@ class GameActivity : ImmersiveActivity() {
         lastDice = state.dice
         lastRollsUsed = state.rollsUsed
 
-        renderHoldRow(state, myTurn)
+        // A scorepad table holds its dice in a hand, not on the screen. Skipped rather than hidden
+        // afterwards, because this is what makes the row visible again.
+        if (!state.scorepad) renderHoldRow(state, myTurn)
         YahtzeeBanner.render(
             context = this,
             banner = findViewById(R.id.yahtzeeBanner),
@@ -464,6 +470,40 @@ class GameActivity : ImmersiveActivity() {
             isMyTurn = myTurn,
             suppress = diceRolling
         )
+    }
+
+    /**
+     * The controls a table with real dice on it needs instead of a roll button.
+     *
+     * Shown only on your own turn, and only until you put the dice down: once they are on the
+     * table everybody can see them and the job is choosing a box, which is the ordinary scorecard.
+     * Watching somebody else's turn there is nothing to enter and nothing to press.
+     */
+    private fun renderScorepad(state: GameState, myTurn: Boolean) {
+        val entering = myTurn && state.rollsUsed == 0
+        val row = findViewById<LinearLayout>(R.id.diceEntryRow)
+        val button = findViewById<Button>(R.id.enterDiceButton)
+
+        findViewById<View>(R.id.rollButton).visibility = View.GONE
+        // Neither of these means anything on a table with real dice. Holding is done with a hand,
+        // and a roll nobody counted has no rolls left.
+        findViewById<View>(R.id.holdRow).visibility = View.GONE
+        findViewById<View>(R.id.rollsLeftText).visibility = View.GONE
+
+        row.visibility = if (entering) View.VISIBLE else View.GONE
+        button.visibility = if (entering) View.VISIBLE else View.GONE
+        if (!entering) return
+
+        // Rebuilt when the turn arrives rather than on every update, or a die would jump back to
+        // one under the finger of whoever was halfway through typing it in.
+        if (row.childCount == 0) {
+            DiceEntry.build(this, row, pendingDice) {}
+            button.setOnClickListener {
+                repository.setDice(roomCode, pendingDice.toList())
+                pendingDice = DiceEntry.freshValues()
+                row.removeAllViews()
+            }
+        }
     }
 
     /**

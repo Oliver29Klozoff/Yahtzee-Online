@@ -142,7 +142,18 @@ class TournamentActivity : ImmersiveActivity() {
             visibility = View.VISIBLE
         }
         listener?.let { repository.stopListening(code, it) }
-        listener = repository.listen(code) { fresh ->
+        listener = repository.listen(
+            code,
+            onMissing = {
+                // Finished, swept, or deleted. Remembering it would leave this screen showing a
+                // code and nothing else for ever, with no hint that the thing behind it is gone.
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    Toast.makeText(this, R.string.tourney_gone, Toast.LENGTH_LONG).show()
+                    leave()
+                }
+            }
+        ) { fresh ->
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 state = fresh

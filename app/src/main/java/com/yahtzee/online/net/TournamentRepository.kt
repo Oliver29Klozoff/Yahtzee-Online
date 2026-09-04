@@ -182,10 +182,26 @@ class TournamentRepository(private val context: android.content.Context) {
         }
     }
 
-    fun listen(code: String, onState: (TournamentState?) -> Unit): ValueEventListener {
+    /**
+     * Watches a tournament. [onMissing] fires only when the server says there is nothing there.
+     *
+     * Kept separate from a null state on purpose. A tournament that has been deleted and one this
+     * phone simply cannot reach right now look identical if both arrive as null, and treating the
+     * second as the first would drop somebody out of a live tournament the moment their signal
+     * dipped. Only a snapshot that actually came back empty counts as gone.
+     */
+    fun listen(
+        code: String,
+        onMissing: () -> Unit = {},
+        onState: (TournamentState?) -> Unit
+    ): ValueEventListener {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                onState(if (snapshot.exists()) snapshot.toTournament() else null)
+                if (!snapshot.exists()) {
+                    onMissing()
+                    return
+                }
+                onState(snapshot.toTournament())
             }
 
             override fun onCancelled(error: DatabaseError) = onState(null)

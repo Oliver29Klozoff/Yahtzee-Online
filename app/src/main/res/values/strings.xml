@@ -304,6 +304,12 @@
     <string name="tourney_start">START THE DRAW</string>
     <string name="tourney_add_bot">ADD A BOT</string>
     <string name="tourney_leave">Leave this tournament</string>
+    <string name="tourney_gone">That tournament is no longer there.</string>
+    <string name="scorepad_put_down">PUT THESE DICE DOWN</string>
+    <string name="scorepad_mode">Who rolls the dice?</string>
+    <string name="scorepad_app">The app rolls them</string>
+    <string name="scorepad_real">Real dice — the app just keeps score</string>
+    <string name="scorepad_hint">Tap each die to what you rolled, then put them down.</string>
     <string name="tourney_bot_name">Bot %1$d</string>
     <string name="nobody">nobody</string>
     <string name="tourney_share">Tournament code: %1$s</string>

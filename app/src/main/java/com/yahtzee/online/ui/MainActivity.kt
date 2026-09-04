@@ -787,12 +787,33 @@ class MainActivity : ImmersiveActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.choose_turn_length)
             .setItems(labels) { _, which ->
+                chooseWhoRolls(cardCount, GameState.TURN_SECOND_OPTIONS[which])
+            }
+            .show()
+    }
+
+    /**
+     * Whether this table has dice on it.
+     *
+     * Asked at creation rather than offered as a toggle inside the game, because it changes what
+     * every player's screen is for and cannot sensibly be switched halfway through a game.
+     */
+    private fun chooseWhoRolls(cardCount: Int, turnSeconds: Int) {
+        val createButton = findViewById<Button>(R.id.createRoomButton)
+        val labels = arrayOf(
+            getString(R.string.scorepad_app),
+            getString(R.string.scorepad_real)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.scorepad_mode)
+            .setItems(labels) { _, which ->
                 createButton.isEnabled = false
                 repository.createRoom(
                     playerName(),
                     DicePreferences.getColor(this),
                     cardCount,
-                    GameState.TURN_SECOND_OPTIONS[which]
+                    turnSeconds,
+                    scorepad = which == 1
                 ) { code ->
                     createButton.isEnabled = true
                     trackGame(code)

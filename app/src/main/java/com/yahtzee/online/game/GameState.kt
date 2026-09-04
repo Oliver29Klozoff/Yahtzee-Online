@@ -63,7 +63,21 @@ data class GameState(
      * One slot rather than a list: a nudge is a moment, and the only question anyone ever asks of
      * it is whether one has arrived for them since they last looked.
      */
-    val nudge: Nudge? = null
+    val nudge: Nudge? = null,
+
+    /**
+     * True when the dice on this table are real ones.
+     *
+     * The app stops rolling and becomes the scorecard: whoever's turn it is rolls actual dice,
+     * types in what they got, and everybody's phone and the television fill in together. It is
+     * the version of this game that works for the people in the room who never installed it —
+     * one phone per player is a high bar for an evening, a shared scorecard is not.
+     *
+     * Rolls are not counted, because a physical roll cannot be. That is not a gap: a paper
+     * scorecard has never known how many times anybody rolled either, and the two things that
+     * depend on it — the off-the-rip shout and the roll counter — simply stay quiet here.
+     */
+    val scorepad: Boolean = false
 ) {
     companion object {
         const val STATUS_LOBBY = "LOBBY"
