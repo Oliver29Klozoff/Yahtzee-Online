@@ -156,8 +156,11 @@ class GameActivity : ImmersiveActivity() {
     /** True while the dice are mid-throw, so the values are not revealed before they land. */
     private var diceRolling = false
 
-    /** The dice being typed in on a scorepad turn, before they are put down. */
+    /** The dice showing in the scorepad entry row. */
     private var pendingDice = DiceEntry.freshValues()
+
+    /** What the row is currently displaying, so it is only rebuilt when the room differs. */
+    private var entryShowing: List<Int>? = null
 
     /** Five of a kind is on the table but still rolling; shouted when it lands. */
     private var pendingYahtzee = false
@@ -402,7 +405,10 @@ class GameActivity : ImmersiveActivity() {
             render(state)
         }
 
-        val canScore = myTurn && state.rollsUsed > 0 && viewing == playerId
+        // With real dice there is no roll to wait for: the five numbers on screen are whatever is
+        // on the table, and they can be corrected right up until a box is filled in.
+        val hasDice = state.scorepad || state.rollsUsed > 0
+        val canScore = myTurn && hasDice && viewing == playerId
         configureScorecard(state.cardCount)
         scorecardAdapter.update(state, viewing, canScore)
         lowerAdapter?.update(state, viewing, canScore)
@@ -480,28 +486,36 @@ class GameActivity : ImmersiveActivity() {
      * Watching somebody else's turn there is nothing to enter and nothing to press.
      */
     private fun renderScorepad(state: GameState, myTurn: Boolean) {
-        val entering = myTurn && state.rollsUsed == 0
         val row = findViewById<LinearLayout>(R.id.diceEntryRow)
-        val button = findViewById<Button>(R.id.enterDiceButton)
 
         findViewById<View>(R.id.rollButton).visibility = View.GONE
-        // Neither of these means anything on a table with real dice. Holding is done with a hand,
-        // and a roll nobody counted has no rolls left.
+        // None of these means anything on a table with real dice. Holding is done with a hand, a
+        // roll nobody counted has no rolls left, and there is nothing to commit.
         findViewById<View>(R.id.holdRow).visibility = View.GONE
         findViewById<View>(R.id.rollsLeftText).visibility = View.GONE
+        findViewById<View>(R.id.enterDiceButton).visibility = View.GONE
 
-        row.visibility = if (entering) View.VISIBLE else View.GONE
-        button.visibility = if (entering) View.VISIBLE else View.GONE
-        if (!entering) return
+        row.visibility = if (myTurn) View.VISIBLE else View.GONE
+        if (!myTurn) {
+            entryShowing = null
+            return
+        }
 
-        // Rebuilt when the turn arrives rather than on every update, or a die would jump back to
-        // one under the finger of whoever was halfway through typing it in.
-        if (row.childCount == 0) {
-            DiceEntry.build(this, row, pendingDice) {}
-            button.setOnClickListener {
+        // Always up, and always showing what is on the table.
+        //
+        // It used to appear only before the dice were put down and then vanish, which left the
+        // rest of the turn as a scorecard with no dice anywhere on it — and no way back if a die
+        // had been typed in wrong. A paper scorepad does not work like that: the five numbers sit
+        // there, in pencil, until a box is filled in. So do these.
+        //
+        // Rebuilt only when the room disagrees with what is on screen, or a die would spring back
+        // under the finger of whoever was in the middle of changing it.
+        if (entryShowing != state.dice) {
+            entryShowing = state.dice
+            pendingDice = state.dice.toMutableList()
+            DiceEntry.build(this, row, pendingDice) {
+                entryShowing = pendingDice.toList()
                 repository.setDice(roomCode, pendingDice.toList())
-                pendingDice = DiceEntry.freshValues()
-                row.removeAllViews()
             }
         }
     }
