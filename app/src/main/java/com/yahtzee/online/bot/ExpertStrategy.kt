@@ -56,6 +56,30 @@ object ExpertStrategy {
         Category.CHANCE to 22.0f
     )
 
+    /**
+     * Roughly how often a box can be filled again in a later turn, playing for it.
+     *
+     * Not the same thing as [TYPICAL], which is what a box pays when it is filled — Chance pays
+     * less than Three of a Kind on average and is still the box you can always come back to. What
+     * this measures is whether leaving a box open strands it, which is the question that decides
+     * where to put a hand two boxes value equally.
+     */
+    private val REFILL = mapOf(
+        Category.CHANCE to 1.0f,
+        Category.ONES to 0.8f,
+        Category.TWOS to 0.8f,
+        Category.THREES to 0.8f,
+        Category.FOURS to 0.8f,
+        Category.FIVES to 0.8f,
+        Category.SIXES to 0.8f,
+        Category.THREE_OF_A_KIND to 0.73f,
+        Category.SMALL_STRAIGHT to 0.62f,
+        Category.FULL_HOUSE to 0.34f,
+        Category.FOUR_OF_A_KIND to 0.31f,
+        Category.LARGE_STRAIGHT to 0.23f,
+        Category.YAHTZEE to 0.05f
+    )
+
     /** How much of the shortfall against [TYPICAL] counts against closing a box early. */
     private const val WASTE_WEIGHT = 0.45f
 
@@ -68,14 +92,14 @@ object ExpertStrategy {
     /**
      * Whether a caller wants the search to play for the upper bonus.
      *
-     * Every caller but one does. The coach's advice would be worse without it, and the duel's
-     * perfect player is meant to be a benchmark rather than a handicapped opponent — both should
-     * see the 35 points on the table and go for them.
+     * Every caller does now. The 35 points are the largest single swing on the card, and a player
+     * who does not steer the upper section toward 63 is not playing the same game as one who does
+     * — over 600 games the search averages 227.6 with the bonus in view against 223.2 without.
      *
-     * The bot opponents are told not to. That is a deliberate handicap and not a correction:
-     * measured over 120 games the search averages 219 with the bonus in view and 212 without, so
-     * it costs about seven points a game and leaves a bot that takes the bonus when it falls into
-     * its lap rather than steering the whole upper section toward it.
+     * Expert bots ignored it for a while, as a deliberate handicap. That is over: expert is meant
+     * to be the level that plays properly, and a bot dropping two fives into Fives while 63 is
+     * still live reads as a mistake rather than as a difficulty setting. The easier levels are
+     * where the handicap belongs, and they have their own.
      */
     const val PLAYS_FOR_UPPER_BONUS = true
     const val IGNORES_UPPER_BONUS = false
@@ -119,8 +143,20 @@ object ExpertStrategy {
         openCategories: Set<Category>,
         upperTotal: Int,
         useUpperBonus: Boolean = PLAYS_FOR_UPPER_BONUS
-    ): Category = openCategories.maxByOrNull { adjustedScore(it, dice, upperTotal, useUpperBonus) }
-        ?: openCategories.first()
+    ): Category = openCategories.maxWithOrNull(
+        // Value first, then the box that is hardest to fill again.
+        //
+        // The second half is not a nicety. Once a hand clears the typical score of two boxes the
+        // shortfall term is zero for both, so they value identically and the winner was whichever
+        // the enum happened to list first — which is how four sixes went into Three of a Kind and
+        // left Four of a Kind open for a hand that may never come. Both pay the same today; the
+        // difference is entirely in what is left behind, and what should be left behind is the box
+        // most likely to come round again.
+        compareBy(
+            { adjustedScore(it, dice, upperTotal, useUpperBonus) },
+            { -(REFILL[it] ?: 0.5f) }
+        )
+    ) ?: openCategories.first()
 
     private class Tables(val terminal: FloatArray, val oneRoll: FloatArray)
 

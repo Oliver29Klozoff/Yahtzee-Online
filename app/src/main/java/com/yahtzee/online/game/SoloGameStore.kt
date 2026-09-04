@@ -22,7 +22,15 @@ data class SavedSoloGame(
      * dice come from its code, so a game resumed without it would silently deal a different hand
      * than the one the opponent is being measured against.
      */
-    val duelCode: String? = null
+    val duelCode: String? = null,
+    /**
+     * The tournament this is a fixture in, or null. Together with [matchId] it is what lets a
+     * match against a bot be picked up where it was left rather than dealt again — a tournament
+     * match is somebody's run at a trophy, and re-dealing it is not a fresh start, it is a loss.
+     */
+    val tourneyCode: String? = null,
+    /** Which fixture in [tourneyCode] this game settles. */
+    val matchId: String? = null
 )
 
 /**
@@ -40,12 +48,39 @@ object SoloGameStore {
     private const val PREFS = "solo_game"
     private const val KEY_GAME = "game"
 
+    /**
+     * Which slot a game is filed under.
+     *
+     * A tournament fixture gets its own, one per match, because there is only one ordinary slot
+     * and whatever is played next takes it. Backing out of a fixture to check the bracket and
+     * playing a quick solo game on the way back used to overwrite the fixture with the solo game
+     * — the tournament match was gone before anybody returned to it.
+     */
+    private fun slotFor(game: SavedSoloGame): String = slotFor(game.tourneyCode, game.matchId)
+
+    private fun slotFor(tourneyCode: String?, matchId: String?): String =
+        if (tourneyCode.isNullOrEmpty() || matchId.isNullOrEmpty()) KEY_GAME
+        else "match_${tourneyCode}_$matchId"
+
     fun save(context: Context, game: SavedSoloGame) {
-        prefs(context).edit().putString(KEY_GAME, encode(game).toString()).apply()
+        prefs(context).edit().putString(slotFor(game), encode(game).toString()).apply()
     }
 
-    fun load(context: Context): SavedSoloGame? {
-        val raw = prefs(context).getString(KEY_GAME, null) ?: return null
+    fun load(context: Context): SavedSoloGame? = load(context, KEY_GAME)
+
+    /** The game saved for a tournament fixture, if that fixture was left part-played. */
+    fun loadMatch(context: Context, tourneyCode: String, matchId: String): SavedSoloGame? =
+        load(context, slotFor(tourneyCode, matchId))
+
+    fun hasMatch(context: Context, tourneyCode: String, matchId: String): Boolean =
+        loadMatch(context, tourneyCode, matchId) != null
+
+    fun clearMatch(context: Context, tourneyCode: String, matchId: String) {
+        prefs(context).edit().remove(slotFor(tourneyCode, matchId)).apply()
+    }
+
+    private fun load(context: Context, slot: String): SavedSoloGame? {
+        val raw = prefs(context).getString(slot, null) ?: return null
         return runCatching { decode(JSONObject(raw)) }.getOrNull()
     }
 
@@ -96,6 +131,8 @@ object SoloGameStore {
             .put("botSkill", game.botSkill.name)
             .put("dailyId", game.dailyId)
             .put("duelCode", game.duelCode)
+            .put("tourneyCode", game.tourneyCode)
+            .put("matchId", game.matchId)
             .put("status", state.status)
             .put("playerOrder", JSONArray(state.playerOrder))
             .put("players", players)
@@ -163,7 +200,9 @@ object SoloGameStore {
             }.getOrDefault(AppSettings.BotSkill.HARD),
             state = state,
             dailyId = json.optString("dailyId").takeIf { it.isNotEmpty() && it != "null" },
-            duelCode = json.optString("duelCode").takeIf { it.isNotEmpty() && it != "null" }
+            duelCode = json.optString("duelCode").takeIf { it.isNotEmpty() && it != "null" },
+            tourneyCode = json.optString("tourneyCode").takeIf { it.isNotEmpty() && it != "null" },
+            matchId = json.optString("matchId").takeIf { it.isNotEmpty() && it != "null" }
         )
     }
 

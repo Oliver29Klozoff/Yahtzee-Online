@@ -38,7 +38,7 @@ object BotSkillPlay {
                 openCategories,
                 rollsLeft,
                 upperTotalSoFar,
-                ExpertStrategy.IGNORES_UPPER_BONUS
+                ExpertStrategy.PLAYS_FOR_UPPER_BONUS
             )
         }
         val best = BotStrategy.chooseHolds(dice, openCategories, rollsLeft)
@@ -64,15 +64,13 @@ object BotSkillPlay {
         return when (skill) {
             // Priced the same way the search prices it, so where it scores agrees with what it
             // kept — the two halves of a turn pulling different directions is its own weakness.
-            // The bot does not steer for the upper bonus; see ExpertStrategy. Passed here as well
-            // as to the keep, so where it scores agrees with what it kept — the two halves of a
-            // turn pricing a hand differently is its own weakness.
+            // That includes the upper bonus, which expert now plays for on both halves.
             AppSettings.BotSkill.EXPERT ->
                 ExpertStrategy.chooseCategory(
                     dice,
                     openCategories,
                     upperTotalSoFar,
-                    ExpertStrategy.IGNORES_UPPER_BONUS
+                    ExpertStrategy.PLAYS_FOR_UPPER_BONUS
                 )
             AppSettings.BotSkill.HARD ->
                 BotStrategy.chooseCategory(dice, openCategories, upperTotalSoFar)

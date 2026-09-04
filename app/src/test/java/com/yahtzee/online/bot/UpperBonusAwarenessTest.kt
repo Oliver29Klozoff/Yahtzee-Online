@@ -9,10 +9,10 @@ import org.junit.Test
 /**
  * Who plays for the upper bonus and who does not.
  *
- * The bot opponents are deliberately blind to it; the coach, the duel's perfect player and
- * auto-play are not. Both halves are worth pinning: the handicap is easy to lose by someone
- * tidying up a default, and easy to spread by someone passing the flag along to a caller that
- * should not have it.
+ * Everyone playing at full strength does: the expert bot, the coach, the duel's perfect player
+ * and auto-play. The flag survives because the search still supports being blind to the bonus,
+ * and both halves are worth pinning — a default tidied up in the wrong direction would quietly
+ * hand back the handicap the expert bot used to carry.
  */
 class UpperBonusAwarenessTest {
 
@@ -63,17 +63,32 @@ class UpperBonusAwarenessTest {
         assertNotEquals(nearBonus, farFromBonus)
     }
 
-    /** The bot opponent is wired to the blind search, not merely able to be. */
+    /** The expert bot plays for the bonus, and is wired to it rather than merely able to be. */
     @Test
-    fun `the expert bot uses the blind search`() {
+    fun `the expert bot plays for the bonus`() {
         val open = setOf(Category.SIXES, Category.CHANCE)
         val bot = BotSkillPlay.chooseCategory(
             AppSettings.BotSkill.EXPERT, threeSixes, open, upperTotalSoFar = 45
         )
-        val blind = ExpertStrategy.chooseCategory(
-            threeSixes, open, upperTotal = 45, useUpperBonus = ExpertStrategy.IGNORES_UPPER_BONUS
+        val aware = ExpertStrategy.chooseCategory(
+            threeSixes, open, upperTotal = 45, useUpperBonus = ExpertStrategy.PLAYS_FOR_UPPER_BONUS
         )
-        assertEquals(blind, bot)
+        assertEquals(aware, bot)
+        assertEquals("18 in Sixes lands on 63 exactly; it should take the bonus", Category.SIXES, bot)
+    }
+
+    /** Held dice too — the two halves of a turn must not price the bonus differently. */
+    @Test
+    fun `the expert bot keeps for the bonus as well`() {
+        val open = setOf(Category.SIXES, Category.CHANCE)
+        val bot = BotSkillPlay.chooseHolds(
+            AppSettings.BotSkill.EXPERT, threeSixes, open, rollsLeft = 1, upperTotalSoFar = 45
+        )
+        val aware = ExpertStrategy.chooseHolds(
+            threeSixes, open, rollsLeft = 1, upperTotal = 45,
+            useUpperBonus = ExpertStrategy.PLAYS_FOR_UPPER_BONUS
+        )
+        assertEquals(aware, bot)
     }
 
     /** The coach keeps the bonus in view — its advice would be worse without it. */

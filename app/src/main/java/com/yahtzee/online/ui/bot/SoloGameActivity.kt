@@ -129,6 +129,10 @@ class SoloGameActivity : ImmersiveActivity() {
     /** Non-null when this is a round of a duel, holding the code whose tape is in play. */
     private var duelCode: String? = null
 
+    /** The tournament fixture this game settles, or null for an ordinary solo game. */
+    private var tourneyCode: String? = null
+    private var matchId: String? = null
+
     /**
      * True when the dice come off a fixed tape rather than being rolled freely.
      *
@@ -145,8 +149,19 @@ class SoloGameActivity : ImmersiveActivity() {
         val name = intent.getStringExtra(EXTRA_PLAYER_NAME) ?: "You"
         val botCount = intent.getIntExtra(EXTRA_BOT_COUNT, 1).coerceIn(1, 4)
         val cardCount = intent.getIntExtra(EXTRA_CARD_COUNT, 1).coerceIn(1, 6)
+        tourneyCode = intent.getStringExtra(EXTRA_TOURNEY_CODE)?.takeIf { it.isNotEmpty() }
+        matchId = intent.getStringExtra(EXTRA_MATCH_ID)?.takeIf { it.isNotEmpty() }
+
         // Resume a game in progress if there is one, rather than dealing over the top of it.
-        val saved = if (intent.getBooleanExtra(EXTRA_RESUME, false)) SoloGameStore.loadResumable(this) else null
+        //
+        // A tournament fixture always resumes, without waiting to be asked. Every other solo game
+        // is one the player chose to continue from a button that knows a game is there; a fixture
+        // is opened by tapping it in the bracket, which is the same tap whether it has been
+        // started or not — so left to the flag it would deal a fresh game over a match already
+        // half played, which is exactly the way one gets lost.
+        val fixture = tourneyCode?.let { code -> matchId?.let { SoloGameStore.loadMatch(this, code, it) } }
+        val saved = fixture
+            ?: if (intent.getBooleanExtra(EXTRA_RESUME, false)) SoloGameStore.loadResumable(this) else null
         // A resumed daily keeps its own day, so a game left open overnight finishes against the
         // tape it was started on rather than silently switching to today's dice mid-game.
         dailyId = saved?.dailyId ?: intent.getStringExtra(EXTRA_DAILY_ID)
@@ -556,7 +571,7 @@ class SoloGameActivity : ImmersiveActivity() {
     private fun persistGame() {
         val state = engine.state
         if (state.status == GameState.STATUS_FINISHED) {
-            SoloGameStore.clear(this)
+            clearSaved()
             return
         }
         SoloGameStore.save(
@@ -568,9 +583,19 @@ class SoloGameActivity : ImmersiveActivity() {
                 botSkill = AppSettings.botSkill(this),
                 state = state,
                 dailyId = dailyId,
-                duelCode = duelCode
+                duelCode = duelCode,
+                tourneyCode = tourneyCode,
+                matchId = matchId
             )
         )
+    }
+
+    /** Drops the saved game from whichever slot this one occupies. */
+    private fun clearSaved() {
+        val code = tourneyCode
+        val match = matchId
+        if (code != null && match != null) SoloGameStore.clearMatch(this, code, match)
+        else SoloGameStore.clear(this)
     }
 
     /**
