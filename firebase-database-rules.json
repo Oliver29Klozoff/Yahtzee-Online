@@ -131,6 +131,26 @@
       }
     },
 
+    "profiles": {
+      "$profileId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['updatedAt'])",
+
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "data": {
+          "$file": {
+            ".validate": "newData.isString() && newData.val().length <= 40000"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
     "tournaments": {
       ".read": "auth != null",
       ".indexOn": ["updatedAt"],

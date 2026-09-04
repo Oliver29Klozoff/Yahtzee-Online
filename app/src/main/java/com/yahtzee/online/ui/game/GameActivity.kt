@@ -45,6 +45,7 @@ import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.ProfileRepository
 import com.yahtzee.online.net.TournamentRepository
 import com.yahtzee.online.net.TurnNotifier
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -688,6 +689,8 @@ class GameActivity : ImmersiveActivity() {
         submitToLeaderboard(state)
         recordRivalries(state)
         reportTournamentResult(state)
+        // The stats this game just changed, filed against the identity rather than the phone.
+        ProfileRepository(this).push()
         val winnerName = state.decidedWinner()?.name ?: "?"
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)

@@ -36,6 +36,7 @@ import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.ProfileRepository
 import com.yahtzee.online.game.GameReview
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
@@ -607,6 +608,7 @@ class SoloGameActivity : ImmersiveActivity() {
         }
 
         reportTournamentResult(score, state)
+        ProfileRepository(this).push()
 
         duelCode?.let {
             showDuelResult(it, score)

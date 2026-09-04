@@ -27,6 +27,7 @@ import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.ProfileRecovery
 import com.yahtzee.online.game.TableLogoStore
+import com.yahtzee.online.net.ProfileRepository
 import com.yahtzee.online.update.UpdateChecker
 
 class SettingsActivity : ImmersiveActivity() {
@@ -653,6 +654,17 @@ class SettingsActivity : ImmersiveActivity() {
                     findViewById<TextView>(R.id.recoveryCodeText).text =
                         ProfileRecovery.codeFor(this)
                     Toast.makeText(this, R.string.profile_restored, Toast.LENGTH_LONG).show()
+                    // The identity has moved; now go and fetch everything that used to be left
+                    // behind with the old phone.
+                    ProfileRepository(this).pull { restored ->
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            if (restored) {
+                                Toast.makeText(this, R.string.history_restored, Toast.LENGTH_LONG)
+                                    .show()
+                            }
+                        }
+                    }
                 } else {
                     Toast.makeText(this, R.string.code_invalid, Toast.LENGTH_LONG).show()
                 }

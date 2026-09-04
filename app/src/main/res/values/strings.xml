@@ -100,6 +100,7 @@
     <string name="code_copied">Code copied</string>
     <string name="code_invalid">That code isn\'t valid — check it and try again.</string>
     <string name="profile_restored">Profile restored. Your leaderboard place and games follow this code.</string>
+    <string name="history_restored">Your stats, rivals and streak came with it.</string>
     <string name="same_code_warning">Two phones showing this same code count as one player and cannot play each other. Give one of them a new identity.</string>
     <string name="new_identity">Start a new identity</string>
     <string name="new_identity_warning">This phone becomes a different player. Its leaderboard place, its daily results and its seat in any unfinished game stay with the old identity — save the code above first if you may want it back.</string>

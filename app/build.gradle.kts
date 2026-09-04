@@ -21,8 +21,8 @@ android {
         applicationId = "com.yahtzee.online"
         minSdk = 24
         targetSdk = 36
-        versionCode = 140
-        versionName = "2.38"
+        versionCode = 141
+        versionName = "2.39"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -95,6 +95,10 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
 
     testImplementation("junit:junit:4.13.2")
+    // A real org.json for unit tests. The one Android ships is a signature-only stub on the JVM,
+    // so anything touching JSONObject throws "not mocked" rather than running — which would have
+    // left the profile snapshot, the one thing here that must not lose data, untestable.
+    testImplementation("org.json:json:20250517")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }
