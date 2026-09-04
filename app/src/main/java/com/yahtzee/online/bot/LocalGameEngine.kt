@@ -38,10 +38,19 @@ class LocalGameEngine(
      * read from it rather than generated, which is what makes the day's puzzle identical for
      * everyone playing it. Null for an ordinary game, which rolls freely.
      */
-    private val tape: DiceTape? = null
+    private val tape: DiceTape? = null,
+    /**
+     * Names to use instead of drawing from the pool.
+     *
+     * For a bot that already exists somewhere else and has been introduced under a name — a
+     * tournament entrant, say. A bracket that says you are playing Ada and a game that then deals
+     * you Hugo is the same bot wearing two names, and there is no way for a player to tell that
+     * from a bug.
+     */
+    private val botNames: List<String> = emptyList()
 ) {
 
-    private companion object {
+    companion object {
         /** Short, easily told apart at a glance on the scorecard tabs. */
         val BOT_NAMES = listOf(
             "Ada", "Bruno", "Cleo", "Dexter", "Etta", "Felix",
@@ -86,7 +95,8 @@ class LocalGameEngine(
         val botColors = botColoursAvoiding(humanColor, botCount)
         // Names are drawn without replacement so no two opponents share one, and shuffled per
         // game so the same three bots are not sitting there every time.
-        val names = BOT_NAMES.shuffled().toMutableList()
+        // Given names win; the pool fills whatever is left over.
+        val names = (botNames + BOT_NAMES.shuffled()).toMutableList()
         val bots = botIds.mapIndexed { i, id ->
             id to Player(
                 id = id,

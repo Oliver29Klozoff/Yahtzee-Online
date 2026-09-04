@@ -81,6 +81,8 @@ class SoloGameActivity : ImmersiveActivity() {
         /** Set when this game settles a tournament fixture against a bot. */
         const val EXTRA_TOURNEY_CODE = "tourney_code"
         const val EXTRA_MATCH_ID = "tourney_match"
+        /** The bracket name of the bot in that fixture, so both places call it the same thing. */
+        const val EXTRA_BOT_NAME = "bot_name"
         private const val ROLL_SETTLE_DELAY_MS = 1300L
 
         /** How long the finished roll-off is held before play begins. */
@@ -160,6 +162,8 @@ class SoloGameActivity : ImmersiveActivity() {
             saved,
             dailyId?.let { DailyChallenge.tapeFor(it) }
                 ?: duelCode?.let { Duel.tapeFor(it) }
+,
+            listOfNotNull(intent.getStringExtra(EXTRA_BOT_NAME)?.takeIf { it.isNotEmpty() })
         )
 
         // From here on this screen can be rebuilt from the saved game.

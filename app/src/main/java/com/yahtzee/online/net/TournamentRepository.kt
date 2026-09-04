@@ -4,6 +4,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.game.Entrant
 import com.yahtzee.online.game.Match
 import com.yahtzee.online.game.PlayerProfile
@@ -98,14 +99,23 @@ class TournamentRepository(private val context: android.content.Context) {
      * snapshot that had not caught up yet all three picked the same id and wrote over each other —
      * three taps, one bot.
      */
-    fun addBot(code: String, nameFor: (Int) -> String) {
+    fun addBot(code: String) {
         ref(code).child("players").get().addOnSuccessListener { snapshot ->
             val taken = snapshot.children.mapNotNull { it.key }.toSet()
             val id = Tournament.nextBotId(taken)
+            // Named from the same pool the solo game draws from, and the name is carried into the
+            // match when somebody plays it — so the bot in the bracket and the bot across the
+            // table are recognisably the same one.
+            val used = snapshot.children
+                .mapNotNull { it.child("name").getValue(String::class.java) }
+                .toSet()
+            val name = LocalGameEngine.BOT_NAMES.firstOrNull { it !in used }
+                ?: LocalGameEngine.BOT_NAMES.random()
+
             ref(code).child("players").child(id).setValue(
                 mapOf(
                     "id" to id,
-                    "name" to nameFor(taken.size),
+                    "name" to name,
                     "joinedAt" to System.currentTimeMillis(),
                     "seed" to taken.size
                 )

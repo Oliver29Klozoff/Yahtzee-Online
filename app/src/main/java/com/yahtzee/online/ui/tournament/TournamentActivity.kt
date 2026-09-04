@@ -68,7 +68,7 @@ class TournamentActivity : ImmersiveActivity() {
             state?.let { repository.start(it) }
         }
         findViewById<Button>(R.id.addBotButton).setOnClickListener {
-            state?.let { repository.addBot(it.code) { seats -> getString(R.string.tourney_bot_name, seats) } }
+            state?.let { repository.addBot(it.code) }
         }
 
         findViewById<Button>(R.id.leaveTourneyButton).setOnClickListener { leave() }
@@ -335,6 +335,10 @@ class TournamentActivity : ImmersiveActivity() {
                 Intent(this, SoloGameActivity::class.java)
                     .putExtra(SoloGameActivity.EXTRA_PLAYER_NAME, name)
                     .putExtra(SoloGameActivity.EXTRA_BOT_COUNT, 1)
+                    .putExtra(
+                        SoloGameActivity.EXTRA_BOT_NAME,
+                        state.players[match.opponentOf(repository.localPlayerId)]?.name.orEmpty()
+                    )
                     .putExtra(SoloGameActivity.EXTRA_CARD_COUNT, state.cardCount)
                     .putExtra(SoloGameActivity.EXTRA_TOURNEY_CODE, state.code)
                     .putExtra(SoloGameActivity.EXTRA_MATCH_ID, match.id)

@@ -310,7 +310,6 @@
     <string name="scorepad_menu">Real dice</string>
     <string name="scorepad_menu_sub">You roll actual dice. The app keeps the score for everybody.</string>
     <string name="scorepad_hint">Tap each die to what you rolled, then put them down.</string>
-    <string name="tourney_bot_name">Bot %1$d</string>
     <string name="nobody">nobody</string>
     <string name="tourney_share">Tournament code: %1$s</string>
     <string name="tourney_round_final">FINAL</string>
