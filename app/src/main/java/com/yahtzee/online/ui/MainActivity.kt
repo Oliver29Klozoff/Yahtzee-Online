@@ -107,6 +107,7 @@ class MainActivity : ImmersiveActivity() {
 
         findViewById<View>(R.id.dailyCard).setOnClickListener { startDailyChallenge() }
         findViewById<View>(R.id.duelCard).setOnClickListener { startDuel() }
+        findViewById<View>(R.id.scorepadCard).setOnClickListener { startScorepad() }
         findViewById<View>(R.id.tourneyCard).setOnClickListener {
             startActivity(
                 android.content.Intent(
@@ -787,35 +788,47 @@ class MainActivity : ImmersiveActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.choose_turn_length)
             .setItems(labels) { _, which ->
-                chooseWhoRolls(cardCount, GameState.TURN_SECOND_OPTIONS[which])
-            }
-            .show()
-    }
-
-    /**
-     * Whether this table has dice on it.
-     *
-     * Asked at creation rather than offered as a toggle inside the game, because it changes what
-     * every player's screen is for and cannot sensibly be switched halfway through a game.
-     */
-    private fun chooseWhoRolls(cardCount: Int, turnSeconds: Int) {
-        val createButton = findViewById<Button>(R.id.createRoomButton)
-        val labels = arrayOf(
-            getString(R.string.scorepad_app),
-            getString(R.string.scorepad_real)
-        )
-        AlertDialog.Builder(this)
-            .setTitle(R.string.scorepad_mode)
-            .setItems(labels) { _, which ->
                 createButton.isEnabled = false
                 repository.createRoom(
                     playerName(),
                     DicePreferences.getColor(this),
                     cardCount,
-                    turnSeconds,
-                    scorepad = which == 1
+                    GameState.TURN_SECOND_OPTIONS[which]
                 ) { code ->
                     createButton.isEnabled = true
+                    trackGame(code)
+                    openLobby(code)
+                }
+            }
+            .show()
+    }
+
+    /**
+     * Opens a table with real dice on it.
+     *
+     * Its own way in rather than a question tacked onto creating a room. It is a different way of
+     * playing, not a setting on the usual one: nobody rolls on their phone, the dice are in the
+     * middle of the table, and the app is the scorecard everybody shares. Somebody choosing to
+     * make an ordinary room should not have to answer a question about it.
+     *
+     * No turn clock is offered, for the same reason the television's room has none: everyone is
+     * sitting in the same place and can see whose turn it is, so there is nobody to chase.
+     */
+    private fun startScorepad() {
+        val labels = GameState.CARD_OPTIONS.map { count ->
+            if (count == 1) getString(R.string.one_card) else getString(R.string.n_cards, count)
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_card_count)
+            .setItems(labels) { _, which ->
+                repository.createRoom(
+                    playerName(),
+                    DicePreferences.getColor(this),
+                    GameState.CARD_OPTIONS[which],
+                    turnSeconds = 0,
+                    scorepad = true
+                ) { code ->
                     trackGame(code)
                     openLobby(code)
                 }
