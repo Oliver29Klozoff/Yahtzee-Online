@@ -35,6 +35,8 @@ import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardEntry
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.Presence
+import com.yahtzee.online.net.RivalryRepository
 import com.yahtzee.online.net.RoomCleanup
 import com.yahtzee.online.net.TurnCheckWorker
 import com.yahtzee.online.net.TurnNotifier
@@ -66,6 +68,10 @@ class MainActivity : ImmersiveActivity() {
     /** The daily board is a separate query, so it needs its own handle to detach. */
     private var dailyQuery: com.google.firebase.database.Query? = null
     private var dailyListener: ValueEventListener? = null
+
+    /** Rivals currently in the app, so a dot can say who is actually about. */
+    private var onlineRivals: Set<String> = emptySet()
+    private var presenceListener: com.google.firebase.database.ValueEventListener? = null
 
     /** Asked at most once per launch, so declining does not re-prompt on every return here. */
     private var askedForNotifications = false
@@ -108,6 +114,16 @@ class MainActivity : ImmersiveActivity() {
         findViewById<View>(R.id.dailyCard).setOnClickListener { startDailyChallenge() }
         findViewById<View>(R.id.duelCard).setOnClickListener { startDuel() }
         findViewById<View>(R.id.scorepadCard).setOnClickListener { startScorepad() }
+
+        // Redrawn whenever somebody arrives or leaves, so the dots are live rather than a
+        // snapshot from whenever this screen happened to open.
+        presenceListener = Presence.watch { online ->
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                onlineRivals = online
+                renderRivals()
+            }
+        }
         findViewById<View>(R.id.tourneyCard).setOnClickListener {
             startActivity(
                 android.content.Intent(
@@ -327,28 +343,49 @@ class MainActivity : ImmersiveActivity() {
 
             row.addView(
                 TextView(this).apply {
-                    text = rival.name
+                    // A dot for somebody who is in the app right now, which turns "play again"
+                    // from a message left on the doorstep into an invitation to somebody standing
+                    // in the room.
+                    text = if (rival.opponentId in onlineRivals) {
+                        getString(R.string.rivals_online, rival.name)
+                    } else {
+                        rival.name
+                    }
                     textSize = 15f
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
-                    setTextColor(getColor(R.color.text_dark))
+                    setTextColor(
+                        if (rival.opponentId in onlineRivals) accent
+                        else getColor(R.color.text_dark)
+                    )
                 }
             )
-            row.addView(
-                TextView(this).apply {
-                    text = if (rival.draws > 0) {
-                        getString(
-                            R.string.rivals_line_drawn,
-                            rival.wins, rival.name, rival.losses, rival.draws
-                        )
-                    } else {
-                        getString(R.string.rivals_line, rival.wins, rival.name, rival.losses)
+
+            val record = TextView(this).apply {
+                textSize = 13f
+                // Behind gets the accent, which is the state worth doing something about.
+                setTextColor(if (rival.trailing) accent else getColor(R.color.text_muted))
+            }
+            row.addView(record)
+            // Drawn from this phone's own tally first so the row is never blank, then replaced by
+            // the record both players share the moment it arrives.
+            showRecord(record, rival, rival.wins, rival.losses, rival.draws)
+            RivalryRepository(this).load(rival.opponentId) { shared ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (shared.played > 0) {
+                        showRecord(record, rival, shared.wins, shared.losses, shared.draws)
                     }
-                    textSize = 13f
-                    // Behind gets the accent, which is the state worth doing something about.
-                    setTextColor(if (rival.trailing) accent else getColor(R.color.text_muted))
                 }
-            )
+            }
             list.addView(row)
+        }
+    }
+
+    private fun showRecord(view: TextView, rival: Rivalry, wins: Int, losses: Int, draws: Int) {
+        view.text = if (draws > 0) {
+            getString(R.string.rivals_line_drawn, wins, rival.name, losses, draws)
+        } else {
+            getString(R.string.rivals_line, wins, rival.name, losses)
         }
     }
 

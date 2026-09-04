@@ -163,6 +163,7 @@
     <string name="rivals_hint">tap to play again</string>
     <string name="rivals_empty">Your win–loss record against each person builds up here as you finish games and duels.</string>
     <string name="rivals_line">You %1$d · %2$s %3$d</string>
+    <string name="rivals_online">● %1$s</string>
     <string name="rivals_line_drawn">You %1$d · %2$s %3$d · %4$d drawn</string>
     <string name="rivals_remove">Remove your record against %1$s?</string>
     <string name="rivals_invited">Room %1$s open — %2$s has been invited.</string>

@@ -131,6 +131,43 @@
       }
     },
 
+    "presence": {
+      ".read": "auth != null",
+      "$profileId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['at'])",
+
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+        },
+        "online": {
+          ".validate": "newData.isBoolean()"
+        },
+        "at": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "rivalries": {
+      "$pairId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+
+        "games": {
+          "$roomCode": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
     "profiles": {
       "$profileId": {
         ".read": "auth != null",

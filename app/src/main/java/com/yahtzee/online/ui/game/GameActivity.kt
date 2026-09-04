@@ -45,6 +45,7 @@ import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
+import com.yahtzee.online.net.RivalryRepository
 import com.yahtzee.online.net.ProfileRepository
 import com.yahtzee.online.net.TournamentRepository
 import com.yahtzee.online.net.TurnNotifier
@@ -724,17 +725,21 @@ class GameActivity : ImmersiveActivity() {
             .filterNot { it.id == playerId }
             .forEach { opponent ->
                 val theirs = opponent.grandTotalAllCards(state.cardCount)
+                val result = when {
+                    mine > theirs -> RivalryResult.WIN
+                    mine < theirs -> RivalryResult.LOSS
+                    else -> RivalryResult.DRAW
+                }
+                // Kept locally as well as shared: the name lives here, and the start screen has
+                // something to draw before the shared count has come back.
                 Rivalries.record(
                     context = this,
                     opponentId = opponent.id,
                     name = opponent.name,
-                    result = when {
-                        mine > theirs -> RivalryResult.WIN
-                        mine < theirs -> RivalryResult.LOSS
-                        else -> RivalryResult.DRAW
-                    },
+                    result = result,
                     at = at
                 )
+                RivalryRepository(this).report(roomCode, opponent.id, result)
             }
     }
 

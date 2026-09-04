@@ -11,6 +11,7 @@ import androidx.core.view.updatePadding
 import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.net.FirebaseSignIn
+import com.yahtzee.online.net.Presence
 
 /**
  * Base for every screen in the app: hides the system status bar (where notification icons/
@@ -104,6 +105,21 @@ abstract class ImmersiveActivity : AppCompatActivity() {
             insets
         }
         ViewCompat.requestApplyInsets(content)
+    }
+
+    /**
+     * Presence is published from the base class so it covers every screen without any of them
+     * having to remember. Counted across activities, so moving from the menu into a game — which
+     * starts the next screen before stopping this one — does not blink offline and back.
+     */
+    override fun onStart() {
+        super.onStart()
+        Presence.enter(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Presence.leave(this)
     }
 
     override fun onResume() {
