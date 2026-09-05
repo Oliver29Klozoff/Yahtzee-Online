@@ -15,6 +15,7 @@ import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Nudge
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.Player
+import com.yahtzee.online.game.RoomCode
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.Tournament
@@ -58,15 +59,71 @@ class GameRepository(private val context: android.content.Context) {
         roomRef(code).child("updatedAt").setValue(System.currentTimeMillis())
     }
 
+    /**
+     * Opens a room.
+     *
+     * [desiredCode] is a code the host asked for. Null takes a generated one, which is retried
+     * until it finds a code nobody is using — the write is a plain set on a key, so a code
+     * already in use would have been overwritten and the game under it lost. Rare at thirty-three
+     * million combinations, certain the moment people start choosing their own and several of
+     * them choose GAME.
+     *
+     * A desired code that is already taken is refused rather than joined: the host asked to make
+     * a room, and quietly seating them in a stranger's game is not that. [onResult] is handed an
+     * empty string, which is the only way it ever reports one.
+     */
     fun createRoom(
         hostName: String,
         diceColor: Int,
         cardCount: Int = 1,
         turnSeconds: Int = 30,
         scorepad: Boolean = false,
+        desiredCode: String? = null,
         onResult: (String) -> Unit
     ) {
-        val code = generateRoomCode()
+        if (desiredCode != null && !RoomCode.isValid(desiredCode)) {
+            onResult("")
+            return
+        }
+        claimCode(desiredCode, GENERATE_ATTEMPTS) { code ->
+            if (code.isEmpty()) onResult("") else writeRoom(code, hostName, diceColor, cardCount, turnSeconds, scorepad, onResult)
+        }
+    }
+
+    /**
+     * Finds a code nobody is using, or confirms the one asked for is free.
+     *
+     * A generated code gets a handful of tries before giving up; a chosen one gets exactly the
+     * one it asked for.
+     */
+    private fun claimCode(desired: String?, attemptsLeft: Int, onResult: (String) -> Unit) {
+        if (attemptsLeft <= 0) {
+            onResult("")
+            return
+        }
+        val candidate = desired ?: generateRoomCode()
+        roomRef(candidate).child("roomCode").get()
+            .addOnSuccessListener { snapshot ->
+                when {
+                    !snapshot.exists() -> onResult(candidate)
+                    desired != null -> onResult("")
+                    else -> claimCode(null, attemptsLeft - 1, onResult)
+                }
+            }
+            // A room that cannot be checked is not a reason to refuse a generated code: the
+            // odds of a clash are tiny and a game nobody can start is the worse outcome.
+            .addOnFailureListener { onResult(if (desired != null) "" else candidate) }
+    }
+
+    private fun writeRoom(
+        code: String,
+        hostName: String,
+        diceColor: Int,
+        cardCount: Int,
+        turnSeconds: Int,
+        scorepad: Boolean,
+        onResult: (String) -> Unit
+    ) {
         val ref = roomRef(code)
         val host = Player(
             id = localPlayerId,
@@ -765,10 +822,7 @@ class GameRepository(private val context: android.content.Context) {
         roomRef(code).removeValue()
     }
 
-    private fun generateRoomCode(): String {
-        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        return (1..5).map { chars[Random.nextInt(chars.length)] }.joinToString("")
-    }
+    private fun generateRoomCode(): String = RoomCode.random()
 
     companion object {
         /**
@@ -781,6 +835,9 @@ class GameRepository(private val context: android.content.Context) {
 
         /** As many as the table can seat and the TV can draw without the names collapsing. */
         const val MAX_ROOM_PLAYERS = 6
+
+        /** How many generated codes to try before giving up on finding a free one. */
+        private const val GENERATE_ATTEMPTS = 5
 
         /** Cobalt, the app's default die, for a room where nobody has picked a colour yet. */
         private const val DEFAULT_SEED_COLOUR = 0xFF1F4FD8.toInt()

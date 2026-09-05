@@ -15,6 +15,12 @@
     <string name="turn_summary_score">%1$s · %2$d</string>
     <string name="tv_just_scored">%1$s scored %2$s · %3$d</string>
 
+    <!-- Choosing the room's code when creating it. -->
+    <string name="room_code_title">Room code</string>
+    <string name="room_code_message">This is what people type to join you. Keep the one below or pick your own — %1$d to %2$d letters and numbers.</string>
+    <string name="room_code_taken">That code is already in use. Try another.</string>
+    <string name="room_code_invalid">Use %1$d–%2$d letters or numbers, nothing else.</string>
+
     <!-- How to play, written for somebody who has never played before. -->
     <string name="how_to_play">How to play</string>
     <string name="how_to_intro">Yahtzee is five dice and thirteen boxes to fill. You take turns, and on each turn you roll the dice and choose one box to write a score in. When every box on everyone\'s card is full, the highest total wins.</string>

@@ -30,6 +30,7 @@ import com.yahtzee.online.game.NudgeSeen
 import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.Rivalries
+import com.yahtzee.online.game.RoomCode
 import com.yahtzee.online.game.Rivalry
 import com.yahtzee.online.game.SoloGameStore
 import com.yahtzee.online.net.GameRepository
@@ -829,16 +830,23 @@ class MainActivity : ImmersiveActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.choose_turn_length)
             .setItems(labels) { _, which ->
-                createButton.isEnabled = false
-                repository.createRoom(
-                    playerName(),
-                    DicePreferences.getColor(this),
-                    cardCount,
-                    GameState.TURN_SECOND_OPTIONS[which]
-                ) { code ->
-                    createButton.isEnabled = true
-                    trackGame(code)
-                    openLobby(code)
+                askForCode { chosen ->
+                    createButton.isEnabled = false
+                    repository.createRoom(
+                        playerName(),
+                        DicePreferences.getColor(this),
+                        cardCount,
+                        GameState.TURN_SECOND_OPTIONS[which],
+                        desiredCode = chosen
+                    ) { code ->
+                        createButton.isEnabled = true
+                        if (code.isEmpty()) {
+                            Toast.makeText(this, R.string.room_code_taken, Toast.LENGTH_LONG).show()
+                            return@createRoom
+                        }
+                        trackGame(code)
+                        openLobby(code)
+                    }
                 }
             }
             .show()
@@ -874,6 +882,44 @@ class MainActivity : ImmersiveActivity() {
                     openLobby(code)
                 }
             }
+            .show()
+    }
+
+    /**
+     * Offers the room's code before it is made.
+     *
+     * Filled in with a generated code rather than left empty, which is what keeps this from being
+     * one more thing to answer: anybody who does not care presses Create and gets exactly what
+     * they got before, having also been shown the code a step earlier than they used to be.
+     * Anybody who does care types over it.
+     */
+    private fun askForCode(onChosen: (String) -> Unit) {
+        val input = EditText(this).apply {
+            setText(RoomCode.random())
+            inputType = android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            filters = arrayOf(android.text.InputFilter.LengthFilter(RoomCode.MAX_LENGTH))
+            setSelection(text.length)
+            val pad = (24 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, pad / 2)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.room_code_title)
+            .setMessage(getString(R.string.room_code_message, RoomCode.MIN_LENGTH, RoomCode.MAX_LENGTH))
+            .setView(input)
+            .setPositiveButton(R.string.create_room) { _, _ ->
+                val code = RoomCode.normalise(input.text.toString())
+                if (!RoomCode.isValid(code)) {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.room_code_invalid, RoomCode.MIN_LENGTH, RoomCode.MAX_LENGTH),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@setPositiveButton
+                }
+                onChosen(code)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
