@@ -52,6 +52,33 @@ class TournamentRepository(private val context: android.content.Context) {
     }
 
     /**
+     * Opens a tournament the creator runs but does not play in.
+     *
+     * The television's version, and the same arrangement its rooms already use: the screen holds
+     * the bracket open and shows it to everybody, while every entrant is a phone. The host id
+     * points at the screen because something has to own the draw, but no seat is made for it —
+     * a television standing in its own bracket would be an entrant nobody could play against.
+     *
+     * The first phone to enter takes the tournament over, exactly as it takes over a room,
+     * because starting the draw is the host's to do and a TV cannot press anything.
+     */
+    fun createSpectator(name: String, cardCount: Int, onResult: (String) -> Unit) {
+        val code = generateCode()
+        val now = System.currentTimeMillis()
+        val payload = mapOf(
+            "code" to code,
+            "name" to name,
+            "hostId" to localPlayerId,
+            "status" to Tournament.OPEN,
+            "cardCount" to cardCount,
+            "createdAt" to now,
+            "updatedAt" to now
+        )
+        ref(code).setValue(payload).addOnSuccessListener { onResult(code) }
+            .addOnFailureListener { onResult("") }
+    }
+
+    /**
      * Takes a seat, or says why not.
      *
      * The seed is the number of people already in, which is join order — there is nothing else to
@@ -86,6 +113,13 @@ class TournamentRepository(private val context: android.content.Context) {
                     "seed" to seed
                 )
             )
+            // A tournament opened by a television belongs to a screen with no seat and no way to
+            // press anything, so the first entrant to actually sit down takes it over. Without
+            // this the draw could never be started and the bracket would never be made.
+            val currentHost = snapshot.child("hostId").getValue(String::class.java)
+            val hostHasSeat = !currentHost.isNullOrEmpty() && players.child(currentHost).exists()
+            if (!hostHasSeat) ref(code).child("hostId").setValue(localPlayerId)
+
             touch(code)
             onResult(JOIN_OK)
         }.addOnFailureListener { onResult(JOIN_NOT_FOUND) }

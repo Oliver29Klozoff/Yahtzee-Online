@@ -50,6 +50,8 @@
                 <data android:scheme="yahtzee" android:host="join" />
                 <!-- Duel challenges arrive the same way, with their own host. -->
                 <data android:scheme="yahtzee" android:host="duel" />
+                <!-- A tournament code, scanned off a television. -->
+                <data android:scheme="yahtzee" android:host="tourney" />
             </intent-filter>
         </activity>
 
@@ -82,11 +84,15 @@
 
         <!--
             The television entry point. A TV launcher lists only what carries LEANBACK_LAUNCHER,
-            and pointing it here rather than at the splash is what makes a TV open the table
-            directly instead of the phone game it cannot drive.
+            and pointing it here rather than at the splash is what makes a TV open its own screens
+            instead of the phone game it cannot drive.
+
+            It lands on the chooser rather than the table, because the
+            television can run a tournament as well. The table is focused when it opens, so
+            switching one on and pressing select still gets you exactly where it always did.
         -->
         <activity
-            android:name=".ui.tv.TableActivity"
+            android:name=".ui.tv.TvHomeActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>
@@ -94,6 +100,16 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.tv.TableActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+
+        <activity
+            android:name=".ui.tv.TvTournamentActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
         <activity android:name=".ui.ReviewActivity" android:exported="false" />
         <activity android:name=".ui.HowToPlayActivity" android:exported="false" />
 

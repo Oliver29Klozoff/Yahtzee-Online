@@ -162,6 +162,20 @@
     <string name="tv_start_on_phone">Tap Start Game on the first phone that joined.</string>
     <string name="tv_scan_to_join_late">Still open — scan to join.</string>
     <string name="tv_in_progress">Game in progress.</string>
+
+    <!-- The television's own screens. -->
+    <string name="tv_home_subtitle">Play on the big screen — everyone joins from their phone.</string>
+    <string name="tv_home_table">Open a table</string>
+    <string name="tv_home_tournament">Run a tournament</string>
+    <string name="tv_tourney_name">Tournament</string>
+    <string name="tv_tourney_scan">Scan to enter, or type the code on your phone.</string>
+    <string name="tv_tourney_failed">Could not open a tournament. Check the connection and try again.</string>
+    <string name="tv_tourney_running">Draw made — play your matches from your phone.</string>
+    <string name="tv_tourney_won">%1$s wins the tournament</string>
+    <plurals name="tv_tourney_entered">
+        <item quantity="one">%1$d player entered</item>
+        <item quantity="other">%1$d players entered</item>
+    </plurals>
     <string name="tv_finished">Open a new room to play again.</string>
     <string name="tv_turn_of">%1$s to roll</string>
     <string name="tv_host_marker">%1$s · starts the game</string>

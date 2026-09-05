@@ -52,6 +52,9 @@ class MainActivity : ImmersiveActivity() {
         const val EXTRA_JOIN_ROOM = "join_room"
         const val EXTRA_JOIN_DUEL = "join_duel"
 
+        /** A tournament code scanned off a television. */
+        const val EXTRA_JOIN_TOURNEY = "join_tourney"
+
         /**
          * Process-scoped, so the launch check runs once per cold boot. MainActivity is recreated
          * every time the player backs out of a game, and without this the prompt would reappear
@@ -148,6 +151,15 @@ class MainActivity : ImmersiveActivity() {
         intent.getStringExtra(EXTRA_JOIN_DUEL)?.let { code ->
             intent.removeExtra(EXTRA_JOIN_DUEL)
             openDuel(code, join = true)
+        }
+        // Scanned a television's tournament: opened straight onto the bracket, which does the
+        // joining itself once it knows the code.
+        intent.getStringExtra(EXTRA_JOIN_TOURNEY)?.let { code ->
+            intent.removeExtra(EXTRA_JOIN_TOURNEY)
+            startActivity(
+                Intent(this, com.yahtzee.online.ui.tournament.TournamentActivity::class.java)
+                    .putExtra(com.yahtzee.online.ui.tournament.TournamentActivity.EXTRA_JOIN, code)
+            )
         }
 
         findViewById<Button>(R.id.leaderboardToggle).setOnClickListener {

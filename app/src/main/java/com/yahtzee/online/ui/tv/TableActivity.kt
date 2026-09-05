@@ -47,7 +47,12 @@ import com.yahtzee.online.ui.game.YahtzeeShout
  */
 class TableActivity : ImmersiveActivity() {
 
-    private companion object {
+    companion object {
+        /**
+         * A room to show instead of opening one, for a tournament fixture on the big screen.
+         */
+        const val EXTRA_ROOM_CODE = "room_code"
+
         /**
          * Camera distance for the TV table. Above 1 pulls back: the pane is short and wide next
          * to a phone's tall strip, and at the phone framing the dice overrun the top of it.
@@ -59,12 +64,21 @@ class TableActivity : ImmersiveActivity() {
 
         /** Matches the phone's bar for calling a hand worth shouting about. */
         const val OFF_THE_RIP_POINTS = 20
+
+        /** How long a finished fixture stays up before the bracket comes back. */
+        const val MATCH_RESULT_MS = 6000L
     }
 
     private val repository by lazy { GameRepository(this) }
     private lateinit var dice: Dice3DView
 
     private var roomCode: String = ""
+
+    /** False when the room was handed to us, in which case it is not ours to delete. */
+    private var ownsRoom = true
+
+    /** Set once the hand-back to the bracket is scheduled, so it is scheduled once. */
+    private var returning = false
     private var listener: ValueEventListener? = null
 
     /**
@@ -144,6 +158,19 @@ class TableActivity : ImmersiveActivity() {
      * on every launch after, since the session is restored from disk.
      */
     private fun openRoom() {
+        // Handed a room rather than opening one: a tournament fixture being shown on the big
+        // screen. The bracket owns that room and will still be there when the match ends, so
+        // this screen only watches it — it neither made it nor gets to tidy it away.
+        val given = intent.getStringExtra(EXTRA_ROOM_CODE)?.takeIf { it.isNotEmpty() }
+        if (given != null) {
+            ownsRoom = false
+            roomCode = given
+            findViewById<TextView>(R.id.tableRoomCode).text = given
+            renderQr(given)
+            watchRoom(given)
+            return
+        }
+
         FirebaseSignIn.awaitReady {
             repository.createSpectatorRoom { code ->
                 roomCode = code
@@ -182,6 +209,16 @@ class TableActivity : ImmersiveActivity() {
                 LastTurn.detect(previous, state)?.let { lastTurn = it }
                 renderRoomEvents(previous, state)
                 render(state)
+
+                // A fixture shown for a bracket hands the screen back when it is over, after long
+                // enough for the table to read the result. Only for a room somebody else owns:
+                // an ordinary television table has nothing to go back to and stays put.
+                if (!ownsRoom && state.status == GameState.STATUS_FINISHED && !returning) {
+                    returning = true
+                    findViewById<View>(R.id.tableHint).postDelayed({
+                        if (!isFinishing && !isDestroyed) finish()
+                    }, MATCH_RESULT_MS)
+                }
             }
         }
     }
@@ -546,7 +583,8 @@ class TableActivity : ImmersiveActivity() {
         // Strictly guarded: only a lobby, only with nobody seated. A room with players in it
         // belongs to their phones now, and switching the TV off must never end their game.
         val state = lastState
-        if (roomCode.isNotEmpty() &&
+        if (ownsRoom &&
+            roomCode.isNotEmpty() &&
             state != null &&
             state.status == GameState.STATUS_LOBBY &&
             state.players.isEmpty()

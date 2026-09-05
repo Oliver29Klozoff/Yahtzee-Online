@@ -39,6 +39,9 @@ class TournamentActivity : ImmersiveActivity() {
 
     companion object {
         const val EXTRA_CODE = "tourney_code"
+
+        /** A code that should be joined on arrival, not merely watched. */
+        const val EXTRA_JOIN = "tourney_join"
     }
 
     private val repository by lazy { TournamentRepository(this) }
@@ -75,9 +78,14 @@ class TournamentActivity : ImmersiveActivity() {
 
         // Whatever this device is already in, unless the intent names something else. Backing out
         // of a bracket should be leaving the room, not leaving the tournament.
-        val opening = intent.getStringExtra(EXTRA_CODE)?.takeIf { it.isNotEmpty() }
-            ?: TournamentStore.current(this).takeIf { it.isNotEmpty() }
-        opening?.let { open(it) }
+        val joining = intent.getStringExtra(EXTRA_JOIN)?.takeIf { it.isNotEmpty() }
+        if (joining != null) {
+            joinCode(joining)
+        } else {
+            val opening = intent.getStringExtra(EXTRA_CODE)?.takeIf { it.isNotEmpty() }
+                ?: TournamentStore.current(this).takeIf { it.isNotEmpty() }
+            opening?.let { open(it) }
+        }
     }
 
     /** Steps out of this tournament so a different one can be made or joined. */
@@ -116,6 +124,17 @@ class TournamentActivity : ImmersiveActivity() {
     private fun joinTyped() {
         val typed = findViewById<EditText>(R.id.tourneyCodeInput).text.toString().trim().uppercase()
         if (typed.isEmpty()) return
+        joinCode(typed)
+    }
+
+    /**
+     * Enters a tournament and shows it.
+     *
+     * Separate from [open], which only watches. A code that arrived by being scanned off a
+     * television is somebody saying they want to play in it — opening the bracket without seating
+     * them would leave them looking at a draw they are not in, with nothing saying why.
+     */
+    private fun joinCode(typed: String) {
         repository.join(typed, PlayerProfile.getName(this)) { result ->
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread

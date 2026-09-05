@@ -52,6 +52,15 @@ class SplashActivity : ImmersiveActivity() {
         // yahtzee://duel/ABCDE — the same treatment. Read rather than acted on for the same
         // reason: someone following a challenge on a fresh install has to be asked their name
         // before they can be seated at it.
+        // yahtzee://tourney/ABCDE — a tournament code scanned off a television, treated the
+        // same way and for the same reason.
+        val invitedTourney = intent?.data
+            ?.takeIf { it.scheme == "yahtzee" && it.host == "tourney" }
+            ?.lastPathSegment
+            ?.trim()
+            ?.uppercase()
+            ?.takeIf { it.isNotEmpty() }
+
         val invitedDuel = intent?.data
             ?.takeIf { it.scheme == "yahtzee" && it.host == "duel" }
             ?.lastPathSegment
@@ -71,6 +80,7 @@ class SplashActivity : ImmersiveActivity() {
                 Intent(this, next).apply {
                     if (invitedRoom != null) putExtra(MainActivity.EXTRA_JOIN_ROOM, invitedRoom)
                     if (invitedDuel != null) putExtra(MainActivity.EXTRA_JOIN_DUEL, invitedDuel)
+                    if (invitedTourney != null) putExtra(MainActivity.EXTRA_JOIN_TOURNEY, invitedTourney)
                 }
             )
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
