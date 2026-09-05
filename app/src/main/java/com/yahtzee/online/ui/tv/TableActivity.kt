@@ -15,6 +15,7 @@ import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.LastTurn
+import com.yahtzee.online.game.isClosedToNewPlayers
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.decidedWinner
@@ -266,6 +267,11 @@ class TableActivity : ImmersiveActivity() {
         val playing = state.status != GameState.STATUS_LOBBY && state.players.isNotEmpty()
         findViewById<View>(R.id.joinPanel).visibility = if (playing) View.GONE else View.VISIBLE
         findViewById<View>(R.id.cardPanel).visibility = if (playing) View.VISIBLE else View.GONE
+        // The corner code goes when the room stops taking people. Leaving it up would have
+        // somebody walk over, scan it, and be told no by a phone — having been invited by a
+        // television.
+        findViewById<View>(R.id.tableQrCorner).visibility =
+            if (state.isClosedToNewPlayers()) View.GONE else View.VISIBLE
     }
 
     /**
@@ -347,9 +353,14 @@ class TableActivity : ImmersiveActivity() {
                         state.players[state.currentPlayerId]?.name.orEmpty()
                     )
                 }
-                // Latecomers can still scan in, so the code stays up rather than being replaced
-                // by something only useful before the game started.
-                hint.setText(R.string.tv_scan_to_join_late)
+                // Latecomers can scan in until everybody has had a turn, so the code stays up
+                // until then rather than being replaced by something only useful before the game
+                // started. Once the room closes the invitation has to go with it — a code on a
+                // television that no longer admits anybody is worse than no code at all.
+                hint.setText(
+                    if (state.isClosedToNewPlayers()) R.string.tv_in_progress
+                    else R.string.tv_scan_to_join_late
+                )
             }
         }
     }

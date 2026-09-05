@@ -154,6 +154,28 @@ fun GameState.seatAngle(viewerId: String, ofPlayerId: String?): Float {
  *
  * Only meaningful once the game is over; before that it names whoever is ahead.
  */
+/**
+ * Whether the room has stopped taking new players.
+ *
+ * A latecomer used to be able to scan in at any point, which is generous right up until it is
+ * absurd: somebody joining on the tenth lap sits down to twelve empty boxes against players who
+ * have nearly filled their cards, and cannot win by any amount of luck. They are not joining a
+ * game, they are joining a scoreboard.
+ *
+ * The line is drawn once every player has had a turn. Before that a newcomer is only a box or two
+ * behind and the game is still a game; after it the field has separated. It is read off the
+ * scorecards rather than counted in a field on the room, which means it cannot disagree with what
+ * has actually been played.
+ *
+ * Monotonic, and deliberately so. Scores are never removed, and nobody with an empty card can
+ * join once this is true — so a room that has closed stays closed rather than flickering back
+ * open on the next snapshot.
+ */
+fun GameState.isClosedToNewPlayers(): Boolean =
+    status != GameState.STATUS_LOBBY &&
+        players.isNotEmpty() &&
+        players.values.all { it.scores.isNotEmpty() }
+
 fun GameState.decidedWinner(): Player? =
     players[winnerId] ?: players.values.maxByOrNull { it.grandTotalAllCards(cardCount) }
 

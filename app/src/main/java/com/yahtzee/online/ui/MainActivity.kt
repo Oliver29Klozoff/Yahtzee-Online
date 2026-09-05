@@ -239,13 +239,19 @@ class MainActivity : ImmersiveActivity() {
     private fun joinRoomByCode(code: String) {
         val joinButton = findViewById<Button>(R.id.joinRoomButton)
         joinButton.isEnabled = false
-        repository.joinRoom(code, playerName(), DicePreferences.getColor(this)) { success ->
+        repository.joinRoom(code, playerName(), DicePreferences.getColor(this)) { result ->
             joinButton.isEnabled = true
-            if (success) {
-                trackGame(code)
-                openLobby(code)
-            } else {
-                Toast.makeText(this, R.string.room_not_found, Toast.LENGTH_SHORT).show()
+            when (result) {
+                GameRepository.JOIN_OK -> {
+                    trackGame(code)
+                    openLobby(code)
+                }
+                // Worth its own message: the room is real and they typed the code correctly,
+                // which "not found" would have them checking the code over and over.
+                GameRepository.JOIN_CLOSED ->
+                    Toast.makeText(this, R.string.room_closed, Toast.LENGTH_LONG).show()
+                else ->
+                    Toast.makeText(this, R.string.room_not_found, Toast.LENGTH_SHORT).show()
             }
         }
     }

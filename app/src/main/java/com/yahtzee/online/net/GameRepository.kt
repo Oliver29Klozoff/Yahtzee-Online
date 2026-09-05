@@ -21,6 +21,7 @@ import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.game.Tournament
 import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.grandTotalAllCards
+import com.yahtzee.online.game.isClosedToNewPlayers
 import com.yahtzee.online.game.yahtzeeBonusUnlocked
 import com.yahtzee.online.game.scoresForCard
 import java.util.UUID
@@ -253,11 +254,18 @@ class GameRepository(private val context: android.content.Context) {
         }
     }
 
-    fun joinRoom(code: String, playerName: String, diceColor: Int, onResult: (Boolean) -> Unit) {
+    /**
+     * Takes a seat, or says why not.
+     *
+     * Answers [JOIN_OK], [JOIN_NOT_FOUND] or [JOIN_CLOSED] rather than a yes or no, because
+     * "could not join" and "the game has moved on without you" want different things said to the
+     * person holding the phone.
+     */
+    fun joinRoom(code: String, playerName: String, diceColor: Int, onResult: (Int) -> Unit) {
         val ref = roomRef(code)
         ref.get().addOnSuccessListener { snapshot ->
             if (!snapshot.exists()) {
-                onResult(false)
+                onResult(JOIN_NOT_FOUND)
                 return@addOnSuccessListener
             }
             // Rejoining is not the same as joining. Now that the player id is stable across
@@ -266,6 +274,16 @@ class GameRepository(private val context: android.content.Context) {
             // a game played over days. An existing seat therefore keeps its scores and only has
             // the details that may legitimately have changed refreshed on it.
             val existing = snapshot.child("players").child(localPlayerId)
+
+            // Closing the room must never shut out the people already in it. Someone backing out
+            // to answer a message and coming back is the ordinary way a long game is played, and
+            // they are rejoining a seat rather than taking a new one — so this is checked only
+            // for a player the room has never seen.
+            if (!existing.exists() && snapshot.toGameState()?.isClosedToNewPlayers() == true) {
+                onResult(JOIN_CLOSED)
+                return@addOnSuccessListener
+            }
+
             if (existing.exists()) {
                 ref.child("players").child(localPlayerId).child("name").setValue(playerName)
                 ref.child("players").child(localPlayerId).child("diceColor").setValue(diceColor)
@@ -294,9 +312,9 @@ class GameRepository(private val context: android.content.Context) {
                     ref.child("playerOrder").setValue(order)
                 }
                 touch(code)
-                onResult(true)
+                onResult(JOIN_OK)
             }
-        }.addOnFailureListener { onResult(false) }
+        }.addOnFailureListener { onResult(JOIN_NOT_FOUND) }
     }
 
     /**
@@ -835,6 +853,12 @@ class GameRepository(private val context: android.content.Context) {
 
         /** As many as the table can seat and the TV can draw without the names collapsing. */
         const val MAX_ROOM_PLAYERS = 6
+
+        const val JOIN_OK = 0
+        const val JOIN_NOT_FOUND = 1
+
+        /** The game has moved on: everybody in it has taken a turn. */
+        const val JOIN_CLOSED = 2
 
         /** How many generated codes to try before giving up on finding a free one. */
         private const val GENERATE_ATTEMPTS = 5

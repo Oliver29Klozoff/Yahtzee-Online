@@ -350,7 +350,7 @@ class TournamentActivity : ImmersiveActivity() {
             games.joinRoom(match.roomCode, name, colour) { joined ->
                 runOnUiThread {
                     if (isFinishing || isDestroyed) return@runOnUiThread
-                    if (joined) enterGame(match.roomCode, state, match)
+                    if (joined == GameRepository.JOIN_OK) enterGame(match.roomCode, state, match)
                     else Toast.makeText(this, R.string.tourney_not_found, Toast.LENGTH_SHORT).show()
                 }
             }

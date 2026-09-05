@@ -20,6 +20,7 @@
     <string name="room_code_message">This is what people type to join you. Keep the one below or pick your own — %1$d to %2$d letters and numbers.</string>
     <string name="room_code_taken">That code is already in use. Try another.</string>
     <string name="room_code_invalid">Use %1$d–%2$d letters or numbers, nothing else.</string>
+    <string name="room_closed">That game is already under way — everyone in it has taken a turn.</string>
 
     <!-- How to play, written for somebody who has never played before. -->
     <string name="how_to_play">How to play</string>
@@ -160,6 +161,7 @@
     <string name="tv_waiting">Point a phone camera at the code to take a seat.</string>
     <string name="tv_start_on_phone">Tap Start Game on the first phone that joined.</string>
     <string name="tv_scan_to_join_late">Still open — scan to join.</string>
+    <string name="tv_in_progress">Game in progress.</string>
     <string name="tv_finished">Open a new room to play again.</string>
     <string name="tv_turn_of">%1$s to roll</string>
     <string name="tv_host_marker">%1$s · starts the game</string>
