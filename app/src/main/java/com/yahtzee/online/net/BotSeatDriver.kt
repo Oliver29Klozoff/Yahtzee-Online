@@ -45,13 +45,23 @@ class BotSeatDriver(
     private val main = Handler(Looper.getMainLooper())
 
     /**
-     * Turns already being played, keyed by what makes a turn unique.
+     * Steps this driver has already taken, and will never take again.
      *
-     * Firebase re-delivers the room on every field that changes, so a single bot turn arrives as
-     * a stream of snapshots that all say the same thing: it is still the bot's go. Without this
-     * each one would start another roll on top of the last.
+     * Firebase re-delivers the room on every field that changes, so one bot turn arrives as a
+     * stream of snapshots all saying the same thing: it is still the bot's go. Without this each
+     * one would start another roll on top of the last.
+     *
+     * Marked done and left that way, rather than released once the work finishes. Releasing was
+     * the first attempt and it rolled the dice twice: a reroll is two writes — the held dice,
+     * then the dice and the roll count — and the snapshot that lands between them still carries
+     * the old roll count. Against a guard that had just been released, that snapshot read as a
+     * step not yet taken, and the bot rolled again on the same one.
+     *
+     * The cost of never releasing is that a write which silently fails is not retried. That is
+     * the better failure: a stalled bot is visible and survives reopening the room, where a
+     * bot that rolls twice quietly rewrites a turn nobody can get back.
      */
-    private val working = mutableSetOf<String>()
+    private val handled = mutableSetOf<String>()
 
     private var stopped = false
 
@@ -88,12 +98,13 @@ class BotSeatDriver(
             Tournament.isBot(it) && !state.openingRolls.containsKey(it)
         } ?: return
 
-        val key = "rolloff:${state.roomCode}:$waiting:${state.openingRolls.size}"
-        if (!working.add(key)) return
+        // The tied list identifies the round, so a tie that clears the rolls and asks again is a
+        // new piece of work rather than one already marked done.
+        val key = "rolloff:$waiting:${state.openingRollTied.joinToString(",")}"
+        if (!handled.add(key)) return
 
         main.postDelayed({
             if (!stopped) repository.rollForFirst(code, state, waiting)
-            working.remove(key)
         }, ROLL_OFF_DELAY_MS)
     }
 
@@ -102,23 +113,23 @@ class BotSeatDriver(
         val botId = state.currentPlayerId?.takeIf { Tournament.isBot(it) } ?: return
         if (!state.players.containsKey(botId)) return
 
-        // Keyed on the roll count as well as the seat, so the three steps of one turn are three
-        // different pieces of work rather than one that is refused twice.
-        val key = "turn:${state.roomCode}:$botId:${state.currentTurnIndex}:${state.rollsUsed}"
-        if (!working.add(key)) return
+        // Identifies one step of one turn, and stays identified afterwards.
+        //
+        // How many boxes the bot has filled rather than the turn index: the index comes round
+        // again every lap of the table, so keys built on it would repeat and a later turn would
+        // be mistaken for one already played. Filled boxes only ever go up.
+        val filled = state.players[botId]?.scores?.size ?: 0
+        val key = "turn:$botId:$filled:${state.rollsUsed}"
+        if (!handled.add(key)) return
 
         val skill = AppSettings.botSkill(context)
         val open = openByCard(state, botId)
-        if (open.isEmpty()) {
-            working.remove(key)
-            return
-        }
+        if (open.isEmpty()) return
 
         Thread {
             val action = runCatching { decide(state, open, skill) }.getOrNull()
             main.postDelayed({
                 if (!stopped && action != null) apply(code, state, botId, action)
-                working.remove(key)
             }, if (state.rollsUsed == 0) FIRST_ROLL_DELAY_MS else STEP_DELAY_MS)
         }.start()
     }

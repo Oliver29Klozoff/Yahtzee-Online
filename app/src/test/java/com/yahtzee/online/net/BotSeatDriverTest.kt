@@ -111,6 +111,54 @@ class BotSeatDriverTest {
         assertEquals(1, (action as BotSeatDriver.Companion.Action.Score).card)
     }
 
+    /**
+     * The step key must not repeat, or the same roll gets played twice.
+     *
+     * A reroll is two writes — the held dice, then the dice and the roll count — so a snapshot
+     * lands between them carrying the new held flags with the *old* roll count. A guard released
+     * as soon as the work finished read that snapshot as a step not yet taken and rolled again.
+     * The key is what stops it, so the key is what is pinned.
+     */
+    @Test
+    fun `a step key is stable across the writes of one step`() {
+        val before = room(listOf(2, 2, 5, 1, 3), rollsUsed = 1)
+        // The same step, seen again after the held write but before the roll count moved.
+        val midWrite = room(listOf(2, 2, 5, 1, 3), rollsUsed = 1)
+
+        assertEquals(stepKey(before), stepKey(midWrite))
+    }
+
+    @Test
+    fun `each roll of a turn is its own step`() {
+        val keys = (0..3).map { stepKey(room(listOf(1, 2, 3, 4, 5), rollsUsed = it)) }
+        assertEquals("the three rolls of a turn must not collapse", keys.size, keys.toSet().size)
+    }
+
+    /**
+     * The bot's next turn must not be mistaken for one already played.
+     *
+     * This is why the key counts filled boxes rather than the turn index: the index comes round
+     * again on every lap of the table, so a key built on it repeats and the bot sits out.
+     */
+    @Test
+    fun `a later turn is not mistaken for an earlier one`() {
+        val firstTurn = stepKey(room(listOf(1, 2, 3, 4, 5), rollsUsed = 0))
+        val laterTurn = stepKey(
+            room(
+                listOf(1, 2, 3, 4, 5),
+                rollsUsed = 0,
+                scores = mapOf(ScoreKey.of(0, Category.SIXES) to 18)
+            )
+        )
+        assertTrue("the same lap key would make the bot skip its turn", firstTurn != laterTurn)
+    }
+
+    /** Mirrors the key BotSeatDriver builds for one step of a bot's turn. */
+    private fun stepKey(state: GameState): String {
+        val filled = state.players[botId]?.scores?.size ?: 0
+        return "turn:$botId:$filled:${state.rollsUsed}"
+    }
+
     /** Every skill has to produce a legal move — a lesser bot must not stall the room either. */
     @Test
     fun `every skill scores on the last roll`() {
