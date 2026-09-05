@@ -3,6 +3,7 @@ package com.yahtzee.online.net
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Player
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Tournament
@@ -157,6 +158,27 @@ class BotSeatDriverTest {
     private fun stepKey(state: GameState): String {
         val filled = state.players[botId]?.scores?.size ?: 0
         return "turn:$botId:$filled:${state.rollsUsed}"
+    }
+
+    /**
+     * A bot handed a turn with the previous player's roll count scores without ever rolling.
+     *
+     * This is what the four-write turn hand-off used to put on the wire: the turn index moved to
+     * the bot while `rollsUsed` still read three from the turn that had just ended. The decision
+     * itself is correct for what it was shown — three rolls spent means score — which is why the
+     * fix belongs in the write and not here. Pinned so the shape of the bug stays on the record.
+     */
+    @Test
+    fun `a stale roll count makes the bot score instead of rolling`() {
+        val stale = room(listOf(6, 6, 6, 6, 6), rollsUsed = MAX_ROLLS_PER_TURN)
+        assertTrue(
+            "with three rolls showing there is nothing left to do but score",
+            decide(stale) is BotSeatDriver.Companion.Action.Score
+        )
+
+        // The same hand at the roll count a turn actually starts on rolls instead.
+        val fresh = room(listOf(6, 6, 6, 6, 6), rollsUsed = 0)
+        assertTrue(decide(fresh) is BotSeatDriver.Companion.Action.Roll)
     }
 
     /** Every skill has to produce a legal move — a lesser bot must not stall the room either. */

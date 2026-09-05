@@ -605,7 +605,6 @@ class GameRepository(private val context: android.content.Context) {
 
         val points = Scoring.score(category, state.dice)
         val ref = roomRef(code)
-        ref.child("players").child(playerId).child("scores").child(key).setValue(points)
 
         // Every extra Yahtzee after the box holds 50 is worth another 100 points. A bonus is
         // earned only if a Yahtzee is already banked as one somewhere; with several cards in
@@ -613,21 +612,33 @@ class GameRepository(private val context: android.content.Context) {
         val earnedBonus = category != Category.YAHTZEE &&
             state.diceAreYahtzee() &&
             player.yahtzeeBonusUnlocked(state.cardCount)
-        if (earnedBonus) {
-            ref.child("players").child(playerId).child("yahtzeeBonusCount")
-                .setValue(player.yahtzeeBonusCount + 1)
-        }
 
         val nextIndex = (state.currentTurnIndex + 1) % state.playerOrder.size
-        ref.child("currentTurnIndex").setValue(nextIndex)
-        // A completed turn is the clearest possible sign the room is alive.
-        touch(code)
-        // Leave `dice` as whatever they last showed (per-player preference) — only reset
-        // held/rollsUsed so the next player starts a fresh turn, but the dice visually stay
-        // put until someone actually rolls again.
-        ref.child("held").setValue(List(5) { false })
-        ref.child("rollsUsed").setValue(0)
-        ref.child("turnDeadline").setValue(deadlineFor(state))
+
+        // The whole hand-off in one write, and this has to stay that way.
+        //
+        // These used to go out as four: the turn index, then the held flags, then the roll count,
+        // then the deadline. Every one of them is delivered to every client on its own, so there
+        // was a moment on the wire where the room said it was the next player's turn while the
+        // roll count still read three from the turn that had just ended. A person never noticed.
+        // A bot did: its driver read that snapshot as its own turn with all three rolls spent,
+        // and decided to score without rolling at all.
+        //
+        // Leave `dice` as whatever they last showed (per-player preference) — only held and the
+        // roll count reset, so the dice visually stay put until someone actually rolls again.
+        val updates = mutableMapOf<String, Any?>(
+            "players/$playerId/scores/$key" to points,
+            "currentTurnIndex" to nextIndex,
+            "held" to List(5) { false },
+            "rollsUsed" to 0,
+            "turnDeadline" to deadlineFor(state),
+            // A completed turn is the clearest possible sign the room is alive.
+            "updatedAt" to System.currentTimeMillis()
+        )
+        if (earnedBonus) {
+            updates["players/$playerId/yahtzeeBonusCount"] = player.yahtzeeBonusCount + 1
+        }
+        ref.updateChildren(updates)
 
         val allDone = state.players.values.all {
             val scores = if (it.id == playerId) it.scores + (key to points) else it.scores

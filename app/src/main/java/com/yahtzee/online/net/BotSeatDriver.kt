@@ -143,8 +143,14 @@ class BotSeatDriver(
             main.postDelayed({
                 // Re-checked here, not at decision time: the pause is the whole point of the
                 // delay, and the room is free to move during it.
-                if (!stopped && action != null && stillDue(botId, state)) {
-                    apply(code, state, botId, action)
+                when {
+                    stopped || action == null -> Unit
+                    stillDue(botId, state) -> apply(code, state, botId, action)
+                    // Decided for a moment that has passed. Give the key back rather than
+                    // leaving it spent: the step it names may still be genuinely due later, and
+                    // a key burned on a decision that was never applied is a bot that reaches
+                    // that step and is refused — which looks like it hanging on its own score.
+                    else -> handled.remove(key)
                 }
             }, if (state.rollsUsed == 0) FIRST_ROLL_DELAY_MS else STEP_DELAY_MS)
         }.start()
