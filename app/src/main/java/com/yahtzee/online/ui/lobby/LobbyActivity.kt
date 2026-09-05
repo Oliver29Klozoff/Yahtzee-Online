@@ -43,6 +43,17 @@ class LobbyActivity : ImmersiveActivity() {
         private const val ROLL_OFF_REVEAL_MS = 5000L
 
         /**
+         * A room needs two people before it can start.
+         *
+         * An online room is a game against somebody. One player is not a short field, it is a
+         * solo game — and the app already has one of those, on its own button, keeping its own
+         * records. Anybody who would rather not wait has that and the bots to fall back on.
+         *
+         * Taken from the repository so the button and the write it guards cannot disagree.
+         */
+        private const val MIN_PLAYERS_TO_START = GameRepository.MIN_PLAYERS_TO_START
+
+        /**
          * Camera distance for the roll-off, as a fraction of the game's framing — about 1.4x
          * larger on screen. Not pushed closer than this because dice are thrown in from about
          * y=2.3, and a tighter frame clips the top of the arc so the die pops into view
@@ -97,6 +108,13 @@ class LobbyActivity : ImmersiveActivity() {
 
         val startButton = findViewById<Button>(R.id.startGameButton)
         startButton.setOnClickListener {
+            // Checked again off the latest state rather than trusting the button's own enabled
+            // flag: the last player can leave between a render and a tap.
+            val state = lastState
+            if (state != null && state.players.size < MIN_PLAYERS_TO_START) {
+                Toast.makeText(this, R.string.start_game_needs_player, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             repository.startGame(roomCode)
         }
 
@@ -149,12 +167,29 @@ class LobbyActivity : ImmersiveActivity() {
             if (state.status != GameState.STATUS_LOBBY) {
                 RecentPlayersStore.remember(this, state.players.values, playerId)
             }
-            startButton.visibility = if (isHost && inLobby && state.players.size >= 1) View.VISIBLE else View.GONE
+            // Starting needs somebody to start against.
+            //
+            // The host used to be offered this the moment the room existed, so a start tapped
+            // before anyone arrived opened a game of one — the roll-off is uncontested, the host
+            // wins it, and they play a whole scorecard alone while the other person is still
+            // reading the invite. Shown rather than hidden while the seat is empty, so the reason
+            // it will not start is on screen instead of the button simply not being there.
+            val enoughToStart = state.players.size >= MIN_PLAYERS_TO_START
+            startButton.visibility = if (isHost && inLobby) View.VISIBLE else View.GONE
+            startButton.isEnabled = enoughToStart
+            startButton.alpha = if (enoughToStart) 1f else 0.5f
+            startButton.text = getString(
+                if (enoughToStart) R.string.start_game else R.string.start_game_needs_player
+            )
             // Nothing to hand over unless you hold the room and somebody else is in it.
             findViewById<Button>(R.id.passControlButton).visibility =
                 if (isHost && inLobby && state.players.size > 1) View.VISIBLE else View.GONE
+            // The host sees this too while the room is empty — they are waiting on someone just
+            // as much as a guest is, and used to be the only one not told so.
             findViewById<TextView>(R.id.waitingText).visibility =
-                if (isHost && inLobby) View.GONE else if (inLobby) View.VISIBLE else View.GONE
+                if (!inLobby) View.GONE
+                else if (isHost && enoughToStart) View.GONE
+                else View.VISIBLE
 
             renderRollOff(state)
 

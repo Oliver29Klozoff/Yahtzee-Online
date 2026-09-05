@@ -386,11 +386,22 @@ class GameRepository(private val context: android.content.Context) {
         roomRef(code).removeEventListener(listener)
     }
 
+    /**
+     * Sends the room to the roll-off, if there is anybody to roll against.
+     *
+     * The seat count is read from the database rather than taken from the caller's copy of it.
+     * The lobby greys its button out on the same rule, but it does so off a snapshot that can be
+     * a moment behind — and the failure it is guarding against is a whole game played alone, so
+     * it is worth checking twice.
+     */
     fun startGame(code: String) {
         val ref = roomRef(code)
-        ref.child("status").setValue(GameState.STATUS_ROLL_OFF)
-        ref.child("openingRolls").setValue(null)
-        ref.child("openingRollTied").setValue(null)
+        ref.child("players").get().addOnSuccessListener { snapshot ->
+            if (snapshot.childrenCount < MIN_PLAYERS_TO_START) return@addOnSuccessListener
+            ref.child("status").setValue(GameState.STATUS_ROLL_OFF)
+            ref.child("openingRolls").setValue(null)
+            ref.child("openingRollTied").setValue(null)
+        }
     }
 
     /** Rolls one die for [playerId] during the pre-game roll-off to decide turn order. */
@@ -639,6 +650,11 @@ class GameRepository(private val context: android.content.Context) {
     private fun generateRoomCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         return (1..5).map { chars[Random.nextInt(chars.length)] }.joinToString("")
+    }
+
+    companion object {
+        /** An online room is a game against somebody; one seat filled is not a game. */
+        const val MIN_PLAYERS_TO_START = 2
     }
 }
 
