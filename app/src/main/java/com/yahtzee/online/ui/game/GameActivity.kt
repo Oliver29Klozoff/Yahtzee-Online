@@ -74,6 +74,9 @@ class GameActivity : ImmersiveActivity() {
 
         /** Short: it is a note that somebody reacted, not an announcement. */
         private const val REACTION_NOTE_MILLIS = 1_400L
+
+        /** How long after coming back a spent clock counts as one that ran down while away. */
+        private const val RETURN_GRACE_MS = 10_000L
     }
 
     private val repository by lazy { GameRepository(this) }
@@ -187,6 +190,15 @@ class GameActivity : ImmersiveActivity() {
     private val timerHandler = Handler(Looper.getMainLooper())
     /** Earliest time the next automatic roll/score may fire, pacing an abandoned turn. */
     private var nextAutoActionAt = 0L
+
+    /**
+     * When this screen last came to the front, and whether the turn clock has been reset since.
+     *
+     * Together they are what tells an abandoned turn apart from one whose owner has just walked
+     * back to it. Reset on the way out so every return is judged on its own.
+     */
+    private var cameToFrontAt = 0L
+    private var graceExtended = false
     private val timerTick = object : Runnable {
         override fun run() {
             updateTimerDisplay()
@@ -373,6 +385,23 @@ class GameActivity : ImmersiveActivity() {
         // dice time to land so the roll is still watchable.
         if (remainingMillis <= 0L && state.isMyTurn(playerId)) {
             val now = System.currentTimeMillis()
+
+            // A clock that ran down while this screen was away is not an abandoned turn.
+            //
+            // The turn timer is enforced by the device whose turn it is, which means it only ever
+            // fires on a phone that is present — and a phone dozing through somebody else's turn
+            // is exactly that. It would wake to a deadline long past and play out the turn of
+            // whoever had just picked it up, a roll every second and a half, which is precisely
+            // what a bot's turn does to the phone waiting on it. Coming back buys a fresh turn
+            // instead, once, so a player who really has gone is still covered for.
+            if (now - cameToFrontAt < RETURN_GRACE_MS) {
+                if (!graceExtended) {
+                    graceExtended = true
+                    repository.extendTurn(roomCode, state.turnMillis)
+                }
+                return
+            }
+
             if (now >= nextAutoActionAt) {
                 nextAutoActionAt = now + AUTO_ACTION_INTERVAL_MS
                 repository.autoPlayTurn(roomCode, state, playerId)
@@ -948,6 +977,8 @@ class GameActivity : ImmersiveActivity() {
     override fun onStart() {
         super.onStart()
         screenVisible = true
+        cameToFrontAt = System.currentTimeMillis()
+        graceExtended = false
         // Coming back counts as opening it: catch up on whatever arrived while this was away.
         reactionsCaughtUp = false
         recapShown = false

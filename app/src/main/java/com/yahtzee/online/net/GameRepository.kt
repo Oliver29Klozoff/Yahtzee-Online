@@ -559,6 +559,22 @@ class GameRepository(private val context: android.content.Context) {
         }
     }
 
+    /**
+     * Gives the player whose turn it is their time back.
+     *
+     * For a phone that has just woken up to find the clock already run down. The turn clock is
+     * there to stop an absent player holding the room up, but it is enforced by that player's own
+     * device — so a phone that dozed through somebody else's turn came back, saw a deadline long
+     * past, and auto-played the turn of somebody who was standing right there holding it.
+     *
+     * Extending rather than suspending: the room still gets its protection against a player who
+     * really has gone, they simply have to be given a fair chance to take the turn first.
+     */
+    fun extendTurn(code: String, turnMillis: Long) {
+        if (turnMillis <= 0L) return
+        roomRef(code).child("turnDeadline").setValue(System.currentTimeMillis() + turnMillis)
+    }
+
     fun toggleHold(code: String, held: List<Boolean>, index: Int) {
         val updated = held.toMutableList()
         updated[index] = !updated[index]
