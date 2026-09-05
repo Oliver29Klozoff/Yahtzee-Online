@@ -14,6 +14,41 @@
     <string name="turn_you_just_scored">You just scored</string>
     <string name="turn_summary_score">%1$s · %2$d</string>
     <string name="tv_just_scored">%1$s scored %2$s · %3$d</string>
+
+    <!-- How to play, written for somebody who has never played before. -->
+    <string name="how_to_play">How to play</string>
+    <string name="how_to_intro">Yahtzee is five dice and thirteen boxes to fill. You take turns, and on each turn you roll the dice and choose one box to write a score in. When every box on everyone\'s card is full, the highest total wins.</string>
+
+    <string name="how_to_turn_title">Your turn</string>
+    <string name="how_to_turn_body">Roll all five dice. You get three rolls in total.\n\nAfter the first roll, tap any dice you want to keep — they stay put while the rest are thrown again. You can change your mind between rolls, keeping more or putting some back.\n\nYou do not have to use all three rolls. When you are happy, pick a box to score in.</string>
+
+    <string name="how_to_box_title">Choosing a box</string>
+    <string name="how_to_box_body">Each box can only be used once, so a turn is really about deciding where this roll is worth the most.\n\nIf nothing fits, you still have to fill something — and you are allowed to score zero. Putting a bad roll in a box you were never going to fill is a normal part of the game, not a mistake.</string>
+
+    <string name="how_to_upper_title">The top half</string>
+    <string name="how_to_upper_body">These six boxes only count one number each. Everything else on the dice is ignored.</string>
+    <string name="how_to_upper_bonus">Get the top half to %1$d or more and you earn a %2$d point bonus. That is roughly three of each number, so it is worth keeping an eye on.</string>
+
+    <string name="how_to_lower_title">The bottom half</string>
+    <string name="how_to_lower_body">These are the combinations. Some pay whatever the dice add up to, others pay a fixed amount.</string>
+
+    <string name="how_to_face">Only the %1$d\'s count</string>
+    <string name="how_to_three_kind">Three or more the same</string>
+    <string name="how_to_four_kind">Four or more the same</string>
+    <string name="how_to_full_house">Three of one, two of another</string>
+    <string name="how_to_small_straight">Four in a row, like 2 3 4 5</string>
+    <string name="how_to_large_straight">Five in a row, like 1 2 3 4 5</string>
+    <string name="how_to_yahtzee">All five dice the same</string>
+    <string name="how_to_chance">Anything — a place to put a bad roll</string>
+
+    <string name="how_to_extra_yahtzee_title">More than one Yahtzee</string>
+    <string name="how_to_extra_yahtzee_body">Roll five of a kind once and it is worth 50. Every Yahtzee after that, once the box is already filled with 50, earns another %1$d points on top of whatever you score the dice as.</string>
+
+    <string name="how_to_winning_title">Winning</string>
+    <string name="how_to_winning_body">The game ends when every box is filled. Add up both halves, plus any bonuses, and the biggest total takes it. A good game is somewhere around 200 to 250.</string>
+
+    <string name="how_to_together_title">Playing with other people</string>
+    <string name="how_to_together_body">Create a room and share the code, or scan a code somebody else is showing. On a television, open the app on the TV and point a phone camera at the code on screen to take a seat.\n\nIf nobody else is around, add a bot to the room and it will play alongside you. You can also play on your own against bots from the main screen.</string>
     <string name="add_bot_failed">Could not add a bot to this room.</string>
     <string name="roll_dice">Roll Dice</string>
     <string name="rolls_left">Rolls left: %1$d</string>

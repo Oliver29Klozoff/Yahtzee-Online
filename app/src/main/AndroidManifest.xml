@@ -95,6 +95,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".ui.ReviewActivity" android:exported="false" />
+        <activity android:name=".ui.HowToPlayActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

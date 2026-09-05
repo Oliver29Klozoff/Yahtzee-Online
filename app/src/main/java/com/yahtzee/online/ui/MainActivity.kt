@@ -107,6 +107,10 @@ class MainActivity : ImmersiveActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
+        findViewById<ImageButton>(R.id.howToPlayButton).setOnClickListener {
+            startActivity(Intent(this, HowToPlayActivity::class.java))
+        }
+
         findViewById<ImageButton>(R.id.statsButton).setOnClickListener {
             startActivity(Intent(this, StatsActivity::class.java))
         }

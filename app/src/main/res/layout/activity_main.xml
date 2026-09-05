@@ -378,6 +378,19 @@
         android:layout_margin="16dp"
         android:orientation="horizontal">
 
+        <!--
+            First of the three, because it is the one a person who has never played needs and the
+            other two are only interesting once you have.
+        -->
+        <ImageButton
+            android:id="@+id/howToPlayButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_help"
+            android:contentDescription="@string/how_to_play"
+            android:padding="11dp" />
+
         <ImageButton
             android:id="@+id/statsButton"
             android:layout_width="48dp"
