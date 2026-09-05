@@ -39,6 +39,7 @@ import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.net.ProfileRepository
 import com.yahtzee.online.game.GameReview
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.LastTurn
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Scoring
 import com.yahtzee.online.ui.ImmersiveActivity
@@ -128,6 +129,10 @@ class SoloGameActivity : ImmersiveActivity() {
 
     /** Non-null when this is a round of a duel, holding the code whose tape is in play. */
     private var duelCode: String? = null
+
+    /** The turn just played, and the render it was spotted against. See [LastTurn]. */
+    private var lastTurn: LastTurn.Scored? = null
+    private var lastRenderedState: GameState? = null
 
     /** The tournament fixture this game settles, or null for an ordinary solo game. */
     private var tourneyCode: String? = null
@@ -404,11 +409,30 @@ class SoloGameActivity : ImmersiveActivity() {
     private fun render(state: GameState) {
         if (renderRollOff(state)) return
 
-        val myTurn = !engine.isBotTurn()
-        val currentPlayerName = state.players[state.currentPlayerId]?.name ?: ""
+        // The finished turn against the one before it. An online room gets its two snapshots
+        // from the database; here they are simply consecutive renders, which works because the
+        // engine replaces its state rather than editing it in place.
+        LastTurn.detect(lastRenderedState, state)?.let { lastTurn = it }
+        lastRenderedState = state
 
-        findViewById<TextView>(R.id.turnStatusText).text =
-            if (myTurn) getString(R.string.your_turn) else getString(R.string.waiting_for_turn, currentPlayerName)
+        val myTurn = !engine.isBotTurn()
+
+        // Between turns the screen stays on the turn just played: the bot's score, in the bot's
+        // colour, under its name, until somebody rolls. Against a bot this is the only chance to
+        // see what it did — it takes its turn while you are looking at the table, not at a card.
+        val handover = lastTurn?.takeIf { LastTurn.isHandover(state) }
+        val shownPlayerId = handover?.playerId ?: state.currentPlayerId
+        val shownName = state.players[shownPlayerId]?.name ?: ""
+
+        findViewById<TextView>(R.id.turnStatusText).text = when {
+            handover != null && shownPlayerId == engine.humanPlayerId ->
+                getString(R.string.turn_you_just_scored)
+            handover != null -> getString(R.string.turn_just_scored, shownName)
+            myTurn -> getString(R.string.your_turn)
+            else -> getString(R.string.waiting_for_turn, shownName)
+        }
+
+        renderTurnSummary(state, handover)
 
         findViewById<TextView>(R.id.rollsLeftText).text =
             getString(R.string.rolls_left, MAX_ROLLS_PER_TURN - state.rollsUsed)
@@ -424,8 +448,9 @@ class SoloGameActivity : ImmersiveActivity() {
         }
 
         // Dice take the colour of whoever is rolling, so you can tell at a glance whether the
-        // table belongs to you or to a bot. No-op unless the value actually changed.
-        val activeColor = state.players[state.currentPlayerId]?.diceColor
+        // table belongs to you or to a bot. No-op unless the value actually changed. Frozen
+        // through the hand-over so the table does not change hands before anything has happened.
+        val activeColor = state.players[shownPlayerId]?.diceColor
             ?.takeIf { it != 0 }
             ?: DieTextureAtlas.DEFAULT_COLOR
         dice3DView.setDiceColor(activeColor)
@@ -525,12 +550,36 @@ class SoloGameActivity : ImmersiveActivity() {
         lastRollsUsed = state.rollsUsed
     }
 
+    /**
+     * Puts the finished turn's score where the hold chips normally sit.
+     *
+     * They swap rather than stack, so nothing below moves as the turn changes hands.
+     */
+    private fun renderTurnSummary(state: GameState, scored: LastTurn.Scored?) {
+        val summary = findViewById<TextView>(R.id.turnSummaryText)
+        if (scored == null) {
+            summary.visibility = View.GONE
+            return
+        }
+        summary.visibility = View.VISIBLE
+        summary.text = getString(R.string.turn_summary_score, scored.label, scored.points)
+        summary.setTextColor(
+            state.players[scored.playerId]?.diceColor?.takeIf { it != 0 }
+                ?: DieTextureAtlas.DEFAULT_COLOR
+        )
+    }
+
     private fun renderHoldRow(state: GameState, myTurn: Boolean) {
         val holdRow = findViewById<LinearLayout>(R.id.holdRow)
         // Kept in the layout but hidden mid-throw: the values are already known, and showing
         // them would give the result away before the dice land. INVISIBLE rather than GONE so
         // nothing below shifts as they appear.
-        holdRow.visibility = if (diceRolling) View.INVISIBLE else View.VISIBLE
+        // The summary takes this space between turns, so the two never show at once.
+        holdRow.visibility = when {
+            lastTurn != null && LastTurn.isHandover(state) -> View.GONE
+            diceRolling -> View.INVISIBLE
+            else -> View.VISIBLE
+        }
         holdRow.removeAllViews()
         state.dice.forEachIndexed { index, value ->
             val chip = Button(this)
