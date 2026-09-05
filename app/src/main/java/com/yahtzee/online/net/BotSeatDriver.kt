@@ -65,6 +65,17 @@ class BotSeatDriver(
 
     private var stopped = false
 
+    /**
+     * The room as of the most recent snapshot.
+     *
+     * A bot's move is decided off the main thread and written a second or so later, deliberately,
+     * so the table has something to watch. The room can move underneath that pause — and a write
+     * aimed at a bot's turn that lands after the turn has passed is a roll taken on somebody
+     * else's go, which from the other side of the table looks exactly like the app playing your
+     * turn for you. Checked against this immediately before writing.
+     */
+    private var latest: GameState? = null
+
     fun stop() {
         stopped = true
         main.removeCallbacksAndMessages(null)
@@ -76,6 +87,7 @@ class BotSeatDriver(
      */
     fun onState(code: String, state: GameState, myPlayerId: String) {
         if (stopped) return
+        latest = state
         if (state.hostId != myPlayerId) return
         if (state.status != phase) return
 
@@ -129,9 +141,27 @@ class BotSeatDriver(
         Thread {
             val action = runCatching { decide(state, open, skill) }.getOrNull()
             main.postDelayed({
-                if (!stopped && action != null) apply(code, state, botId, action)
+                // Re-checked here, not at decision time: the pause is the whole point of the
+                // delay, and the room is free to move during it.
+                if (!stopped && action != null && stillDue(botId, state)) {
+                    apply(code, state, botId, action)
+                }
             }, if (state.rollsUsed == 0) FIRST_ROLL_DELAY_MS else STEP_DELAY_MS)
         }.start()
+    }
+
+    /**
+     * Whether the move decided a moment ago is still the move the room is waiting for.
+     *
+     * The turn must still be this bot's, and still on the same roll. Anything else means the
+     * room moved on during the pause before the write, and the write would land on a turn that
+     * is no longer the one it was decided for.
+     */
+    private fun stillDue(botId: String, decidedAt: GameState): Boolean {
+        val now = latest ?: return false
+        return now.status == GameState.STATUS_PLAYING &&
+            now.currentPlayerId == botId &&
+            now.rollsUsed == decidedAt.rollsUsed
     }
 
     private fun apply(code: String, state: GameState, botId: String, action: Action) {
