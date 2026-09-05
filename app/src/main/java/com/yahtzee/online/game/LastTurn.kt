@@ -20,6 +20,7 @@ object LastTurn {
     data class Scored(
         val playerId: String,
         val playerName: String,
+        val category: Category,
         val label: String,
         val points: Int
     )
@@ -61,6 +62,7 @@ object LastTurn {
                 Scored(
                     playerId = player.id,
                     playerName = player.name,
+                    category = category,
                     label = category.label,
                     points = player.scores[key] ?: 0
                 )

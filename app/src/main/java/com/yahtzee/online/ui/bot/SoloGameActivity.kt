@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.audio.SoundEngine
+import com.yahtzee.online.bot.BotReactions
 import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
@@ -52,6 +53,7 @@ import com.yahtzee.online.ui.game.ScorecardTabs
 import com.yahtzee.online.ui.game.YahtzeeBanner
 import com.yahtzee.online.ui.game.activeDiceColorOf
 import com.yahtzee.online.ui.game.GameLayout
+import com.yahtzee.online.ui.game.EmojiBurst
 import com.yahtzee.online.ui.game.OffTheRip
 import com.yahtzee.online.ui.game.ScoreAnnounce
 import com.yahtzee.online.ui.game.styleHoldChip
@@ -240,6 +242,7 @@ class SoloGameActivity : ImmersiveActivity() {
             ScoreAnnounce.detect(lastAnnouncedState, engine.state, engine.humanPlayerId)?.let { taken ->
                 ScoreAnnounce.show(this, findViewById(R.id.reactionPopup), taken)
             }
+            reactToTurn(lastAnnouncedState, engine.state)
             lastAnnouncedState = engine.state
             persistGame()
             render(engine.state)
@@ -548,6 +551,36 @@ class SoloGameActivity : ImmersiveActivity() {
             )
         }
         lastRollsUsed = state.rollsUsed
+    }
+
+    /**
+     * Lets the bots have a word about the turn that just ended.
+     *
+     * Straight onto the burst layer rather than through the room: there is no room. A solo game
+     * exists only on this device, so the emoji is thrown here the moment it is earned instead of
+     * being written somewhere and read back.
+     *
+     * Their own turns and yours both. A bot applauding a Yahtzee you just rolled is the whole
+     * reason for this — playing bots was silent in a way playing people never is.
+     */
+    private fun reactToTurn(previous: GameState?, current: GameState) {
+        val scored = LastTurn.detect(previous, current) ?: return
+        val layer = findViewById<android.widget.FrameLayout>(R.id.emojiBurstLayer)
+
+        if (scored.playerId != engine.humanPlayerId) {
+            BotReactions.forOwnScore(scored.category, scored.points)
+                ?.let { EmojiBurst.spawn(layer, it, scored.playerName) }
+            return
+        }
+
+        // Yours: the first bot at the table answers for all of them, so a row of opponents does
+        // not applaud in chorus.
+        val responder = current.playerOrder
+            .firstOrNull { it != engine.humanPlayerId }
+            ?.let { current.players[it] }
+            ?: return
+        BotReactions.forOtherScore(scored.category, scored.points)
+            ?.let { EmojiBurst.spawn(layer, it, responder.name) }
     }
 
     /**

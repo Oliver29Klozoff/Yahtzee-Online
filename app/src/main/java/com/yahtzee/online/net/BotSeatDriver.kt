@@ -2,10 +2,12 @@ package com.yahtzee.online.net
 
 import android.os.Handler
 import android.os.Looper
+import com.yahtzee.online.bot.BotReactions
 import com.yahtzee.online.bot.BotSkillPlay
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.LastTurn
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
@@ -87,14 +89,36 @@ class BotSeatDriver(
      */
     fun onState(code: String, state: GameState, myPlayerId: String) {
         if (stopped) return
+        val previous = latest
         latest = state
         if (state.hostId != myPlayerId) return
         if (state.status != phase) return
+
+        if (state.status == GameState.STATUS_PLAYING) applaud(code, previous, state)
 
         when (state.status) {
             GameState.STATUS_ROLL_OFF -> driveRollOff(code, state)
             GameState.STATUS_PLAYING -> driveTurn(code, state)
         }
+    }
+
+    /**
+     * Lets a bot respond to somebody else's turn.
+     *
+     * One bot, not all of them: a table of bots applauding in unison is a machine, not a room. The
+     * first seated is as good a choice as any and is at least consistent, so the same one is
+     * always the one who says something.
+     *
+     * A bot's own score is answered where it is scored, not here — this is only for reading the
+     * table, which is the half that makes them feel like they are at it.
+     */
+    private fun applaud(code: String, previous: GameState?, state: GameState) {
+        val scored = LastTurn.detect(previous, state) ?: return
+        if (Tournament.isBot(scored.playerId)) return
+
+        val responder = state.playerOrder.firstOrNull { Tournament.isBot(it) } ?: return
+        BotReactions.forOtherScore(scored.category, scored.points)
+            ?.let { repository.sendReactionAs(code, responder, it) }
     }
 
     /**
@@ -183,8 +207,15 @@ class BotSeatDriver(
                 )
             }
 
-            is Action.Score ->
+            is Action.Score -> {
                 repository.submitScore(code, state, action.category, botId, action.card)
+                // Sent after the score, so the emoji arrives with the news rather than ahead of
+                // it. Silence most of the time is the point; see BotReactions.
+                BotReactions.forOwnScore(
+                    action.category,
+                    Scoring.score(action.category, state.dice)
+                )?.let { repository.sendReactionAs(code, botId, it) }
+            }
         }
     }
 

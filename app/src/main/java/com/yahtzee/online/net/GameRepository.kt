@@ -440,9 +440,18 @@ class GameRepository(private val context: android.content.Context) {
      * record, and one slot per player means a room cannot accumulate history nobody will read.
      * The timestamp is what makes the same emoji twice register as two reactions rather than one.
      */
-    fun sendReaction(code: String, emoji: String) {
-        if (code.isEmpty() || emoji.isEmpty()) return
-        roomRef(code).child("reactions").child(localPlayerId).setValue(
+    fun sendReaction(code: String, emoji: String) = sendReactionAs(code, localPlayerId, emoji)
+
+    /**
+     * Reacts on behalf of a seat that is not this device's.
+     *
+     * Only ever a bot. It has no phone to send from, so the host's client sends for it — but the
+     * reaction has to land in the bot's own slot or it would appear over the host's name, and a
+     * bot's applause would read as the host applauding themselves.
+     */
+    fun sendReactionAs(code: String, playerId: String, emoji: String) {
+        if (code.isEmpty() || emoji.isEmpty() || playerId.isEmpty()) return
+        roomRef(code).child("reactions").child(playerId).setValue(
             mapOf("emoji" to emoji, "at" to System.currentTimeMillis())
         )
     }
