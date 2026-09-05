@@ -5,6 +5,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.bot.BotStrategy
+import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.bot.ExpertStrategy
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Chat
@@ -16,6 +17,7 @@ import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.Player
 import com.yahtzee.online.game.ScoreKey
 import com.yahtzee.online.game.Scoring
+import com.yahtzee.online.game.Tournament
 import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.grandTotalAllCards
 import com.yahtzee.online.game.yahtzeeBonusUnlocked
@@ -113,6 +115,84 @@ class GameRepository(private val context: android.content.Context) {
         roomRef(code).setValue(state.toMap()).addOnSuccessListener {
             touch(code)
             onResult(code)
+        }
+    }
+
+    /**
+     * Seats a bot in an online room.
+     *
+     * The point is the television. A room opened on a TV is a table somebody walks up to, and
+     * walking up to it alone used to mean there was no game to play — the start needs two, and
+     * the bots lived only in the phone's own solo game, where the big screen never saw them. A
+     * bot seated here is an ordinary player: it has a name, a colour and a scorecard, the TV
+     * renders it like anybody else, and [BotSeatDriver] plays its turns.
+     *
+     * The free seat and the free name are both worked out from the database rather than from the
+     * caller's copy of it, for the reason the tournament version learned: three quick taps off
+     * one stale snapshot all pick the same id and write over each other, and three taps make one
+     * bot.
+     */
+    fun addBot(code: String, onResult: (Boolean) -> Unit = {}) {
+        val ref = roomRef(code)
+        ref.get().addOnSuccessListener { snapshot ->
+            if (snapshot.child("status").getValue(String::class.java) != GameState.STATUS_LOBBY) {
+                onResult(false)
+                return@addOnSuccessListener
+            }
+            val players = snapshot.child("players")
+            if (players.childrenCount >= MAX_ROOM_PLAYERS) {
+                onResult(false)
+                return@addOnSuccessListener
+            }
+
+            val taken = players.children.mapNotNull { it.key }.toSet()
+            val id = Tournament.nextBotId(taken)
+            val used = players.children
+                .mapNotNull { it.child("name").getValue(String::class.java) }
+                .toSet()
+            val name = LocalGameEngine.BOT_NAMES.firstOrNull { it !in used }
+                ?: LocalGameEngine.BOT_NAMES.random()
+
+            // Spread around the colour wheel from whoever is already seated, so two bots are not
+            // rolling the same colour as each other or as the person who added them.
+            val hsv = FloatArray(3)
+            val seed = players.children
+                .mapNotNull { it.child("diceColor").getValue(Int::class.java) }
+                .firstOrNull { it != 0 } ?: DEFAULT_SEED_COLOUR
+            android.graphics.Color.colorToHSV(seed, hsv)
+            val colour = android.graphics.Color.HSVToColor(
+                floatArrayOf((hsv[0] + 360f / (MAX_ROOM_PLAYERS + 1) * (taken.size + 1)) % 360f, 0.78f, 0.95f)
+            )
+
+            ref.child("players").child(id).setValue(
+                Player(id = id, name = name, joinedAt = System.currentTimeMillis(), diceColor = colour)
+            )
+            ref.child("playerOrder").get().addOnSuccessListener { orderSnap ->
+                val order = orderSnap.children.mapNotNull { it.getValue(String::class.java) }.toMutableList()
+                if (id !in order) {
+                    order.add(id)
+                    ref.child("playerOrder").setValue(order)
+                }
+                touch(code)
+                onResult(true)
+            }
+        }.addOnFailureListener { onResult(false) }
+    }
+
+    /** Takes a bot back out again, while the room is still a lobby. */
+    fun removeBot(code: String, botId: String) {
+        if (!Tournament.isBot(botId)) return
+        val ref = roomRef(code)
+        ref.get().addOnSuccessListener { snapshot ->
+            if (snapshot.child("status").getValue(String::class.java) != GameState.STATUS_LOBBY) {
+                return@addOnSuccessListener
+            }
+            ref.child("players").child(botId).removeValue()
+            val order = snapshot.child("playerOrder").children
+                .mapNotNull { it.getValue(String::class.java) }
+                .filterNot { it == botId }
+            ref.child("playerOrder").setValue(order)
+            touch(code)
         }
     }
 
@@ -485,6 +565,17 @@ class GameRepository(private val context: android.content.Context) {
         roomRef(code).child("held").setValue(updated)
     }
 
+    /**
+     * Sets the whole hold pattern at once.
+     *
+     * For a player choosing all five at a stroke rather than tapping dice one at a time — which
+     * is what a bot does, and what makes its keep visible on the table before it rerolls.
+     */
+    fun setHeld(code: String, held: List<Boolean>) {
+        if (held.size != 5) return
+        roomRef(code).child("held").setValue(held)
+    }
+
     fun submitScore(
         code: String,
         state: GameState,
@@ -653,8 +744,19 @@ class GameRepository(private val context: android.content.Context) {
     }
 
     companion object {
-        /** An online room is a game against somebody; one seat filled is not a game. */
+        /**
+         * An online room is a game against somebody; one seat filled is not a game.
+         *
+         * Bots count. Seating one is how a person at a television gets a game out of a table
+         * they walked up to alone.
+         */
         const val MIN_PLAYERS_TO_START = 2
+
+        /** As many as the table can seat and the TV can draw without the names collapsing. */
+        const val MAX_ROOM_PLAYERS = 6
+
+        /** Cobalt, the app's default die, for a room where nobody has picked a colour yet. */
+        private const val DEFAULT_SEED_COLOUR = 0xFF1F4FD8.toInt()
     }
 }
 

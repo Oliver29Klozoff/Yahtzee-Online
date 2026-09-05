@@ -35,6 +35,7 @@ import com.yahtzee.online.game.PlayedFormats
 import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.Projection
 import com.yahtzee.online.game.Rivalries
+import com.yahtzee.online.game.Tournament
 import com.yahtzee.online.game.RivalryResult
 import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.decidedWinner
@@ -43,6 +44,7 @@ import com.yahtzee.online.game.scoresForCard
 import com.yahtzee.online.game.YahtzeeState
 import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
+import com.yahtzee.online.net.BotSeatDriver
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.net.RivalryRepository
@@ -74,6 +76,9 @@ class GameActivity : ImmersiveActivity() {
     }
 
     private val repository by lazy { GameRepository(this) }
+
+    /** Moves any bot seated in this room. Idle unless this device is the host. */
+    private val botSeats by lazy { BotSeatDriver(this, repository, GameState.STATUS_PLAYING) }
     private lateinit var roomCode: String
     private lateinit var playerId: String
     private var listener: ValueEventListener? = null
@@ -282,6 +287,9 @@ class GameActivity : ImmersiveActivity() {
             renderNudge(state)
             renderIncomingNudge(state)
             render(state)
+            // Any bot seated in this room is moved from here, if this is the host's phone. The
+            // driver decides that for itself, so it is safe to hand it every snapshot.
+            botSeats.onState(roomCode, state, playerId)
             if (state.status == GameState.STATUS_FINISHED && !gameOverShown) {
                 gameOverShown = true
                 // Nothing further can happen in this room, so its marks are dead weight. Dropped
@@ -723,6 +731,10 @@ class GameActivity : ImmersiveActivity() {
 
         state.players.values
             .filterNot { it.id == playerId }
+            // A head-to-head record is between two people. A bot seated at the table is an
+            // opponent for the length of the game and nothing afterwards — counting it would put
+            // "You lead Ada 3-1" on the start screen next to real rivalries.
+            .filterNot { Tournament.isBot(it.id) }
             .forEach { opponent ->
                 val theirs = opponent.grandTotalAllCards(state.cardCount)
                 val result = when {
@@ -906,5 +918,6 @@ class GameActivity : ImmersiveActivity() {
         sound.release()
         listener?.let { repository.stopListening(roomCode, it) }
         timerHandler.removeCallbacks(timerTick)
+        botSeats.stop()
     }
 }

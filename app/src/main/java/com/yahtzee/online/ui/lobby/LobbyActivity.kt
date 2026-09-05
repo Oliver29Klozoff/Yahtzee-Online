@@ -24,7 +24,9 @@ import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.RecentPlayersStore
+import com.yahtzee.online.game.Tournament
 import com.yahtzee.online.game.seatAngle
+import com.yahtzee.online.net.BotSeatDriver
 import com.yahtzee.online.net.GameRepository
 import com.yahtzee.online.ui.ImmersiveActivity
 import com.yahtzee.online.ui.QrCode
@@ -66,6 +68,9 @@ class LobbyActivity : ImmersiveActivity() {
     }
 
     private val repository by lazy { GameRepository(this) }
+
+    /** Rolls for any bot seated here during the roll-off. Idle unless this device is the host. */
+    private val botSeats by lazy { BotSeatDriver(this, repository, GameState.STATUS_ROLL_OFF) }
     private lateinit var roomCode: String
     private lateinit var playerId: String
     private var listener: ValueEventListener? = null
@@ -119,6 +124,17 @@ class LobbyActivity : ImmersiveActivity() {
         }
 
         findViewById<Button>(R.id.playBotsInsteadButton).setOnClickListener { startBotGame() }
+        findViewById<Button>(R.id.addBotButton).setOnClickListener { view ->
+            // Guarded against a double tap landing two bots while the first write is in flight.
+            view.isEnabled = false
+            repository.addBot(roomCode) { added ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    view.isEnabled = true
+                    if (!added) Toast.makeText(this, R.string.add_bot_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
         findViewById<Button>(R.id.passControlButton).setOnClickListener { promptPassControl() }
         findViewById<Button>(R.id.shareInviteButton).setOnClickListener { shareInvite() }
         findViewById<Button>(R.id.inviteRecentButton).setOnClickListener { inviteRecent() }
@@ -165,7 +181,12 @@ class LobbyActivity : ImmersiveActivity() {
             // Everyone who actually sat down, recorded once play begins rather than on joining,
             // so a room someone glanced at and left does not put them in the list.
             if (state.status != GameState.STATUS_LOBBY) {
-                RecentPlayersStore.remember(this, state.players.values, playerId)
+                // Bots are not people to invite back, so they stay out of the recent list.
+                RecentPlayersStore.remember(
+                    this,
+                    state.players.values.filterNot { Tournament.isBot(it.id) },
+                    playerId
+                )
             }
             // Starting needs somebody to start against.
             //
@@ -190,6 +211,19 @@ class LobbyActivity : ImmersiveActivity() {
                 if (!inLobby) View.GONE
                 else if (isHost && enoughToStart) View.GONE
                 else View.VISIBLE
+
+            // Bots roll for first too, and the roll-off waits for every entrant — so if nobody
+            // moved them the room would sit on the opening dice forever.
+            botSeats.onState(roomCode, state, playerId)
+
+            // Adding is the host's call, and only while the room is still open. Capped so a table
+            // cannot be filled past what the television can draw.
+            findViewById<Button>(R.id.addBotButton).visibility =
+                if (isHost && inLobby && state.players.size < GameRepository.MAX_ROOM_PLAYERS) {
+                    View.VISIBLE
+                } else {
+                    View.GONE
+                }
 
             renderRollOff(state)
 
@@ -519,5 +553,6 @@ class LobbyActivity : ImmersiveActivity() {
         listener?.let { repository.stopListening(roomCode, it) }
         revealHandler.removeCallbacksAndMessages(null)
         botPromptHandler.removeCallbacksAndMessages(null)
+        botSeats.stop()
     }
 }
