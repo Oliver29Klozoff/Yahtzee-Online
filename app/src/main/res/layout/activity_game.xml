@@ -184,6 +184,23 @@
         android:layout_marginBottom="12dp" />
 
     <!--
+        Takes the hold row's place between turns. The dice have been put down and there is
+        nothing left to keep or throw back, so the space says what the turn was worth instead of
+        showing five chips that cannot be tapped.
+    -->
+    <TextView
+        android:id="@+id/turnSummaryText"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone" />
+
+    <!--
         Scorepad rooms only: the dice you actually rolled, typed in.
 
         Sits where the roll button does and replaces it, because in a room with real dice on the

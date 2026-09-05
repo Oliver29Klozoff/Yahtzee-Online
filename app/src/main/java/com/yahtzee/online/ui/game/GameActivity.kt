@@ -24,6 +24,7 @@ import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameReview
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.LastTurn
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Scoring
@@ -93,6 +94,17 @@ class GameActivity : ImmersiveActivity() {
 
     private val scoreConfirm by lazy { ScoreConfirm(this) }
     private var lastTurnPlayerId: String? = null
+
+    /**
+     * The turn most recently finished in this room, shown while the game is between turns.
+     *
+     * Never cleared, only gated on [LastTurn.isHandover] when it comes to being drawn. Clearing
+     * it on a roll would look tidier and would not work: a score arrives as several writes —
+     * the scorecard first, `rollsUsed` back to zero a moment later — so there is a snapshot in
+     * between carrying the new score with the old roll count, and anything that threw the score
+     * away on sight of that would leave the hand-over with nothing to show.
+     */
+    private var lastTurn: LastTurn.Scored? = null
     private var lastState: GameState? = null
     private var gameOverShown = false
     private var lastDice: List<Int>? = null
@@ -267,6 +279,9 @@ class GameActivity : ImmersiveActivity() {
             ScoreAnnounce.detect(previous, state, playerId)?.let { taken ->
                 ScoreAnnounce.show(this, findViewById(R.id.reactionPopup), taken)
             }
+            // Held for the hand-over, and unlike the announcement above it counts your own turn:
+            // this is the state of the table rather than news about somebody else.
+            LastTurn.detect(previous, state)?.let { lastTurn = it }
             // Only while somebody is looking. Off screen, the marks are left exactly where they
             // are, so whatever arrived is still owed to them when they come back.
             if (screenVisible) {
@@ -369,14 +384,31 @@ class GameActivity : ImmersiveActivity() {
 
     private fun render(state: GameState) {
         val myTurn = state.isMyTurn(playerId)
-        val currentPlayerName = state.players[state.currentPlayerId]?.name ?: ""
 
-        findViewById<TextView>(R.id.turnStatusText).text =
-            if (myTurn) getString(R.string.your_turn) else getString(R.string.waiting_for_turn, currentPlayerName)
+        // Between turns the screen stays on the turn that has just been played rather than
+        // jumping to whoever is next. Nothing has happened yet on the new turn, and the moment
+        // people look up is the moment after a turn ends — so the name, the colour and the score
+        // all belong to the player who just went until the next one actually rolls.
+        val handover = lastTurn?.takeIf { LastTurn.isHandover(state) }
+        val shownPlayerId = handover?.playerId ?: state.currentPlayerId
+        val shownName = state.players[shownPlayerId]?.name ?: ""
+
+        findViewById<TextView>(R.id.turnStatusText).text = when {
+            // Deliberately not "Your turn" while your own finished turn is still up: the roll
+            // button is gone by then, and inviting a roll that cannot happen reads as a bug.
+            handover != null && shownPlayerId == playerId -> getString(R.string.turn_you_just_scored)
+            handover != null -> getString(R.string.turn_just_scored, shownName)
+            myTurn -> getString(R.string.your_turn)
+            else -> getString(R.string.waiting_for_turn, shownName)
+        }
+
+        renderTurnSummary(handover)
 
         findViewById<TextView>(R.id.rollsLeftText).text =
             getString(R.string.rolls_left, MAX_ROLLS_PER_TURN - state.rollsUsed)
 
+        // The button follows the real turn, not the frozen one — it is what ends the hand-over,
+        // so it has to belong to whoever is actually up.
         val rollButton = findViewById<Button>(R.id.rollButton)
         rollButton.isEnabled = myTurn && state.rollsUsed < MAX_ROLLS_PER_TURN
         rollButton.visibility = if (myTurn) View.VISIBLE else View.GONE
@@ -384,7 +416,7 @@ class GameActivity : ImmersiveActivity() {
         // Dice take the colour of whoever is rolling, so a glance at the table tells you whose
         // turn it is. Players on older builds have no colour stored, hence the fallback.
         // setDiceColor is a no-op unless the value actually changed, so this is cheap per frame.
-        val activeColor = state.players[state.currentPlayerId]?.diceColor
+        val activeColor = state.players[shownPlayerId]?.diceColor
             ?.takeIf { it != 0 }
             ?: DieTextureAtlas.DEFAULT_COLOR
         dice3DView.setDiceColor(activeColor)
@@ -657,12 +689,38 @@ class GameActivity : ImmersiveActivity() {
         }
     }
 
+    /**
+     * Puts the finished turn's score where the hold chips normally sit.
+     *
+     * The two swap rather than stack, so nothing below moves as the turn changes hands. There is
+     * nothing to keep or throw back once the dice are down, so the chips have no work to do —
+     * and five untappable buttons say considerably less than the number they earned.
+     */
+    private fun renderTurnSummary(scored: LastTurn.Scored?) {
+        val summary = findViewById<TextView>(R.id.turnSummaryText)
+        if (scored == null) {
+            summary.visibility = View.GONE
+            return
+        }
+        summary.visibility = View.VISIBLE
+        summary.text = getString(R.string.turn_summary_score, scored.label, scored.points)
+        summary.setTextColor(
+            lastState?.players?.get(scored.playerId)?.diceColor?.takeIf { it != 0 }
+                ?: DieTextureAtlas.DEFAULT_COLOR
+        )
+    }
+
     private fun renderHoldRow(state: GameState, myTurn: Boolean) {
         val holdRow = findViewById<LinearLayout>(R.id.holdRow)
         // Kept in the layout but hidden mid-throw: the values are already known, and showing
         // them would give the result away before the dice land. INVISIBLE rather than GONE so
         // nothing below shifts as they appear.
-        holdRow.visibility = if (diceRolling) View.INVISIBLE else View.VISIBLE
+        // The summary takes this space between turns, so the two never show at once.
+        holdRow.visibility = when {
+            lastTurn != null && LastTurn.isHandover(state) -> View.GONE
+            diceRolling -> View.INVISIBLE
+            else -> View.VISIBLE
+        }
         holdRow.removeAllViews()
         state.dice.forEachIndexed { index, value ->
             val chip = Button(this)

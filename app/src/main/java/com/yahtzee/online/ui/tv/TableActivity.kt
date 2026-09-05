@@ -14,6 +14,7 @@ import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.GameState
+import com.yahtzee.online.game.LastTurn
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.diceAreYahtzee
 import com.yahtzee.online.game.decidedWinner
@@ -72,6 +73,14 @@ class TableActivity : ImmersiveActivity() {
      * room events are worked out by comparing it against whatever arrives next.
      */
     private var lastState: GameState? = null
+
+    /**
+     * The turn just played, kept on screen until the next player rolls.
+     *
+     * A television is watched from across a room, and the moment people look up is the moment a
+     * turn ends. Moving straight on to the next name and colour threw that away.
+     */
+    private var lastTurn: LastTurn.Scored? = null
 
     /**
      * How far each player's clock had got when this screen last looked, so an unrelated update
@@ -169,6 +178,7 @@ class TableActivity : ImmersiveActivity() {
             lastState = state
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
+                LastTurn.detect(previous, state)?.let { lastTurn = it }
                 renderRoomEvents(previous, state)
                 render(state)
             }
@@ -321,10 +331,22 @@ class TableActivity : ImmersiveActivity() {
                 hint.setText(R.string.tv_start_on_phone)
             }
             else -> {
-                turnText.text = getString(
-                    R.string.tv_turn_of,
-                    state.players[state.currentPlayerId]?.name.orEmpty()
-                )
+                // Between turns the table still belongs to whoever just played: their name stays
+                // up, in their colour, next to what they took for it, until the next player
+                // rolls. From across a room that hand-over is the only chance anyone gets to see
+                // what happened.
+                val handover = lastTurn?.takeIf { LastTurn.isHandover(state) }
+                turnText.text = if (handover != null) {
+                    getString(
+                        R.string.tv_just_scored,
+                        handover.playerName, handover.label, handover.points
+                    )
+                } else {
+                    getString(
+                        R.string.tv_turn_of,
+                        state.players[state.currentPlayerId]?.name.orEmpty()
+                    )
+                }
                 // Latecomers can still scan in, so the code stays up rather than being replaced
                 // by something only useful before the game started.
                 hint.setText(R.string.tv_scan_to_join_late)
@@ -333,7 +355,11 @@ class TableActivity : ImmersiveActivity() {
     }
 
     private fun renderDice(state: GameState) {
-        val activeColor = state.players[state.currentPlayerId]?.diceColor
+        // The dice keep the colour of the player who rolled them until the next one rolls, so
+        // the table does not change hands before anything has actually happened.
+        val shownPlayerId = lastTurn?.takeIf { LastTurn.isHandover(state) }?.playerId
+            ?: state.currentPlayerId
+        val activeColor = state.players[shownPlayerId]?.diceColor
             ?.takeIf { it != 0 }
             ?: DieTextureAtlas.DEFAULT_COLOR
         dice.setDiceColor(activeColor)
