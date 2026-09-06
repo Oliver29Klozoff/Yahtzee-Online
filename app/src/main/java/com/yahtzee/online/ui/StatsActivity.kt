@@ -149,7 +149,20 @@ class StatsActivity : ImmersiveActivity() {
         // actually had one — otherwise a player who only does daily challenges sees a hard 0%.
         val contested = PlayerStats.recent(this).any { it.opponents > 0 }
         val cells = buildList {
-            add(getString(R.string.stat_best) to totals.bestScore.toString())
+            // One best per format actually played, because a six-card total is not a bigger
+            // version of a one-card total — it is six scorecards added up, and a single "best"
+            // across both leaves an ordinary game permanently unable to beat it.
+            val bests = totals.bestByCards.filterValues { it > 0 }.toSortedMap()
+            when {
+                bests.isEmpty() ->
+                    add(getString(R.string.stat_best) to totals.bestScore.toString())
+                else -> bests.forEach { (cards, best) ->
+                    val label =
+                        if (cards == 1) getString(R.string.stat_best)
+                        else getString(R.string.stat_best_cards, cards)
+                    add(label to best.toString())
+                }
+            }
             add(getString(R.string.stat_average) to totals.averageScore.toString())
             add(getString(R.string.stat_played) to totals.played.toString())
             if (contested) add(getString(R.string.stat_win_rate) to "${totals.winRate}%")

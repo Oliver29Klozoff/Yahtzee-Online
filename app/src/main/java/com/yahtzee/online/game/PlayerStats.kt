@@ -44,7 +44,23 @@ object PlayerStats {
     data class Totals(
         val played: Int = 0,
         val won: Int = 0,
+        /**
+         * The highest single score, whatever it was played on.
+         *
+         * Kept because other things read it, but it is not what "your best" means to a player. A
+         * six-card game is six scorecards added together, so it lands somewhere near a thousand
+         * and buries every ordinary game underneath it for ever. See [bestByCards].
+         */
         val bestScore: Int = 0,
+
+        /**
+         * The best score on each format, keyed by how many cards were in play.
+         *
+         * A total is only a record against totals of the same shape. One card against six is not
+         * a bigger number of the same thing, it is a different game — and a single "best" across
+         * both means a player who tries six cards once can never beat their own record again.
+         */
+        val bestByCards: Map<Int, Int> = emptyMap(),
         val totalScore: Long = 0L,
         val yahtzees: Int = 0,
         val yahtzeeBonuses: Int = 0,
@@ -105,6 +121,8 @@ object PlayerStats {
                 played = previous.played + 1,
                 won = previous.won + if (won) 1 else 0,
                 bestScore = maxOf(previous.bestScore, score),
+                bestByCards = previous.bestByCards +
+                    (cards to maxOf(previous.bestByCards[cards] ?: 0, score)),
                 totalScore = previous.totalScore + score,
                 yahtzees = previous.yahtzees + yahtzees,
                 yahtzeeBonuses = previous.yahtzeeBonuses + player.yahtzeeBonusCount,
@@ -134,6 +152,7 @@ object PlayerStats {
                 played = json.optInt("played"),
                 won = json.optInt("won"),
                 bestScore = json.optInt("bestScore"),
+                bestByCards = readBestByCards(json) ?: bestsFromHistory(context),
                 totalScore = json.optLong("totalScore"),
                 yahtzees = json.optInt("yahtzees"),
                 yahtzeeBonuses = json.optInt("yahtzeeBonuses"),
@@ -142,6 +161,30 @@ object PlayerStats {
             )
         }.getOrDefault(Totals())
     }
+
+    /** Null when this record predates per-format bests, which is what triggers the rebuild. */
+    private fun readBestByCards(json: JSONObject): Map<Int, Int>? {
+        val stored = json.optJSONObject("bestByCards") ?: return null
+        return stored.keys().asSequence()
+            .mapNotNull { key -> key.toIntOrNull()?.let { it to stored.optInt(key) } }
+            .toMap()
+    }
+
+    /**
+     * Per-format bests worked out from the games still on file.
+     *
+     * For a record written before the split, which has one number covering every format and no way
+     * to say which game it came from. The stored history knows how many cards each game was played
+     * on, so the real answer is recoverable — for as far back as it reaches.
+     *
+     * It reaches [MAX_RECENT] games. A best set before that has genuinely been forgotten, and the
+     * honest thing is to let the format start again from the next game played rather than carry
+     * forward a number that belongs to a different game entirely.
+     */
+    private fun bestsFromHistory(context: Context): Map<Int, Int> =
+        recent(context)
+            .groupBy { it.cardCount.coerceAtLeast(1) }
+            .mapValues { (_, games) -> games.maxOf { it.score } }
 
     fun categoryRecords(context: Context): Map<Category, CategoryRecord> {
         val raw = prefs(context).getString(KEY_CATEGORIES, null) ?: return emptyMap()
@@ -186,6 +229,10 @@ object PlayerStats {
             .put("played", totals.played)
             .put("won", totals.won)
             .put("bestScore", totals.bestScore)
+            .put(
+                "bestByCards",
+                JSONObject().also { o -> totals.bestByCards.forEach { (c, b) -> o.put(c.toString(), b) } }
+            )
             .put("totalScore", totals.totalScore)
             .put("yahtzees", totals.yahtzees)
             .put("yahtzeeBonuses", totals.yahtzeeBonuses)

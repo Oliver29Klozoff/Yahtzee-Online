@@ -404,6 +404,7 @@
     <string name="stats_reset">Reset stats</string>
     <string name="stats_reset_confirm">This clears your whole record on this device. Leaderboard scores are not affected.</string>
     <string name="stat_best">Best score</string>
+    <string name="stat_best_cards">Best · %1$d cards</string>
     <string name="stat_average">Average</string>
     <string name="stat_played">Games</string>
     <string name="stat_win_rate">Win rate</string>
