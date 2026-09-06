@@ -5,6 +5,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.bot.LocalGameEngine
+import com.yahtzee.online.game.BotNames
 import com.yahtzee.online.game.Entrant
 import com.yahtzee.online.game.Match
 import com.yahtzee.online.game.PlayerProfile
@@ -143,8 +144,9 @@ class TournamentRepository(private val context: android.content.Context) {
             val used = snapshot.children
                 .mapNotNull { it.child("name").getValue(String::class.java) }
                 .toSet()
-            val name = LocalGameEngine.BOT_NAMES.firstOrNull { it !in used }
-                ?: LocalGameEngine.BOT_NAMES.random()
+            // From the rotation, for the reason the room version gives: the first unused name in a
+            // new bracket is always the first name in the list.
+            val name = BotNames.next(context, used)
 
             ref(code).child("players").child(id).setValue(
                 mapOf(

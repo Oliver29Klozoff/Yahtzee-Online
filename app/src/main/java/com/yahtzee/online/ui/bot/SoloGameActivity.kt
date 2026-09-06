@@ -19,6 +19,7 @@ import com.yahtzee.online.dice3d.Dice3DView
 import com.yahtzee.online.dice3d.DieTextureAtlas
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.AppSettings
+import com.yahtzee.online.game.BotNames
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.Duel
@@ -185,7 +186,7 @@ class SoloGameActivity : ImmersiveActivity() {
             dailyId?.let { DailyChallenge.tapeFor(it) }
                 ?: duelCode?.let { Duel.tapeFor(it) }
 ,
-            listOfNotNull(intent.getStringExtra(EXTRA_BOT_NAME)?.takeIf { it.isNotEmpty() })
+            botNamesFor(saved, botCount)
         )
 
         // From here on this screen can be rebuilt from the saved game.
@@ -551,6 +552,25 @@ class SoloGameActivity : ImmersiveActivity() {
             )
         }
         lastRollsUsed = state.rollsUsed
+    }
+
+    /**
+     * The names this game's opponents play under.
+     *
+     * A resumed game keeps whoever it already had — the engine reads them off the saved state,
+     * and asking for fresh ones would only move the rotation on for nothing.
+     *
+     * A tournament fixture's opponent is named by the bracket and that name wins: a bracket that
+     * says you are playing Ada and a game that deals you Hugo is the same bot under two names.
+     */
+    private fun botNamesFor(saved: SavedSoloGame?, botCount: Int): List<String> {
+        val fromBracket =
+            listOfNotNull(intent.getStringExtra(EXTRA_BOT_NAME)?.takeIf { it.isNotEmpty() })
+        if (saved != null) return fromBracket
+
+        val wanted = botCount - fromBracket.size
+        if (wanted <= 0) return fromBracket
+        return fromBracket + BotNames.next(this, wanted, fromBracket.toSet())
     }
 
     /**

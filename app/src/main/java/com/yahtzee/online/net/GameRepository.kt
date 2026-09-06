@@ -7,6 +7,7 @@ import com.google.firebase.database.ValueEventListener
 import com.yahtzee.online.bot.BotStrategy
 import com.yahtzee.online.bot.LocalGameEngine
 import com.yahtzee.online.bot.ExpertStrategy
+import com.yahtzee.online.game.BotNames
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Chat
 import com.yahtzee.online.game.ChatMessage
@@ -208,8 +209,10 @@ class GameRepository(private val context: android.content.Context) {
             val used = players.children
                 .mapNotNull { it.child("name").getValue(String::class.java) }
                 .toSet()
-            val name = LocalGameEngine.BOT_NAMES.firstOrNull { it !in used }
-                ?: LocalGameEngine.BOT_NAMES.random()
+            // Taken from the rotation rather than from the top of the list. "The first name nobody
+            // here is using" reads as fair and is not: a fresh room is empty, so the first bot
+            // added to it was Ada every time, in every room, for ever.
+            val name = BotNames.next(context, used)
 
             // Spread around the colour wheel from whoever is already seated, so two bots are not
             // rolling the same colour as each other or as the person who added them.

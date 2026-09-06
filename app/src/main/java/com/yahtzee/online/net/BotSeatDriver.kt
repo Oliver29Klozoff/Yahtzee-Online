@@ -65,6 +65,16 @@ class BotSeatDriver(
      */
     private val handled = mutableSetOf<String>()
 
+    /**
+     * Bots with an opening roll already on its way.
+     *
+     * Deliberately not part of [handled]. This is released when the roll lands, because a
+     * roll-off round is the one piece of work here that genuinely can repeat: a tie is settled by
+     * the same players rolling again, so the state it produces the second time is identical to
+     * the first.
+     */
+    private val rollingFor = mutableSetOf<String>()
+
     private var stopped = false
 
     /**
@@ -130,15 +140,22 @@ class BotSeatDriver(
     private fun driveRollOff(code: String, state: GameState) {
         val eligible =
             if (state.openingRollTied.isNotEmpty()) state.openingRollTied else state.playerOrder
+
+        // A roll in flight is released the moment the room shows it landed, rather than being
+        // marked done for ever the way a turn step is.
+        //
+        // A turn step can be named uniquely and never comes round twice. A roll-off round cannot:
+        // ties are settled by the same players rolling again, so the second tie between the same
+        // two produces exactly the state the first one did. Against a permanent marker that read
+        // as work already done, and the bots simply stopped rolling — everybody had rolled, and
+        // the game never started.
+        rollingFor.retainAll { it in eligible && !state.openingRolls.containsKey(it) }
+
         val waiting = eligible.firstOrNull {
-            Tournament.isBot(it) && !state.openingRolls.containsKey(it)
+            Tournament.isBot(it) && !state.openingRolls.containsKey(it) && it !in rollingFor
         } ?: return
 
-        // The tied list identifies the round, so a tie that clears the rolls and asks again is a
-        // new piece of work rather than one already marked done.
-        val key = "rolloff:$waiting:${state.openingRollTied.joinToString(",")}"
-        if (!handled.add(key)) return
-
+        rollingFor.add(waiting)
         main.postDelayed({
             if (!stopped) repository.rollForFirst(code, state, waiting)
         }, ROLL_OFF_DELAY_MS)

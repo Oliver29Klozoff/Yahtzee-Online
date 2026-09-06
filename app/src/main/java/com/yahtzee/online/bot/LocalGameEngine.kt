@@ -1,6 +1,7 @@
 package com.yahtzee.online.bot
 
 import com.yahtzee.online.game.AppSettings
+import com.yahtzee.online.game.BotNames
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DiceRoller
 import com.yahtzee.online.game.DiceTape
@@ -51,13 +52,13 @@ class LocalGameEngine(
 ) {
 
     companion object {
-        /** Short, easily told apart at a glance on the scorecard tabs. */
-        val BOT_NAMES = listOf(
-            "Ada", "Bruno", "Cleo", "Dexter", "Etta", "Felix",
-            "Greta", "Hugo", "Iris", "Jonas", "Kira", "Lorne",
-            "Mabel", "Nico", "Opal", "Piper", "Quinn", "Rufus",
-            "Sable", "Theo", "Uma", "Vera", "Wilder", "Zaia"
-        )
+        /**
+         * Short, easily told apart at a glance on the scorecard tabs.
+         *
+         * The one list, kept in [BotNames] alongside the rotation through it, so a name cannot be
+         * added in one place and be unreachable from another.
+         */
+        val BOT_NAMES: List<String> get() = BotNames.POOL
     }
 
     /**
@@ -93,9 +94,11 @@ class LocalGameEngine(
             diceColor = humanColor
         )
         val botColors = botColoursAvoiding(humanColor, botCount)
-        // Names are drawn without replacement so no two opponents share one, and shuffled per
-        // game so the same three bots are not sitting there every time.
-        // Given names win; the pool fills whatever is left over.
+        // Given names win; the shuffled pool is only a backstop for a caller that passed none.
+        //
+        // Ordinarily the caller supplies them from the rotation in BotNames, which is what stops
+        // the same opponents turning up game after game — a shuffle here alone cannot, since it
+        // has no memory of the games before it.
         val names = (botNames + BOT_NAMES.shuffled()).toMutableList()
         val bots = botIds.mapIndexed { i, id ->
             id to Player(
