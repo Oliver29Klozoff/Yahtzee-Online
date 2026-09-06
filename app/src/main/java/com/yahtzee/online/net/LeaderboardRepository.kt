@@ -4,6 +4,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.yahtzee.online.game.GameState
 
 /** One row on the global leaderboard: a player's best game to date. */
 data class LeaderboardEntry(
@@ -28,6 +29,9 @@ class LeaderboardRepository {
     private val boardsRef = database.getReference("boards")
 
     companion object {
+        /** How many months of season boards a removal reaches back over. */
+        private const val SEASONS_BACK = 36
+
         /**
          * Every format gets its own board.
          *
@@ -73,21 +77,11 @@ class LeaderboardRepository {
     }
 
     /**
-     * Keeps whichever score is higher, in a transaction.
+     * Takes this player off every ranked board they appear on.
      *
-     * The same player may finish games on more than one device, and a plain read/compare/write
-     * could lose the better result to a concurrent update.
-     */
-    /**
-     * Takes this player off every board they appear on.
-     *
-     * The boards are enumerated rather than guessed at. They are keyed by format and by month —
-     * `c6-all`, `c1-2026-09` and so on — so a list built here from what the app happens to know
-     * would quietly leave a player on a board from a month nobody thought about, which is the one
-     * outcome this must not have. "Remove my score" has to mean all of them.
-     *
-     * A removal is a write of null, and Firebase skips validation on those, so nothing in the
-     * rules stands in the way of a player taking their own entry down.
+     * A removal is a write of null, and Firebase skips validation on those, so a player taking
+     * down their own entry is permitted. Daily challenge rows are the exception — see
+     * [dailyScoresAreRemovable].
      */
     fun removeFromBoards(playerId: String, onDone: (Int) -> Unit = {}) {
         if (playerId.isEmpty()) {
@@ -95,14 +89,28 @@ class LeaderboardRepository {
             return
         }
 
-        // All three places a score is published, not just the current one.
+        // The board names are worked out rather than read back, because they cannot be read back.
         //
-        // `boards` is where ranked games go now, but `leaderboard` still holds entries from
-        // before the split by format — nothing writes to it any more, and it is still read — and
-        // `dailyBoard` carries a row per day the daily challenge was played. A removal that took
-        // somebody off only the newest of the three would leave their name on two lists and
-        // report success, which is worse than not offering it.
-        var pending = 3
+        // The rules grant `.read` on a single board — `boards/$boardId` — and not on the node
+        // above it, so asking for the list of boards is refused outright. The first version of
+        // this did exactly that and failed every time with something that looked like a network
+        // error, which is a poor way to describe a permission.
+        //
+        // Nothing is lost by computing them: a board id is `cN-all` or `cN-YYYY-MM`, so the whole
+        // set is derivable. Deleting a row that was never there is a no-op, so covering months a
+        // player never played costs nothing but a longer list.
+        val ids = mutableListOf<String>()
+        val calendar = java.util.Calendar.getInstance()
+        GameState.CARD_OPTIONS.forEach { cards ->
+            ids.add(allTimeBoardId(cards))
+            calendar.time = java.util.Date()
+            repeat(SEASONS_BACK) {
+                ids.add(monthlyBoardId(cards, calendar.time))
+                calendar.add(java.util.Calendar.MONTH, -1)
+            }
+        }
+
+        var pending = 2
         var removed = 0
         var failed = false
 
@@ -111,42 +119,26 @@ class LeaderboardRepository {
             if (--pending == 0) onDone(if (failed) -1 else removed)
         }
 
-        removeUnder(boardsRef, playerId) { finish(it) }
-        removeUnder(dailyRef, playerId) { finish(it) }
+        // One write for the lot, so a player is never half-removed if the connection drops.
+        boardsRef.updateChildren(ids.associate { "$it/$playerId" to null })
+            .addOnSuccessListener { finish(ids.size) }
+            .addOnFailureListener { finish(-1) }
 
-        // The one flat node: the player is a direct child rather than a child of each board.
+        // The older node, where the player is a direct child rather than a child of each board.
         boardRef.child(playerId).removeValue()
             .addOnSuccessListener { finish(1) }
             .addOnFailureListener { finish(-1) }
     }
 
     /**
-     * Removes [playerId] from every child board under [parent].
+     * Whether a daily challenge score can be taken down at all.
      *
-     * The boards are enumerated rather than guessed at. They are keyed by format and by month or
-     * by day — `c6-all`, `c1-2026-09`, a date per daily challenge — so a list built in code would
-     * quietly leave somebody standing on a board nobody thought to name.
-     *
-     * One write for the lot, so a player is never half-removed if the connection goes mid-way.
+     * It cannot, and not by oversight: `dailyBoard` is writable only where nothing already exists,
+     * which is what stops somebody posting a second, better score for a day they have already
+     * played. The same rule refuses a delete, so a daily row is permanent once written — and
+     * saying so is better than a removal that quietly leaves it standing.
      */
-    private fun removeUnder(
-        parent: com.google.firebase.database.DatabaseReference,
-        playerId: String,
-        onDone: (Int) -> Unit
-    ) {
-        parent.get()
-            .addOnSuccessListener { snapshot ->
-                val boards = snapshot.children.mapNotNull { it.key }
-                if (boards.isEmpty()) {
-                    onDone(0)
-                    return@addOnSuccessListener
-                }
-                parent.updateChildren(boards.associate { "$it/$playerId" to null })
-                    .addOnSuccessListener { onDone(boards.size) }
-                    .addOnFailureListener { onDone(-1) }
-            }
-            .addOnFailureListener { onDone(-1) }
-    }
+    fun dailyScoresAreRemovable(): Boolean = false
 
     private fun submitBest(
         ref: com.google.firebase.database.DatabaseReference,
