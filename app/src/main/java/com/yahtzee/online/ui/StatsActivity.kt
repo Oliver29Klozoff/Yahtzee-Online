@@ -7,14 +7,17 @@ import android.widget.Button
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.yahtzee.online.R
 import com.yahtzee.online.game.AccentColor
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.DailyChallenge
 import com.yahtzee.online.game.PlayedFormats
+import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.PlayerStats
 import com.yahtzee.online.game.Rivalries
+import com.yahtzee.online.net.LeaderboardRepository
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,6 +36,11 @@ class StatsActivity : ImmersiveActivity() {
 
         findViewById<ImageButton>(R.id.backButton).setOnClickListener { finish() }
         findViewById<Button>(R.id.resetStatsButton).setOnClickListener { confirmReset() }
+        // Always offered, unlike the reset above. A board entry outlives a cleared device: somebody
+        // who wipes their stats first and then wants their name off the board would otherwise find
+        // the only way to do it had just been hidden.
+        findViewById<Button>(R.id.removeFromBoardsButton)
+            .setOnClickListener { confirmRemoveFromBoards() }
         render()
     }
 
@@ -309,6 +317,35 @@ class StatsActivity : ImmersiveActivity() {
         }
         val cards = if (game.cardCount > 1) getString(R.string.n_cards, game.cardCount) else null
         return listOfNotNull(mode, cards).joinToString(" · ")
+    }
+
+    /**
+     * Takes this player off the shared boards.
+     *
+     * Separate from resetting the stats on this device, and worded so the difference is plain:
+     * one is a record only you can see, the other is a name in a list everybody can. Confirmed
+     * because nothing puts it back — the entry is rebuilt only by playing a game good enough to
+     * post again.
+     */
+    private fun confirmRemoveFromBoards() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.boards_remove)
+            .setMessage(R.string.boards_remove_confirm)
+            .setPositiveButton(R.string.boards_remove) { _, _ ->
+                LeaderboardRepository().removeFromBoards(PlayerProfile.getId(this)) { boards ->
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        Toast.makeText(
+                            this,
+                            if (boards < 0) getString(R.string.boards_remove_failed)
+                            else getString(R.string.boards_removed),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun confirmReset() {

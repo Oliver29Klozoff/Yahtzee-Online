@@ -145,5 +145,19 @@
             android:text="@string/stats_reset"
             android:textColor="@color/text_muted"
             android:textSize="13sp" />
+
+        <!--
+            Kept apart from the reset above, because they undo different things. That one clears
+            this device; this one takes a score off the boards everybody else can see.
+        -->
+        <Button
+            android:id="@+id/removeFromBoardsButton"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="@string/boards_remove"
+            android:textColor="@color/text_muted"
+            android:textSize="13sp" />
     </LinearLayout>
 </ScrollView>

@@ -78,6 +78,39 @@ class LeaderboardRepository {
      * The same player may finish games on more than one device, and a plain read/compare/write
      * could lose the better result to a concurrent update.
      */
+    /**
+     * Takes this player off every board they appear on.
+     *
+     * The boards are enumerated rather than guessed at. They are keyed by format and by month —
+     * `c6-all`, `c1-2026-09` and so on — so a list built here from what the app happens to know
+     * would quietly leave a player on a board from a month nobody thought about, which is the one
+     * outcome this must not have. "Remove my score" has to mean all of them.
+     *
+     * A removal is a write of null, and Firebase skips validation on those, so nothing in the
+     * rules stands in the way of a player taking their own entry down.
+     */
+    fun removeFromBoards(playerId: String, onDone: (Int) -> Unit = {}) {
+        if (playerId.isEmpty()) {
+            onDone(0)
+            return
+        }
+        boardsRef.get()
+            .addOnSuccessListener { snapshot ->
+                val boards = snapshot.children.mapNotNull { it.key }
+                if (boards.isEmpty()) {
+                    onDone(0)
+                    return@addOnSuccessListener
+                }
+                // One write for the lot, so a player is never half-removed — off some boards and
+                // still standing on others — if the connection goes mid-way.
+                val updates = boards.associate { "$it/$playerId" to null }
+                boardsRef.updateChildren(updates)
+                    .addOnSuccessListener { onDone(boards.size) }
+                    .addOnFailureListener { onDone(-1) }
+            }
+            .addOnFailureListener { onDone(-1) }
+    }
+
     private fun submitBest(
         ref: com.google.firebase.database.DatabaseReference,
         name: String,
