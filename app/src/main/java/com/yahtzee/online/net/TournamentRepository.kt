@@ -9,6 +9,7 @@ import com.yahtzee.online.game.BotNames
 import com.yahtzee.online.game.Entrant
 import com.yahtzee.online.game.Match
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.RoomCode
 import com.yahtzee.online.game.Tournament
 import com.yahtzee.online.game.TournamentState
 import kotlin.random.Random
@@ -29,8 +30,62 @@ class TournamentRepository(private val context: android.content.Context) {
 
     private fun ref(code: String) = db.getReference("tournaments").child(code)
 
-    fun create(name: String, hostName: String, cardCount: Int, onResult: (String) -> Unit) {
-        val code = generateCode()
+    /**
+     * Opens a tournament.
+     *
+     * [desiredCode] is a code the host asked for; null takes a generated one. Held to the same
+     * rules a room code is, so a person who has named one has learnt how to name both.
+     *
+     * A code already in use is refused rather than joined, and [onResult] is handed an empty
+     * string — the host asked to run a tournament, and quietly walking them into somebody else's
+     * is not that.
+     */
+    fun create(
+        name: String,
+        hostName: String,
+        cardCount: Int,
+        desiredCode: String? = null,
+        onResult: (String) -> Unit
+    ) {
+        if (desiredCode != null && !RoomCode.isValid(desiredCode)) {
+            onResult("")
+            return
+        }
+        claimCode(desiredCode, GENERATE_ATTEMPTS) { code ->
+            if (code.isEmpty()) onResult("") else writeTournament(code, name, hostName, cardCount, onResult)
+        }
+    }
+
+    /**
+     * Finds a code nobody is using, or confirms the one asked for is free.
+     *
+     * The generated path retries, for the reason the room version does: creating writes straight
+     * to a key, so a code already in use would have been overwritten and somebody's bracket lost.
+     */
+    private fun claimCode(desired: String?, attemptsLeft: Int, onResult: (String) -> Unit) {
+        if (attemptsLeft <= 0) {
+            onResult("")
+            return
+        }
+        val candidate = desired ?: generateCode()
+        ref(candidate).child("code").get()
+            .addOnSuccessListener { snapshot ->
+                when {
+                    !snapshot.exists() -> onResult(candidate)
+                    desired != null -> onResult("")
+                    else -> claimCode(null, attemptsLeft - 1, onResult)
+                }
+            }
+            .addOnFailureListener { onResult(if (desired != null) "" else candidate) }
+    }
+
+    private fun writeTournament(
+        code: String,
+        name: String,
+        hostName: String,
+        cardCount: Int,
+        onResult: (String) -> Unit
+    ) {
         val now = System.currentTimeMillis()
         val host = mapOf(
             "id" to localPlayerId,
@@ -64,7 +119,12 @@ class TournamentRepository(private val context: android.content.Context) {
      * because starting the draw is the host's to do and a TV cannot press anything.
      */
     fun createSpectator(name: String, cardCount: Int, onResult: (String) -> Unit) {
-        val code = generateCode()
+        claimCode(null, GENERATE_ATTEMPTS) { code ->
+            if (code.isEmpty()) onResult("") else writeSpectator(code, name, cardCount, onResult)
+        }
+    }
+
+    private fun writeSpectator(code: String, name: String, cardCount: Int, onResult: (String) -> Unit) {
         val now = System.currentTimeMillis()
         val payload = mapOf(
             "code" to code,
@@ -275,6 +335,9 @@ class TournamentRepository(private val context: android.content.Context) {
         const val JOIN_NOT_FOUND = 1
         const val JOIN_FULL = 2
         const val JOIN_STARTED = 3
+
+        /** How many generated codes to try before giving up on finding a free one. */
+        private const val GENERATE_ATTEMPTS = 5
     }
 }
 

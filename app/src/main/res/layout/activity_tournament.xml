@@ -63,6 +63,22 @@
                 android:textColor="@color/text_dark"
                 android:autofillHints="" />
 
+            <!--
+                The code people type to enter. Filled in with a generated one, so anybody who does
+                not care presses Create and gets what they always got.
+            -->
+            <EditText
+                android:id="@+id/tourneyNewCodeInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/tourney_new_code_hint"
+                android:inputType="textCapCharacters"
+                android:maxLength="8"
+                android:maxLines="1"
+                android:textColor="@color/text_dark"
+                android:autofillHints="" />
+
             <Button
                 android:id="@+id/createTourneyButton"
                 android:layout_width="match_parent"

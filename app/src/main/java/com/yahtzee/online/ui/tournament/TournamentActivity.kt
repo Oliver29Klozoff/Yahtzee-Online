@@ -18,6 +18,7 @@ import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.Match
 import com.yahtzee.online.game.PlayerProfile
+import com.yahtzee.online.game.RoomCode
 import com.yahtzee.online.game.Tournament
 import com.yahtzee.online.game.TournamentState
 import com.yahtzee.online.game.TournamentStore
@@ -66,6 +67,8 @@ class TournamentActivity : ImmersiveActivity() {
 
         findViewById<ImageButton>(R.id.backButton).setOnClickListener { finish() }
         findViewById<Button>(R.id.createTourneyButton).setOnClickListener { create() }
+        // Prefilled, so anybody who does not care about the code just presses Create.
+        findViewById<EditText>(R.id.tourneyNewCodeInput).setText(RoomCode.random())
         findViewById<Button>(R.id.joinTourneyButton).setOnClickListener { joinTyped() }
         findViewById<Button>(R.id.startDrawButton).setOnClickListener {
             state?.let { repository.start(it) }
@@ -109,13 +112,30 @@ class TournamentActivity : ImmersiveActivity() {
     private fun create() {
         val typed = findViewById<EditText>(R.id.tourneyNameInput).text.toString().trim()
         val name = typed.ifEmpty { getString(R.string.tourney_default_name) }
-        repository.create(name, PlayerProfile.getName(this), cardCount = 1) { created ->
+
+        val codeField = findViewById<EditText>(R.id.tourneyNewCodeInput)
+        val wanted = RoomCode.normalise(codeField.text.toString())
+        if (wanted.isNotEmpty() && !RoomCode.isValid(wanted)) {
+            Toast.makeText(this, R.string.tourney_code_invalid, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        repository.create(
+            name,
+            PlayerProfile.getName(this),
+            cardCount = 1,
+            desiredCode = wanted.ifEmpty { null }
+        ) { created ->
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                if (created.isEmpty()) {
-                    Toast.makeText(this, R.string.tourney_not_found, Toast.LENGTH_SHORT).show()
-                } else {
-                    open(created)
+                when {
+                    created.isNotEmpty() -> open(created)
+                    // Only a chosen code can be refused; a generated one retries until it finds a
+                    // free one, so an empty result here means the code somebody typed is taken.
+                    wanted.isNotEmpty() ->
+                        Toast.makeText(this, R.string.tourney_code_taken, Toast.LENGTH_LONG).show()
+                    else ->
+                        Toast.makeText(this, R.string.tourney_not_found, Toast.LENGTH_SHORT).show()
                 }
             }
         }

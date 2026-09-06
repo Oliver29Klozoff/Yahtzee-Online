@@ -882,13 +882,27 @@ class GameActivity : ImmersiveActivity() {
         // nothing, and every online game posted a total of zero (silently dropped by the
         // repository's own score <= 0 guard) or, with a Yahtzee bonus, just the bonus.
         val total = me.grandTotalAllCards(state.cardCount)
-        PlayedFormats.record(this, state.cardCount)
-        LeaderboardRepository().submitRankedScore(
-            cardCount = state.cardCount,
-            playerId = PlayerProfile.getId(this),
-            name = PlayerProfile.getName(this).ifEmpty { me.name },
-            score = total
-        )
+
+        // A scorepad game is not posted anywhere anybody else can see.
+        //
+        // Its dice are on a table and are typed in, which is exactly what makes the mode worth
+        // having and exactly why its totals cannot go on a shared board: nothing rolled them, so
+        // nothing distinguishes a real game from somebody entering five sixes thirteen times. One
+        // person doing that would make the leaderboard worth nothing to everybody else, and the
+        // ranked boards are the one place in the app where a number is a claim about other
+        // people.
+        //
+        // It still counts on this device. A game played at a real table is a game played, and a
+        // record only you can see is nobody else's to be protected from.
+        if (!state.scorepad) {
+            PlayedFormats.record(this, state.cardCount)
+            LeaderboardRepository().submitRankedScore(
+                cardCount = state.cardCount,
+                playerId = PlayerProfile.getId(this),
+                name = PlayerProfile.getName(this).ifEmpty { me.name },
+                score = total
+            )
+        }
         PlayerStats.record(
             context = this,
             player = me,

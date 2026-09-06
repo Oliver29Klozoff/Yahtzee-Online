@@ -363,6 +363,9 @@
     <string name="tourney_join">JOIN</string>
     <string name="tourney_code_hint">Tournament code</string>
     <string name="tourney_name_hint">What is it called?</string>
+    <string name="tourney_new_code_hint">Code for people to enter with</string>
+    <string name="tourney_code_taken">That code is already in use. Try another.</string>
+    <string name="tourney_code_invalid">Use 3–8 letters or numbers for the code.</string>
     <string name="tourney_default_name">Yahtzee Cup</string>
     <string name="tourney_entrants">ENTRANTS</string>
     <string name="tourney_waiting">Waiting for the host to start the draw.</string>
@@ -373,7 +376,7 @@
     <string name="tourney_gone">That tournament is no longer there.</string>
     <string name="scorepad_put_down">PUT THESE DICE DOWN</string>
     <string name="scorepad_menu">Real dice</string>
-    <string name="scorepad_menu_sub">You roll actual dice. The app keeps the score for everybody.</string>
+    <string name="scorepad_menu_sub">You roll actual dice. The app keeps the score for everybody. Not ranked — typed scores stay off the leaderboard.</string>
     <string name="scorepad_hint">Tap each die to what you rolled, then put them down.</string>
     <string name="nobody">nobody</string>
     <string name="tourney_share">Tournament code: %1$s</string>
