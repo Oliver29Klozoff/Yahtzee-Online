@@ -94,17 +94,54 @@ class LeaderboardRepository {
             onDone(0)
             return
         }
-        boardsRef.get()
+
+        // All three places a score is published, not just the current one.
+        //
+        // `boards` is where ranked games go now, but `leaderboard` still holds entries from
+        // before the split by format — nothing writes to it any more, and it is still read — and
+        // `dailyBoard` carries a row per day the daily challenge was played. A removal that took
+        // somebody off only the newest of the three would leave their name on two lists and
+        // report success, which is worse than not offering it.
+        var pending = 3
+        var removed = 0
+        var failed = false
+
+        fun finish(count: Int) {
+            if (count < 0) failed = true else removed += count
+            if (--pending == 0) onDone(if (failed) -1 else removed)
+        }
+
+        removeUnder(boardsRef, playerId) { finish(it) }
+        removeUnder(dailyRef, playerId) { finish(it) }
+
+        // The one flat node: the player is a direct child rather than a child of each board.
+        boardRef.child(playerId).removeValue()
+            .addOnSuccessListener { finish(1) }
+            .addOnFailureListener { finish(-1) }
+    }
+
+    /**
+     * Removes [playerId] from every child board under [parent].
+     *
+     * The boards are enumerated rather than guessed at. They are keyed by format and by month or
+     * by day — `c6-all`, `c1-2026-09`, a date per daily challenge — so a list built in code would
+     * quietly leave somebody standing on a board nobody thought to name.
+     *
+     * One write for the lot, so a player is never half-removed if the connection goes mid-way.
+     */
+    private fun removeUnder(
+        parent: com.google.firebase.database.DatabaseReference,
+        playerId: String,
+        onDone: (Int) -> Unit
+    ) {
+        parent.get()
             .addOnSuccessListener { snapshot ->
                 val boards = snapshot.children.mapNotNull { it.key }
                 if (boards.isEmpty()) {
                     onDone(0)
                     return@addOnSuccessListener
                 }
-                // One write for the lot, so a player is never half-removed — off some boards and
-                // still standing on others — if the connection goes mid-way.
-                val updates = boards.associate { "$it/$playerId" to null }
-                boardsRef.updateChildren(updates)
+                parent.updateChildren(boards.associate { "$it/$playerId" to null })
                     .addOnSuccessListener { onDone(boards.size) }
                     .addOnFailureListener { onDone(-1) }
             }

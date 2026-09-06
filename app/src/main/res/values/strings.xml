@@ -404,7 +404,7 @@
     <string name="stats_reset">Reset stats</string>
     <string name="stats_reset_confirm">This clears your whole record on this device. Leaderboard scores are not affected.</string>
     <string name="boards_remove">Remove me from the leaderboard</string>
-    <string name="boards_remove_confirm">This takes your name and score off every leaderboard, for every format and every month. It cannot be undone — you would appear again only by posting a new score. Your record on this device is left alone.</string>
+    <string name="boards_remove_confirm">This takes your name and score off every leaderboard — every format, every month, and every daily challenge. It cannot be undone: you would appear again only by posting a new score. Your record on this device is left alone.</string>
     <string name="boards_removed">Removed from the leaderboards.</string>
     <string name="boards_remove_failed">Could not reach the leaderboards. Try again when you are back online.</string>
     <string name="stat_best">Best score</string>
