@@ -204,11 +204,26 @@
         Scorepad rooms only: the dice you actually rolled, typed in.
 
         Sits where the roll button does and replaces it, because in a room with real dice on the
-        table the app has nothing to roll. Five steppers rather than a keypad — the value is
-        always one to six, and tapping a die up is quicker than opening a keyboard for one digit.
+        table the app has nothing to roll. The five dice show what has been entered; the faces are
+        tapped in on the keypad below, which fills them one after another.
     -->
     <LinearLayout
         android:id="@+id/diceEntryRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone" />
+
+    <!--
+        The faces, tapped straight in. Under the dice rather than beside them: a thumb reaching
+        this is covering the keypad, not the hand it is filling in.
+    -->
+    <LinearLayout
+        android:id="@+id/diceKeypadRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"

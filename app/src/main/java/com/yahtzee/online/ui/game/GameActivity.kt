@@ -557,6 +557,7 @@ class GameActivity : ImmersiveActivity() {
      */
     private fun renderScorepad(state: GameState, myTurn: Boolean) {
         val row = findViewById<LinearLayout>(R.id.diceEntryRow)
+        val keypad = findViewById<LinearLayout>(R.id.diceKeypadRow)
 
         findViewById<View>(R.id.rollButton).visibility = View.GONE
         // None of these means anything on a table with real dice. Holding is done with a hand, a
@@ -566,6 +567,7 @@ class GameActivity : ImmersiveActivity() {
         findViewById<View>(R.id.enterDiceButton).visibility = View.GONE
 
         row.visibility = if (myTurn) View.VISIBLE else View.GONE
+        keypad.visibility = if (myTurn) View.VISIBLE else View.GONE
         if (!myTurn) {
             entryShowing = null
             return
@@ -583,7 +585,7 @@ class GameActivity : ImmersiveActivity() {
         if (entryShowing != state.dice) {
             entryShowing = state.dice
             pendingDice = state.dice.toMutableList()
-            DiceEntry.build(this, row, pendingDice) {
+            DiceEntry.build(this, row, keypad, pendingDice) {
                 entryShowing = pendingDice.toList()
                 repository.setDice(roomCode, pendingDice.toList())
             }
