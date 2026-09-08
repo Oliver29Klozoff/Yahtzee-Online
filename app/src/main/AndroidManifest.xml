@@ -112,6 +112,7 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
         <activity android:name=".ui.ReviewActivity" android:exported="false" />
         <activity android:name=".ui.HowToPlayActivity" android:exported="false" />
+        <activity android:name=".ui.GameHistoryActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

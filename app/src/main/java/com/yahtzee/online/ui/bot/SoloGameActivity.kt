@@ -39,6 +39,7 @@ import com.yahtzee.online.game.seatAngle
 import com.yahtzee.online.game.yahtzeeStateFor
 import com.yahtzee.online.net.LeaderboardRepository
 import com.yahtzee.online.net.ProfileRepository
+import com.yahtzee.online.game.GameArchive
 import com.yahtzee.online.game.GameReview
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.LastTurn
@@ -737,6 +738,15 @@ class SoloGameActivity : ImmersiveActivity() {
                 opponents = state.playerOrder.size - 1
             )
         }
+
+        // The card as it finished. A solo game only ever held it in memory, so without this it
+        // goes when the screen does.
+        GameArchive.record(
+            this,
+            state,
+            engine.humanPlayerId,
+            if (dailyId != null) PlayerStats.Mode.DAILY else PlayerStats.Mode.SOLO
+        )
 
         reportTournamentResult(score, state)
         ProfileRepository(this).push()

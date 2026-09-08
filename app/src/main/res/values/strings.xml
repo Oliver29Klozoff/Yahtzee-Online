@@ -404,6 +404,13 @@
     <string name="stats_streak_at_risk">Daily streak: %1$d days — today\'s challenge is still open.</string>
     <string name="stats_boards">Your scores are on the %1$s boards.</string>
     <string name="stats_board_one">1 card</string>
+    <string name="history_title">Past games</string>
+    <string name="history_empty">Games you finish will be kept here, with the full scorecard.</string>
+    <string name="history_open">Past games</string>
+    <string name="history_card">Card %1$d</string>
+    <string name="history_upper_bonus">Top bonus</string>
+    <string name="history_yahtzee_bonus">Yahtzee bonus</string>
+    <string name="history_total">Total</string>
     <string name="stats_reset">Reset stats</string>
     <string name="stats_reset_confirm">This clears your whole record on this device. Leaderboard scores are not affected.</string>
     <string name="boards_remove">Remove me from the leaderboard</string>

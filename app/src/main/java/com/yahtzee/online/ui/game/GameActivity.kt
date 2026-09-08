@@ -22,6 +22,7 @@ import com.yahtzee.online.game.ActiveGamesStore
 import com.yahtzee.online.game.AppSettings
 import com.yahtzee.online.game.TableLogoStore
 import com.yahtzee.online.game.DicePreferences
+import com.yahtzee.online.game.GameArchive
 import com.yahtzee.online.game.GameReview
 import com.yahtzee.online.game.GameState
 import com.yahtzee.online.game.LastTurn
@@ -913,6 +914,9 @@ class GameActivity : ImmersiveActivity() {
             won = state.winnerId == playerId,
             opponents = state.playerOrder.size - 1
         )
+        // The card itself, not just what it was worth. Kept from the state that ended the game,
+        // because the room it came from will be swept away and takes the scorecard with it.
+        GameArchive.record(this, state, playerId, PlayerStats.Mode.ONLINE)
     }
 
     /**

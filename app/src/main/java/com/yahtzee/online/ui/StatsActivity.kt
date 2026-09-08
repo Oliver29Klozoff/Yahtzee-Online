@@ -1,5 +1,6 @@
 package com.yahtzee.online.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -35,6 +36,9 @@ class StatsActivity : ImmersiveActivity() {
         setContentView(R.layout.activity_stats)
 
         findViewById<ImageButton>(R.id.backButton).setOnClickListener { finish() }
+        findViewById<Button>(R.id.pastGamesButton).setOnClickListener {
+            startActivity(Intent(this, GameHistoryActivity::class.java))
+        }
         findViewById<Button>(R.id.resetStatsButton).setOnClickListener { confirmReset() }
         // Always offered, unlike the reset above. A board entry outlives a cleared device: somebody
         // who wipes their stats first and then wants their name off the board would otherwise find
@@ -49,7 +53,10 @@ class StatsActivity : ImmersiveActivity() {
         val hasGames = totals.hasPlayed
 
         findViewById<View>(R.id.statsEmpty).visibility = if (hasGames) View.GONE else View.VISIBLE
-        listOf(R.id.categoryHeading, R.id.recentHeading, R.id.resetStatsButton).forEach {
+        listOf(
+            R.id.categoryHeading, R.id.recentHeading,
+            R.id.resetStatsButton, R.id.pastGamesButton
+        ).forEach {
             findViewById<View>(it).visibility = if (hasGames) View.VISIBLE else View.GONE
         }
         if (!hasGames) {
