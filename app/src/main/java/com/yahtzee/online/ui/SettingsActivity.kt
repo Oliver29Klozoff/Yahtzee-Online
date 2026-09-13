@@ -119,7 +119,20 @@ class SettingsActivity : ImmersiveActivity() {
 
         setUpSliders()
         setUpPipToggle()
-        setUpColourLink()
+        setUpToggle(
+            R.id.diceMatchAccentButton,
+            DicePreferences.matchColours(this)
+        ) { match ->
+            DicePreferences.setMatchColours(this, match)
+            // Brought together the moment it is switched on, so the setting shows what it does
+            // rather than waiting for the next colour to be touched. The dice move to the accent
+            // rather than the other way about: this switch sits under the dice preview, so the
+            // change it causes is the one already on screen in front of whoever pressed it.
+            if (match) {
+                showDiceColour(AccentColor.getColor(this))
+                dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
+            }
+        }
         setUpToggle(
             R.id.keepScreenOnButton,
             AppSettings.keepScreenOn(this)
@@ -305,11 +318,7 @@ class SettingsActivity : ImmersiveActivity() {
             override fun onStopTrackingTouch(bar: SeekBar?) {
                 dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
                 // Caught up once, when the finger comes off and the colour is settled.
-                if (DicePreferences.colourLink(this@SettingsActivity) ==
-                    DicePreferences.ColourLink.ACCENT_FROM_DICE
-                ) {
-                    applyAccent(selectedColor)
-                }
+                if (DicePreferences.matchColours(this@SettingsActivity)) applyAccent(selectedColor)
             }
         }
 
@@ -345,80 +354,31 @@ class SettingsActivity : ImmersiveActivity() {
     }
 
     private fun applyColor(color: Int, reroll: Boolean, linkAccent: Boolean = true) {
-        val linkBefore = DicePreferences.colourLink(this)
         selectedColor = color
-        // Drops a dice-follows-accent link, since picking a colour says what the dice should be.
-        // The button is repainted rather than left naming a link that is no longer in force.
         DicePreferences.setColor(this, color)
-        refreshColourLink()
         dicePreview.setDiceColor(color)
         tintDiceSliders(color)
         if (reroll) dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
         renderSwatches()
 
-        // The other direction: the die just chosen is the input, so the app follows it.
-        if (linkAccent && linkBefore == DicePreferences.ColourLink.ACCENT_FROM_DICE) {
-            applyAccent(color)
-        }
+        // While the two are matched, setting one sets the other. [applyAccent] brings the dice
+        // along the same way, and only ever through [showDiceColour], so neither can call back
+        // into this and start the pair chasing each other.
+        if (linkAccent && DicePreferences.matchColours(this)) applyAccent(color)
     }
 
     /**
-     * The link between the dice and the app accent, stepped through rather than switched.
+     * Puts the dice on [color] without touching the accent.
      *
-     * Three states and not two switches: it is one decision — two colours, and which of them
-     * leads — and a pair of toggles would let somebody turn both on, which is a circle rather
-     * than a preference.
-     *
-     * Choosing a direction applies it at once, so the setting demonstrates itself instead of
-     * being taken on trust until the next game.
+     * The half of [applyColor] that does not propagate, so the accent can bring the dice along
+     * without the dice turning round and setting the accent again.
      */
-    private fun setUpColourLink() {
-        val button = findViewById<Button>(R.id.diceMatchAccentButton)
-
-        fun refresh() {
-            button.text = DicePreferences.colourLink(this).label
-        }
-
-        button.setOnClickListener {
-            val options = DicePreferences.ColourLink.values()
-            val next = options[(options.indexOf(DicePreferences.colourLink(this)) + 1) % options.size]
-            DicePreferences.setColourLink(this, next)
-            refresh()
-
-            when (next) {
-                // The dice take the accent, and the preview shows it immediately.
-                DicePreferences.ColourLink.DICE_FROM_ACCENT -> {
-                    syncDiceToAccent()
-                    dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
-                }
-                // The accent takes whatever the dice already are, so turning it on is itself the
-                // moment the app changes colour rather than waiting for the next dice tap.
-                DicePreferences.ColourLink.ACCENT_FROM_DICE -> applyAccent(selectedColor)
-                // Back to two independent colours: the dice return to the one that was picked.
-                DicePreferences.ColourLink.NONE -> syncDiceToAccent()
-            }
-        }
-
-        refreshColourLink = ::refresh
-        refresh()
-    }
-
-    /** Set once the link button exists, so picking a colour can repaint its label. */
-    private var refreshColourLink: () -> Unit = {}
-
-    /**
-     * Puts the dice back on whichever colour they should now be showing.
-     *
-     * Reads it back from preferences rather than being told, so the one rule about which colour
-     * wins stays in [DicePreferences.getColor] instead of being restated here. The chosen colour
-     * is still stored underneath, which is what lets switching the link off restore it rather
-     * than leave the dice wearing the accent for good.
-     */
-    private fun syncDiceToAccent() {
-        selectedColor = DicePreferences.getColor(this)
-        dicePreview.setDiceColor(selectedColor)
-        tintDiceSliders(selectedColor)
-        syncSlidersTo(selectedColor)
+    private fun showDiceColour(color: Int) {
+        selectedColor = color
+        DicePreferences.setColor(this, color)
+        dicePreview.setDiceColor(color)
+        tintDiceSliders(color)
+        syncSlidersTo(color)
         renderSwatches()
     }
 
@@ -630,14 +590,10 @@ class SettingsActivity : ImmersiveActivity() {
         AccentColor.setColor(this, color)
         AccentColor.retint(findViewById(android.R.id.content), shownAccent, color)
         shownAccent = color
-        // The dice follow the accent while they are set to match, so dragging these sliders moves
-        // both at once — which is the whole point of the setting, and is only visible if the
-        // preview keeps up with the drag.
-        if (DicePreferences.colourLink(this) == DicePreferences.ColourLink.DICE_FROM_ACCENT) {
-            selectedColor = color
-            dicePreview.setDiceColor(color)
-            renderSwatches()
-        }
+        // The dice come with it while the two are matched, so dragging these sliders moves both
+        // at once — which is the whole point of the setting, and is only visible if the preview
+        // keeps up with the drag.
+        if (DicePreferences.matchColours(this)) showDiceColour(color)
         // That repaint reaches every slider on the page, including the dice ones, so their own
         // colour goes back on afterwards.
         tintDiceSliders(selectedColor)
