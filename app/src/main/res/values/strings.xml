@@ -365,6 +365,10 @@
     <string name="tourney_code_hint">Tournament code</string>
     <string name="tourney_name_hint">What is it called?</string>
     <string name="tourney_new_code_hint">Code for people to enter with</string>
+    <string name="tourney_best_of">Each match is</string>
+    <string name="tourney_single_game">One game</string>
+    <string name="tourney_best_of_three">Best of 3</string>
+    <string name="tourney_series">%1$s · best of %2$d</string>
     <string name="tourney_code_taken">That code is already in use. Try another.</string>
     <string name="tourney_code_invalid">Use 3–8 letters or numbers for the code.</string>
     <string name="tourney_default_name">Yahtzee Cup</string>

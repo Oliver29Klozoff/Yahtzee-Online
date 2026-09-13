@@ -43,6 +43,9 @@ class TournamentActivity : ImmersiveActivity() {
 
         /** A code that should be joined on arrival, not merely watched. */
         const val EXTRA_JOIN = "tourney_join"
+
+        /** How long a reported game is waited on before a bot series gives up on the round. */
+        private const val REPORT_TIMEOUT_SECONDS = 20L
     }
 
     private val repository by lazy { TournamentRepository(this) }
@@ -61,6 +64,9 @@ class TournamentActivity : ImmersiveActivity() {
      */
     private val resolving = mutableSetOf<String>()
 
+    /** Fixture length for a tournament being created here. Fixed once the draw exists. */
+    private var bestOf: Int = 1
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_tournament)
@@ -78,6 +84,19 @@ class TournamentActivity : ImmersiveActivity() {
         }
 
         findViewById<Button>(R.id.leaveTourneyButton).setOnClickListener { leave() }
+
+        // Fixture length, chosen before the draw is made and fixed for the whole of it.
+        val bestOfButton = findViewById<Button>(R.id.tourneyBestOfButton)
+        fun paintBestOf() {
+            bestOfButton.text = getString(
+                if (bestOf == 1) R.string.tourney_single_game else R.string.tourney_best_of_three
+            )
+        }
+        bestOfButton.setOnClickListener {
+            bestOf = if (bestOf == 1) 3 else 1
+            paintBestOf()
+        }
+        paintBestOf()
 
         // Whatever this device is already in, unless the intent names something else. Backing out
         // of a bracket should be leaving the room, not leaving the tournament.
@@ -124,6 +143,7 @@ class TournamentActivity : ImmersiveActivity() {
             name,
             PlayerProfile.getName(this),
             cardCount = 1,
+            bestOf = bestOf,
             desiredCode = wanted.ifEmpty { null }
         ) { created ->
             runOnUiThread {
@@ -268,16 +288,44 @@ class TournamentActivity : ImmersiveActivity() {
         // two whole games of that is seconds of work. Run inline it froze the screen for long
         // enough that Android offered to close the app — which from the sofa is indistinguishable
         // from a crash, and is what this looked like.
+        val needed = Tournament.gamesToWin(state.bestOf)
         Thread {
-            due.forEach { match ->
-                val a = BotRun.play(skill)
-                val b = BotRun.play(skill)
-                runOnUiThread {
-                    if (isFinishing || isDestroyed) return@runOnUiThread
-                    repository.report(state.code, match.id, a, b)
-                }
-            }
+            due.forEach { match -> playOutSeries(state.code, match.id, skill, needed) }
         }.start()
+    }
+
+    /**
+     * Plays a bot-against-bot fixture to its conclusion, a game at a time.
+     *
+     * A series has to be reported game by game, because that is how the draw counts it — so each
+     * result waits for the one before it to land rather than being fired off together. Two
+     * reports in flight at once would both read the draw as it stood before either, and count as
+     * the same game of the series.
+     *
+     * Runs on a background thread, and this is not a nicety: at Expert a bot's decisions come
+     * from an exact search over every distinct hand, and a full series of that is seconds of
+     * work. Run inline it froze the screen long enough that Android offered to close the app.
+     */
+    private fun playOutSeries(code: String, matchId: String, skill: AppSettings.BotSkill, needed: Int) {
+        var aWins = 0
+        var bWins = 0
+        while (aWins < needed && bWins < needed) {
+            val a = BotRun.play(skill)
+            val b = BotRun.play(skill)
+            if (a >= b) aWins++ else bWins++
+
+            // Waits for the write, so the next game of the series is counted after this one.
+            val landed = java.util.concurrent.CountDownLatch(1)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) {
+                    landed.countDown()
+                    return@runOnUiThread
+                }
+                repository.report(code, matchId, "", a, b) { landed.countDown() }
+            }
+            if (!landed.await(REPORT_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)) return
+            if (isFinishing || isDestroyed) return
+        }
     }
 
     private fun renderEntrants(state: TournamentState) {

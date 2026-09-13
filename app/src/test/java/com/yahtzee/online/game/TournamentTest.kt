@@ -107,8 +107,8 @@ class TournamentTest {
     fun `the second match of a pair feeds the other seat`() {
         val entrants = field(4)
         var matches = Tournament.draw(entrants)
-        matches = Tournament.settle(matches, Tournament.matchId(0, 0), 250, 190, seedOf(entrants))
-        matches = Tournament.settle(matches, Tournament.matchId(0, 1), 150, 300, seedOf(entrants))
+        matches = Tournament.settle(matches, Tournament.matchId(0, 0), 250, 190, seedOf = seedOf(entrants))
+        matches = Tournament.settle(matches, Tournament.matchId(0, 1), 150, 300, seedOf = seedOf(entrants))
         val final = matches[Tournament.matchId(1, 0)]!!
         assertEquals("p0", final.aId)
         assertEquals("p2", final.bId)
@@ -131,8 +131,8 @@ class TournamentTest {
     fun `settling the same match twice changes nothing the second time`() {
         val entrants = field(4)
         val drawn = Tournament.draw(entrants)
-        val once = Tournament.settle(drawn, Tournament.matchId(0, 0), 250, 190, seedOf(entrants))
-        val twice = Tournament.settle(once, Tournament.matchId(0, 0), 250, 190, seedOf(entrants))
+        val once = Tournament.settle(drawn, Tournament.matchId(0, 0), 250, 190, seedOf = seedOf(entrants))
+        val twice = Tournament.settle(once, Tournament.matchId(0, 0), 250, 190, seedOf = seedOf(entrants))
         assertEquals(once, twice)
     }
 
@@ -141,7 +141,7 @@ class TournamentTest {
         val entrants = field(4)
         val drawn = Tournament.draw(entrants)
         // The final has nobody in it yet.
-        val settled = Tournament.settle(drawn, Tournament.matchId(1, 0), 250, 190, seedOf(entrants))
+        val settled = Tournament.settle(drawn, Tournament.matchId(1, 0), 250, 190, seedOf = seedOf(entrants))
         assertFalse(settled[Tournament.matchId(1, 0)]!!.decided)
     }
 
@@ -149,9 +149,9 @@ class TournamentTest {
     fun `the winner of the last round is the champion`() {
         val entrants = field(4)
         var matches = Tournament.draw(entrants)
-        matches = Tournament.settle(matches, Tournament.matchId(0, 0), 250, 190, seedOf(entrants))
-        matches = Tournament.settle(matches, Tournament.matchId(0, 1), 150, 300, seedOf(entrants))
-        matches = Tournament.settle(matches, Tournament.matchId(1, 0), 400, 100, seedOf(entrants))
+        matches = Tournament.settle(matches, Tournament.matchId(0, 0), 250, 190, seedOf = seedOf(entrants))
+        matches = Tournament.settle(matches, Tournament.matchId(0, 1), 150, 300, seedOf = seedOf(entrants))
+        matches = Tournament.settle(matches, Tournament.matchId(1, 0), 400, 100, seedOf = seedOf(entrants))
         val state = TournamentState(matches = matches)
         assertEquals("p0", state.champion)
     }
@@ -161,7 +161,7 @@ class TournamentTest {
     fun `your next match is the earliest one you have not settled`() {
         val entrants = field(4)
         var matches = Tournament.draw(entrants)
-        matches = Tournament.settle(matches, Tournament.matchId(0, 0), 250, 190, seedOf(entrants))
+        matches = Tournament.settle(matches, Tournament.matchId(0, 0), 250, 190, seedOf = seedOf(entrants))
         val state = TournamentState(matches = matches)
         val next = state.nextMatchFor("p0")!!
         assertEquals(1, next.round)

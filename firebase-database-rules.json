@@ -211,6 +211,9 @@
         "cardCount": {
           ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
         },
+        "bestOf": {
+          ".validate": "newData.isNumber() && (newData.val() === 1 || newData.val() === 3)"
+        },
         "createdAt": {
           ".validate": "newData.isNumber() && newData.val() >= 0"
         },
@@ -266,6 +269,15 @@
             },
             "status": {
               ".validate": "newData.isString() && (newData.val() === 'PENDING' || newData.val() === 'PLAYING' || newData.val() === 'DONE')"
+            },
+            "aWins": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            },
+            "bWins": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            },
+            "lastRoom": {
+              ".validate": "newData.isString() && newData.val().length <= 8"
             },
             "$other": {
               ".validate": false

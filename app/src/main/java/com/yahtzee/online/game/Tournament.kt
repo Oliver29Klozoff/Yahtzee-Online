@@ -21,10 +21,35 @@ data class Match(
     val bScore: Int = 0,
     val winnerId: String = "",
     val roomCode: String = "",
-    val status: String = Tournament.MATCH_PENDING
+    val status: String = Tournament.MATCH_PENDING,
+    /**
+     * Games won so far, for a fixture played as a series.
+     *
+     * Both stay at zero in a single-game tournament, where [winnerId] is set by the one result
+     * and nothing ever reads these. [aScore] and [bScore] remain the scores of the most recent
+     * game rather than a running total — a series is won by taking games, not by aggregate, and
+     * showing a sum would suggest otherwise.
+     */
+    val aWins: Int = 0,
+    val bWins: Int = 0,
+    /**
+     * The room whose result was last counted into the series.
+     *
+     * Both players report the same finished game, and in a series neither report finds the
+     * fixture decided — so without this the one game would be counted twice and a fixture could
+     * be won by a player who took a single game. Keyed on the room because that is what a game
+     * is: the scores cannot tell two games apart, and a series can easily contain two alike.
+     */
+    val lastRoom: String = ""
 ) {
     val id: String get() = Tournament.matchId(round, slot)
     val decided: Boolean get() = winnerId.isNotEmpty()
+
+    /** How the series stands, for a fixture that needs more than one game. */
+    val seriesLine: String get() = "$aWins–$bWins"
+
+    /** True once any game of a series has been played but the fixture is still open. */
+    val seriesUnderway: Boolean get() = !decided && (aWins > 0 || bWins > 0)
 
     /** Both seats filled, so somebody can actually play it. */
     val ready: Boolean get() = aId.isNotEmpty() && bId.isNotEmpty()
@@ -40,6 +65,14 @@ data class TournamentState(
     val hostId: String = "",
     val status: String = Tournament.OPEN,
     val cardCount: Int = 1,
+    /**
+     * Games needed to take a fixture, as the length of the series: 1 or 3.
+     *
+     * Stored on the tournament rather than per match so every fixture in a draw is the same
+     * length — a bracket where the semi-final is longer than the final would need explaining, and
+     * a knockout is already understood without it.
+     */
+    val bestOf: Int = 1,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,
     val players: Map<String, Entrant> = emptyMap(),
@@ -221,27 +254,64 @@ object Tournament {
      * rare but they do happen, and a bracket cannot hold two people in one seat; deciding it on
      * seed is arbitrary but at least it is known in advance, which "replay it" is not.
      */
+    /** Games one side must win to take a fixture: one of one, two of three. */
+    fun gamesToWin(bestOf: Int): Int = bestOf / 2 + 1
+
+    /**
+     * Records one finished game.
+     *
+     * In a single-game tournament this decides the fixture, as it always did. In a series it adds
+     * a game to whoever won it and only decides the fixture once somebody has enough of them.
+     *
+     * A fixture that is not yet decided has its room cleared. Each game of a series is played in
+     * its own room — the old one is a finished game that cannot be reopened, and leaving the code
+     * on the match would send both players back to a board with no turns left in it.
+     */
     fun settle(
         matches: Map<String, Match>,
         matchId: String,
         aScore: Int,
         bScore: Int,
+        bestOf: Int = 1,
+        room: String = "",
         seedOf: (String) -> Int
     ): Map<String, Match> {
         val match = matches[matchId] ?: return matches
         if (!match.ready) return matches
+        if (match.decided) return matches
 
-        val winner = when {
+        // The same game, reported by its other player. Counting it again would hand somebody a
+        // series they had won half of.
+        if (room.isNotEmpty() && room == match.lastRoom) return matches
+
+        // A drawn game still has to go to somebody, and the better seed is the only thing on hand
+        // to break it with. Unchanged from the single-game rule, applied per game of a series.
+        val gameWinner = when {
             aScore > bScore -> match.aId
             bScore > aScore -> match.bId
             seedOf(match.aId) <= seedOf(match.bId) -> match.aId
             else -> match.bId
         }
+
+        val aWins = match.aWins + if (gameWinner == match.aId) 1 else 0
+        val bWins = match.bWins + if (gameWinner == match.bId) 1 else 0
+        val needed = gamesToWin(bestOf)
+
+        val seriesWinner = when {
+            aWins >= needed -> match.aId
+            bWins >= needed -> match.bId
+            else -> ""
+        }
+
         val settled = match.copy(
             aScore = aScore,
             bScore = bScore,
-            winnerId = winner,
-            status = MATCH_DONE
+            aWins = aWins,
+            bWins = bWins,
+            winnerId = seriesWinner,
+            lastRoom = room.ifEmpty { match.lastRoom },
+            roomCode = if (seriesWinner.isEmpty()) "" else match.roomCode,
+            status = if (seriesWinner.isEmpty()) MATCH_PENDING else MATCH_DONE
         )
         return advanceAll(matches + (matchId to settled))
     }

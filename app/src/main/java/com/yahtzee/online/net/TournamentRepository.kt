@@ -44,6 +44,7 @@ class TournamentRepository(private val context: android.content.Context) {
         name: String,
         hostName: String,
         cardCount: Int,
+        bestOf: Int = 1,
         desiredCode: String? = null,
         onResult: (String) -> Unit
     ) {
@@ -52,7 +53,7 @@ class TournamentRepository(private val context: android.content.Context) {
             return
         }
         claimCode(desiredCode, GENERATE_ATTEMPTS) { code ->
-            if (code.isEmpty()) onResult("") else writeTournament(code, name, hostName, cardCount, onResult)
+            if (code.isEmpty()) onResult("") else writeTournament(code, name, hostName, cardCount, bestOf, onResult)
         }
     }
 
@@ -84,6 +85,7 @@ class TournamentRepository(private val context: android.content.Context) {
         name: String,
         hostName: String,
         cardCount: Int,
+        bestOf: Int,
         onResult: (String) -> Unit
     ) {
         val now = System.currentTimeMillis()
@@ -99,6 +101,7 @@ class TournamentRepository(private val context: android.content.Context) {
             "hostId" to localPlayerId,
             "status" to Tournament.OPEN,
             "cardCount" to cardCount,
+            "bestOf" to bestOf,
             "createdAt" to now,
             "updatedAt" to now,
             "players" to mapOf(localPlayerId to host)
@@ -250,14 +253,24 @@ class TournamentRepository(private val context: android.content.Context) {
      * first one said. [Tournament.settle] ignores a match that is already decided, which is what
      * makes the second report harmless.
      */
-    fun report(code: String, matchId: String, aScore: Int, bScore: Int) {
+    fun report(
+        code: String,
+        matchId: String,
+        room: String,
+        aScore: Int,
+        bScore: Int,
+        onDone: () -> Unit = {}
+    ) {
         ref(code).get().addOnSuccessListener { snapshot ->
             val state = snapshot.toTournament()
-            if (state.matches[matchId]?.decided == true) return@addOnSuccessListener
+            if (state.matches[matchId]?.decided == true) {
+                onDone()
+                return@addOnSuccessListener
+            }
 
             val seeds = state.players.mapValues { it.value.seed }
             val settled = Tournament.settle(
-                state.matches, matchId, aScore, bScore
+                state.matches, matchId, aScore, bScore, state.bestOf, room
             ) { id -> seeds[id] ?: Int.MAX_VALUE }
 
             val done = settled.values.filter { it.round == state.rounds - 1 }.all { it.decided }
@@ -267,8 +280,12 @@ class TournamentRepository(private val context: android.content.Context) {
                     "status" to if (done) Tournament.DONE else Tournament.RUNNING,
                     "updatedAt" to System.currentTimeMillis()
                 )
-            )
-        }
+            // Only once the write has landed. A series is reported a game at a time, and each
+            // game is counted against the draw as it then stands — so sending the next one
+            // before this has settled would have both read the same state and count as the same
+            // game of the series.
+            ).addOnCompleteListener { onDone() }
+        }.addOnFailureListener { onDone() }
     }
 
     /**
@@ -278,13 +295,18 @@ class TournamentRepository(private val context: android.content.Context) {
      * scores have to be read after the match is fetched rather than before. [scores] is handed the
      * two seat ids in draw order and answers with their totals in the same order.
      */
-    fun reportFrom(code: String, matchId: String, scores: (String, String) -> Pair<Int, Int>) {
+    fun reportFrom(
+        code: String,
+        matchId: String,
+        room: String,
+        scores: (String, String) -> Pair<Int, Int>
+    ) {
         ref(code).child("matches").child(matchId).get().addOnSuccessListener { snapshot ->
             val aId = snapshot.child("aId").getValue(String::class.java).orEmpty()
             val bId = snapshot.child("bId").getValue(String::class.java).orEmpty()
             if (aId.isEmpty() || bId.isEmpty()) return@addOnSuccessListener
             val (a, b) = scores(aId, bId)
-            report(code, matchId, a, b)
+            report(code, matchId, room, a, b)
         }
     }
 
@@ -350,7 +372,10 @@ private fun Match.toMap(): Map<String, Any?> = mapOf(
     "bScore" to bScore,
     "winnerId" to winnerId,
     "roomCode" to roomCode,
-    "status" to status
+    "status" to status,
+    "aWins" to aWins,
+    "bWins" to bWins,
+    "lastRoom" to lastRoom
 )
 
 private fun DataSnapshot.toTournament(): TournamentState {
@@ -375,7 +400,10 @@ private fun DataSnapshot.toTournament(): TournamentState {
             bScore = entry.child("bScore").getValue(Int::class.java) ?: 0,
             winnerId = entry.child("winnerId").getValue(String::class.java).orEmpty(),
             roomCode = entry.child("roomCode").getValue(String::class.java).orEmpty(),
-            status = entry.child("status").getValue(String::class.java) ?: Tournament.MATCH_PENDING
+            status = entry.child("status").getValue(String::class.java) ?: Tournament.MATCH_PENDING,
+            aWins = entry.child("aWins").getValue(Int::class.java) ?: 0,
+            bWins = entry.child("bWins").getValue(Int::class.java) ?: 0,
+            lastRoom = entry.child("lastRoom").getValue(String::class.java).orEmpty()
         )
     }.toMap()
 
@@ -385,6 +413,7 @@ private fun DataSnapshot.toTournament(): TournamentState {
         hostId = child("hostId").getValue(String::class.java).orEmpty(),
         status = child("status").getValue(String::class.java) ?: Tournament.OPEN,
         cardCount = child("cardCount").getValue(Int::class.java) ?: 1,
+        bestOf = child("bestOf").getValue(Int::class.java) ?: 1,
         createdAt = child("createdAt").getValue(Long::class.java) ?: 0L,
         updatedAt = child("updatedAt").getValue(Long::class.java) ?: 0L,
         players = players,

@@ -987,7 +987,7 @@ class GameActivity : ImmersiveActivity() {
         val matchId = intent.getStringExtra(EXTRA_MATCH_ID).orEmpty()
         if (tourney.isEmpty() || matchId.isEmpty()) return
 
-        TournamentRepository(this).reportFrom(tourney, matchId) { aId, bId ->
+        TournamentRepository(this).reportFrom(tourney, matchId, roomCode) { aId, bId ->
             val a = state.players[aId]?.grandTotalAllCards(state.cardCount) ?: 0
             val b = state.players[bId]?.grandTotalAllCards(state.cardCount) ?: 0
             a to b

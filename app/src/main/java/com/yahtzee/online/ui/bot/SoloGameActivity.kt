@@ -867,7 +867,7 @@ class SoloGameActivity : ImmersiveActivity() {
             .firstOrNull { it.id != engine.humanPlayerId }
             ?.grandTotalAllCards(state.cardCount) ?: 0
         val me = com.yahtzee.online.game.PlayerProfile.getId(this)
-        com.yahtzee.online.net.TournamentRepository(this).reportFrom(code, matchId) { aId, _ ->
+        com.yahtzee.online.net.TournamentRepository(this).reportFrom(code, matchId, "") { aId, _ ->
             if (aId == me) score to botScore else botScore to score
         }
     }

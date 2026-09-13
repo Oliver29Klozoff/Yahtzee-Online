@@ -182,8 +182,13 @@ class BracketView @JvmOverloads constructor(
         canvas.drawLine(box.left, centre, box.right, centre, divider)
 
         val playable = isMine && match.ready && !match.decided
-        drawSeat(canvas, state, match.aId, match.aScore, box.top, match, accent, dark, muted, playable)
-        drawSeat(canvas, state, match.bId, match.bScore, centre, match, accent, dark, muted, playable)
+        // In a series the number beside a name is games won, not points. A fixture is taken by
+        // winning games, so the last game's score says nothing about who is ahead in it.
+        val series = state.bestOf > 1
+        val aFigure = if (series) match.aWins else match.aScore
+        val bFigure = if (series) match.bWins else match.bScore
+        drawSeat(canvas, state, match.aId, aFigure, box.top, match, accent, dark, muted, playable, series)
+        drawSeat(canvas, state, match.bId, bFigure, centre, match, accent, dark, muted, playable, series)
 
         // The one thing to do next, on the row where the eye found your name.
         if (playable) {
@@ -207,7 +212,8 @@ class BracketView @JvmOverloads constructor(
         accent: Int,
         dark: Int,
         muted: Int,
-        playable: Boolean
+        playable: Boolean,
+        series: Boolean
     ) {
         val won = match.decided && match.winnerId == id
         // An empty seat in the first round is a bye; anywhere else it is a fixture still waiting
@@ -231,7 +237,10 @@ class BracketView @JvmOverloads constructor(
         // Only a fixture somebody actually played has a score. A bye is decided the moment the
         // draw is made, so its stored score is a zero that was never rolled — printing it reads as
         // a whitewash rather than as a free pass.
-        val played = match.decided && match.aId.isNotEmpty() && match.bId.isNotEmpty()
+        // A series shows its running tally as soon as a game has been played, so a fixture part
+        // way through reads as one-nil rather than as not started.
+        val settled = match.decided || (series && match.seriesUnderway)
+        val played = settled && match.aId.isNotEmpty() && match.bId.isNotEmpty()
         val scoreText = if (played && id.isNotEmpty()) score.toString() else ""
         val scoreWidth = if (scoreText.isEmpty()) 0f else scorePaint.measureText(scoreText) + dp(6f)
         val room = boxWidth - padding * 2 - scoreWidth
