@@ -17,7 +17,7 @@ object DicePreferences {
     private const val KEY_COLOR = "dice_color"
     private const val KEY_PIP_STYLE = "pip_style"
     private const val KEY_SAVED = "saved_dice"
-    private const val KEY_MATCH_ACCENT = "match_accent"
+    private const val KEY_COLOUR_LINK = "colour_link"
     private const val MAX_SAVED = 12
 
     /**
@@ -99,43 +99,75 @@ object DicePreferences {
     }
 
     /**
+     * Whether the dice and the app accent are tied together, and which way round.
+     *
+     * Both directions exist because the two are chosen for different reasons. Somebody who has
+     * settled on an accent they like wants the dice to come along; somebody who has built a die
+     * they like wants the app painted to match it. Offering only the first makes the dice the
+     * follower for everyone, which is backwards for anybody whose dice were the point.
+     *
+     * They are kept as one setting rather than two switches because they are the same decision:
+     * two colours, and which of them leads. Two independent toggles would allow both on at once,
+     * which is a circular definition rather than a preference.
+     */
+    enum class ColourLink(val label: String) {
+        /** Two colours, chosen separately. */
+        NONE("Off"),
+
+        /** The dice take whatever the app accent is. */
+        DICE_FROM_ACCENT("Dice match accent"),
+
+        /** The app accent takes whatever the dice are. */
+        ACCENT_FROM_DICE("Accent matches dice")
+    }
+
+    /**
      * The colour this player's dice are rolled in.
      *
-     * Answers with the app's accent while [matchesAccent] is on, rather than every caller having
-     * to know about the setting. The dice colour is read in a dozen places — the table, the
-     * preview, the hold chips, the colour written into a room when you sit down — and a rule
+     * Answers with the app's accent while the dice are the follower, rather than every caller
+     * having to know about the setting. The dice colour is read in a dozen places — the table,
+     * the preview, the hold chips, the colour written into a room when you sit down — and a rule
      * about which colour to use belongs in the one place that answers the question.
      *
-     * The chosen colour is kept underneath rather than overwritten, so turning the toggle off
-     * gives back the dice somebody picked rather than leaving them on whatever the accent was.
+     * The chosen colour is kept underneath rather than overwritten, so turning the link off gives
+     * back the dice somebody picked rather than leaving them on whatever the accent was.
+     *
+     * The other direction needs nothing here: when the accent follows the dice it is the accent
+     * that gets written, and the dice keep answering with their own colour as they always did.
      */
     fun getColor(context: Context): Int =
-        if (matchesAccent(context)) AccentColor.getColor(context) else chosenColor(context)
+        if (colourLink(context) == ColourLink.DICE_FROM_ACCENT) AccentColor.getColor(context)
+        else chosenColor(context)
 
     /** The colour picked by hand, whether or not it is the one currently in use. */
     fun chosenColor(context: Context): Int =
         prefs(context).getInt(KEY_COLOR, DieTextureAtlas.DEFAULT_COLOR)
 
     /**
-     * Sets the dice colour, and stops matching the accent.
+     * Sets the dice colour.
      *
-     * Choosing a colour by hand is an instruction to stop following something else. Leaving the
-     * toggle on would take the choice straight back off the player, which reads as the picker
-     * being broken rather than as a setting winning an argument.
+     * Choosing one by hand while the dice were following the accent is an instruction to stop
+     * following it — leaving that on would take the choice straight back off the player, which
+     * reads as the picker being broken rather than as a setting winning an argument.
+     *
+     * The opposite link is left alone, because there the choice is the whole input: picking a die
+     * is how somebody sets the accent, so turning it off would break the thing they just used.
      */
     fun setColor(context: Context, color: Int) {
-        prefs(context).edit()
-            .putInt(KEY_COLOR, color)
-            .putBoolean(KEY_MATCH_ACCENT, false)
-            .apply()
+        val editor = prefs(context).edit().putInt(KEY_COLOR, color)
+        if (colourLink(context) == ColourLink.DICE_FROM_ACCENT) {
+            editor.putString(KEY_COLOUR_LINK, ColourLink.NONE.name)
+        }
+        editor.apply()
     }
 
-    /** Whether the dice follow the app accent instead of carrying a colour of their own. */
-    fun matchesAccent(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_MATCH_ACCENT, false)
+    fun colourLink(context: Context): ColourLink {
+        val name = prefs(context).getString(KEY_COLOUR_LINK, ColourLink.NONE.name)
+        return runCatching { ColourLink.valueOf(name!!) }.getOrDefault(ColourLink.NONE)
+    }
 
-    fun setMatchesAccent(context: Context, match: Boolean) {
-        prefs(context).edit().putBoolean(KEY_MATCH_ACCENT, match).apply()
+    fun setColourLink(context: Context, link: ColourLink) {
+        prefs(context).edit().putString(KEY_COLOUR_LINK, link.name).apply()
     }
 
     /**

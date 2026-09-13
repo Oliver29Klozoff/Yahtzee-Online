@@ -77,7 +77,7 @@
     <string name="version_label">Version %1$s</string>
     <string name="check_for_updates">Check for Updates</string>
     <string name="dice_color">Dice Colour</string>
-    <string name="dice_match_accent">Match the app accent</string>
+    <string name="dice_match_accent">Link with app accent</string>
     <string name="custom_colour">Custom colour — hue, vividness, brightness</string>
     <string name="pip_style">Pips</string>
     <string name="pips_dark">Dark</string>
