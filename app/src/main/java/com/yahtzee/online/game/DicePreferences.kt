@@ -17,6 +17,7 @@ object DicePreferences {
     private const val KEY_COLOR = "dice_color"
     private const val KEY_PIP_STYLE = "pip_style"
     private const val KEY_SAVED = "saved_dice"
+    private const val KEY_MATCH_ACCENT = "match_accent"
     private const val MAX_SAVED = 12
 
     /**
@@ -97,11 +98,44 @@ object DicePreferences {
         prefs(context).edit().putString(KEY_SAVED, array.toString()).apply()
     }
 
+    /**
+     * The colour this player's dice are rolled in.
+     *
+     * Answers with the app's accent while [matchesAccent] is on, rather than every caller having
+     * to know about the setting. The dice colour is read in a dozen places — the table, the
+     * preview, the hold chips, the colour written into a room when you sit down — and a rule
+     * about which colour to use belongs in the one place that answers the question.
+     *
+     * The chosen colour is kept underneath rather than overwritten, so turning the toggle off
+     * gives back the dice somebody picked rather than leaving them on whatever the accent was.
+     */
     fun getColor(context: Context): Int =
+        if (matchesAccent(context)) AccentColor.getColor(context) else chosenColor(context)
+
+    /** The colour picked by hand, whether or not it is the one currently in use. */
+    fun chosenColor(context: Context): Int =
         prefs(context).getInt(KEY_COLOR, DieTextureAtlas.DEFAULT_COLOR)
 
+    /**
+     * Sets the dice colour, and stops matching the accent.
+     *
+     * Choosing a colour by hand is an instruction to stop following something else. Leaving the
+     * toggle on would take the choice straight back off the player, which reads as the picker
+     * being broken rather than as a setting winning an argument.
+     */
     fun setColor(context: Context, color: Int) {
-        prefs(context).edit().putInt(KEY_COLOR, color).apply()
+        prefs(context).edit()
+            .putInt(KEY_COLOR, color)
+            .putBoolean(KEY_MATCH_ACCENT, false)
+            .apply()
+    }
+
+    /** Whether the dice follow the app accent instead of carrying a colour of their own. */
+    fun matchesAccent(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_MATCH_ACCENT, false)
+
+    fun setMatchesAccent(context: Context, match: Boolean) {
+        prefs(context).edit().putBoolean(KEY_MATCH_ACCENT, match).apply()
     }
 
     /**

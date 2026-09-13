@@ -62,6 +62,36 @@
         android:layout_height="150dp"
         android:layout_marginBottom="16dp" />
 
+    <!--
+        Above the palette rather than with the other switches, because it decides whether anything
+        below it applies. Picking a colour turns it off, so the two controls sit together.
+    -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="14dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/dice_match_accent"
+            android:textSize="15sp"
+            android:textColor="@color/text_dark" />
+
+        <Button
+            android:id="@+id/diceMatchAccentButton"
+            style="?android:attr/buttonStyleSmall"
+            android:tag="accentBg"
+            android:backgroundTint="?attr/colorPrimary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="80dp" />
+
+    </LinearLayout>
+
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

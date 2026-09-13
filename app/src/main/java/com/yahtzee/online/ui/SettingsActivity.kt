@@ -120,6 +120,16 @@ class SettingsActivity : ImmersiveActivity() {
         setUpSliders()
         setUpPipToggle()
         setUpToggle(
+            R.id.diceMatchAccentButton,
+            DicePreferences.matchesAccent(this)
+        ) { match ->
+            DicePreferences.setMatchesAccent(this, match)
+            // Straight onto the preview, so the switch shows what it did rather than being taken
+            // on trust until the next game.
+            syncDiceToAccent()
+            dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
+        }
+        setUpToggle(
             R.id.keepScreenOnButton,
             AppSettings.keepScreenOn(this)
         ) { AppSettings.setKeepScreenOn(this, it) }
@@ -336,11 +346,35 @@ class SettingsActivity : ImmersiveActivity() {
 
     private fun applyColor(color: Int, reroll: Boolean) {
         selectedColor = color
+        // Stops matching the accent, since picking a colour is saying what the dice should be.
+        // The toggle is repainted rather than left reading On over a colour it is not applying.
         DicePreferences.setColor(this, color)
+        refreshMatchAccentToggle()
         dicePreview.setDiceColor(color)
         tintDiceSliders(color)
         if (reroll) dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
         renderSwatches()
+    }
+
+    /**
+     * Puts the dice back in step with the accent, or back on the colour they were given.
+     *
+     * Called both when the toggle is pressed and whenever the accent moves while it is on, so the
+     * preview is never showing a colour the dice are not actually rolled in. The chosen colour is
+     * still in preferences underneath, which is what lets switching off restore it rather than
+     * leave the dice wearing the accent for good.
+     */
+    private fun syncDiceToAccent() {
+        selectedColor = DicePreferences.getColor(this)
+        dicePreview.setDiceColor(selectedColor)
+        tintDiceSliders(selectedColor)
+        syncSlidersTo(selectedColor)
+        renderSwatches()
+    }
+
+    private fun refreshMatchAccentToggle() {
+        findViewById<Button>(R.id.diceMatchAccentButton).text =
+            getString(if (DicePreferences.matchesAccent(this)) R.string.on else R.string.off)
     }
 
     /**
@@ -551,6 +585,14 @@ class SettingsActivity : ImmersiveActivity() {
         AccentColor.setColor(this, color)
         AccentColor.retint(findViewById(android.R.id.content), shownAccent, color)
         shownAccent = color
+        // The dice follow the accent while they are set to match, so dragging these sliders moves
+        // both at once — which is the whole point of the setting, and is only visible if the
+        // preview keeps up with the drag.
+        if (DicePreferences.matchesAccent(this)) {
+            selectedColor = color
+            dicePreview.setDiceColor(color)
+            renderSwatches()
+        }
         // That repaint reaches every slider on the page, including the dice ones, so their own
         // colour goes back on afterwards.
         tintDiceSliders(selectedColor)
