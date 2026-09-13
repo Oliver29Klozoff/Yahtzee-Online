@@ -21,12 +21,15 @@
         android:letterSpacing="0.08"
         android:textColor="@color/text_muted" />
 
-    <TextView
-        android:id="@+id/sectionSubtotal"
+    <!--
+        One cell per scorecard, built to the same width and margin as the score cells below, so
+        each subtotal sits directly over the column it belongs to rather than in a run of numbers
+        that only happens to be in the right order.
+    -->
+    <LinearLayout
+        android:id="@+id/sectionSubtotalCells"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:textColor="@color/text_muted" />
+        android:orientation="horizontal" />
 
 </LinearLayout>

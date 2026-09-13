@@ -107,15 +107,22 @@ class ScorecardAdapter(
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_section_header, parent, false)
         view.findViewById<TextView>(R.id.sectionTitle).text = row.title
 
-        val subtotalView = view.findViewById<TextView>(R.id.sectionSubtotal)
+        // Every card's upper subtotal, standing over the column it belongs to.
+        //
+        // These used to be one string with spaces between the numbers, which put them in the
+        // right order and nowhere near the right place — two columns of differing digit counts
+        // pushed the run sideways, so the figure above a column was rarely that column's. Built
+        // as cells to the same width and margin as the scores, they line up by construction.
+        val subtotals = view.findViewById<LinearLayout>(R.id.sectionSubtotalCells)
+        subtotals.removeAllViews()
         if (row.title == "Upper Section" && state != null) {
-            // Every card's upper subtotal, in the same order as the columns below it.
-            subtotalView.text = (0 until cardCount()).joinToString("   ") { card ->
-                Category.UPPER.sumOf { scoresFor(card)[it] ?: 0 }.toString()
+            subtotals.visibility = View.VISIBLE
+            for (card in 0 until cardCount()) {
+                val upperTotal = Category.UPPER.sumOf { scoresFor(card)[it] ?: 0 }
+                subtotals.addView(headerCell(upperTotal.toString()))
             }
-            subtotalView.visibility = View.VISIBLE
         } else {
-            subtotalView.visibility = View.GONE
+            subtotals.visibility = View.GONE
         }
         return view
     }
@@ -244,6 +251,28 @@ class ScorecardAdapter(
         shape = GradientDrawable.RECTANGLE
         cornerRadius = 10f * context.resources.displayMetrics.density
         setColor(color)
+    }
+
+    /**
+     * A subtotal standing over a score column.
+     *
+     * Takes the column's width and margin so it lines up, but keeps the header's own smaller,
+     * quieter type rather than the score badges'. Only the width does the aligning; matching the
+     * text size as well would make the header as tall as a scoring row, on a card that has no
+     * height to spare.
+     */
+    private fun headerCell(text: String) = TextView(context).apply {
+        this.text = text
+        gravity = Gravity.CENTER
+        textSize = 12f
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setTextColor(muted())
+        layoutParams = LinearLayout.LayoutParams(
+            context.resources.getDimensionPixelSize(R.dimen.score_cell),
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).also {
+            it.marginStart = (5 * context.resources.displayMetrics.density).toInt()
+        }
     }
 
     private fun textCell(text: String, color: Int, wide: Boolean = false) = TextView(context).apply {
