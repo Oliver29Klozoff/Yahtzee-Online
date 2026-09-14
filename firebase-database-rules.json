@@ -372,6 +372,9 @@
             "at": {
               ".validate": "newData.isNumber()"
             },
+            "replyTo": {
+              ".validate": "newData.isString() && newData.val().length <= 64"
+            },
             "$other": {
               ".validate": false
             }

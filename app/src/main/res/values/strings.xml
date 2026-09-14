@@ -290,6 +290,11 @@
     <string name="chat_send">Send</string>
     <string name="chat_empty">Nothing said yet. Whoever goes first, goes first.</string>
     <string name="chat_open">Chat</string>
+    <string name="chat_reply">Reply</string>
+    <string name="chat_delete">Delete</string>
+    <string name="chat_reply_cancel">Cancel</string>
+    <string name="chat_replying_to">↪ %1$s: %2$s</string>
+    <string name="chat_reply_gone">↪ message removed</string>
     <string name="chat_delete_title">Delete message</string>
     <string name="chat_delete_message">Remove “%1$s” for everyone?</string>
 

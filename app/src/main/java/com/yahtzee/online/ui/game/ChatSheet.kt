@@ -45,10 +45,24 @@ class ChatSheet(private val activity: Activity) {
     /** Kept so a redraw can rewire the long-press without the caller passing it again. */
     private var onDelete: ((ChatMessage) -> Unit)? = null
 
+    private var replyBar: View? = null
+    private var replyLabel: TextView? = null
+
+    /**
+     * The message being answered, or null.
+     *
+     * Held on the sheet rather than passed around because it outlives a redraw: the room updates
+     * several times a turn, and a reply half typed must not lose what it was aimed at.
+     */
+    private var replyingTo: ChatMessage? = null
+
+    /** The history as last drawn, so a quoted line can be looked up by id. */
+    private var known: List<ChatMessage> = emptyList()
+
     fun show(
         messages: List<ChatMessage>,
         localPlayerId: String,
-        onSend: (String) -> Unit,
+        onSend: (String, String) -> Unit,
         onDelete: (ChatMessage) -> Unit
     ) {
         this.onDelete = onDelete
@@ -71,11 +85,17 @@ class ChatSheet(private val activity: Activity) {
         send?.backgroundTintList = android.content.res.ColorStateList.valueOf(accent)
         send?.setTextColor(ColorContrast.textOn(accent))
 
+        replyBar = sheet.findViewById(R.id.chatReplyBar)
+        replyLabel = sheet.findViewById(R.id.chatReplyLabel)
+        sheet.findViewById<Button>(R.id.chatReplyCancel)?.setOnClickListener { stopReplying() }
+
         val submit = {
             val text = input?.text?.toString().orEmpty()
             if (Chat.clean(text) != null) {
-                onSend(text)
+                onSend(text, replyingTo?.id.orEmpty())
                 input?.setText("")
+                // The reply is spent once sent; the next message is its own unless aimed again.
+                stopReplying()
             }
         }
         send?.setOnClickListener { submit() }
@@ -95,6 +115,9 @@ class ChatSheet(private val activity: Activity) {
             listView = null
             emptyView = null
             scroll = null
+            replyBar = null
+            replyLabel = null
+            replyingTo = null
         }
 
         dialog = sheet
@@ -122,6 +145,65 @@ class ChatSheet(private val activity: Activity) {
         render(messages, localPlayerId)
     }
 
+    /**
+     * What holding a message offers.
+     *
+     * A menu rather than a straight action, because there are now two things a long press could
+     * mean and only one of them is undoable. Replying is offered on every message; taking one
+     * back only on your own.
+     */
+    private fun showActions(message: ChatMessage, mine: Boolean) {
+        val actions = buildList {
+            add(activity.getString(R.string.chat_reply) to { startReplying(message) })
+            if (mine) add(activity.getString(R.string.chat_delete) to { confirmDelete(message) })
+        }
+
+        // One option is not a choice worth showing a menu for.
+        if (actions.size == 1) {
+            actions.first().second()
+            return
+        }
+
+        AlertDialog.Builder(activity)
+            .setItems(actions.map { it.first }.toTypedArray()) { _, which ->
+                actions[which].second()
+            }
+            .show()
+    }
+
+    private fun startReplying(message: ChatMessage) {
+        replyingTo = message
+        replyBar?.visibility = View.VISIBLE
+        replyLabel?.text = activity.getString(
+            R.string.chat_replying_to,
+            message.senderName,
+            message.text
+        )
+    }
+
+    private fun stopReplying() {
+        replyingTo = null
+        replyBar?.visibility = View.GONE
+    }
+
+    /**
+     * The line quoted above a reply, or null if this message answers nothing.
+     *
+     * A reply can outlive what it answered — the history is pruned, and a message can be taken
+     * back — so a missing original is said plainly rather than left as a reply to nothing, which
+     * reads as the quote having failed to load.
+     */
+    private fun quotedFor(message: ChatMessage): String? {
+        if (message.replyTo.isEmpty()) return null
+        val original = known.firstOrNull { it.id == message.replyTo }
+            ?: return activity.getString(R.string.chat_reply_gone)
+        return activity.getString(
+            R.string.chat_replying_to,
+            original.senderName,
+            original.text
+        )
+    }
+
     private fun confirmDelete(message: ChatMessage) {
         AlertDialog.Builder(activity)
             .setTitle(R.string.chat_delete_title)
@@ -138,6 +220,7 @@ class ChatSheet(private val activity: Activity) {
 
         emptyView?.visibility = if (messages.isEmpty()) View.VISIBLE else View.GONE
         list.removeAllViews()
+        known = messages
 
         val density = activity.resources.displayMetrics.density
         val accent = AccentColor.resolve(activity)
@@ -163,6 +246,20 @@ class ChatSheet(private val activity: Activity) {
                     setTextColor(if (mine) accent else activity.getColor(R.color.text_muted))
                 }
             )
+            // What this answers, above what it says, in the order the two are read.
+            quotedFor(message)?.let { quoted ->
+                block.addView(
+                    AppCompatTextView(activity).apply {
+                        text = quoted
+                        textSize = 12f
+                        maxLines = 2
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setTextColor(activity.getColor(R.color.text_muted))
+                        gravity = if (mine) Gravity.END else Gravity.START
+                    }
+                )
+            }
+
             block.addView(
                 AppCompatTextView(activity).apply {
                     text = message.text
@@ -172,14 +269,13 @@ class ChatSheet(private val activity: Activity) {
                 }
             )
 
-            // Hold your own message to take it back. Only your own: deleting somebody else's
-            // words is a different thing entirely, and not one a dice game needs.
-            if (mine) {
-                block.isLongClickable = true
-                block.setOnLongClickListener {
-                    confirmDelete(message)
-                    true
-                }
+            // Hold any message to answer it; your own also offers taking it back. Deleting
+            // somebody else's words stays off the menu — a different thing entirely, and not one
+            // a dice game needs.
+            block.isLongClickable = true
+            block.setOnLongClickListener {
+                showActions(message, mine)
+                true
             }
             list.addView(block)
         }

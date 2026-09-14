@@ -614,7 +614,7 @@ class GameActivity : ImmersiveActivity() {
         chatSheet.show(
             state.chat,
             playerId,
-            onSend = { text -> repository.sendChat(roomCode, text) },
+            onSend = { text, replyTo -> repository.sendChat(roomCode, text, replyTo) },
             onDelete = { message -> repository.deleteChat(roomCode, message) }
         )
         findViewById<Button>(R.id.chatButton).setText(R.string.chat_open)

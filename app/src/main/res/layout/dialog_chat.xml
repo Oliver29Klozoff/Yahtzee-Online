@@ -51,6 +51,41 @@
         android:textColor="@color/text_muted"
         android:visibility="gone" />
 
+    <!--
+        What is being replied to, directly above the box it will be sent from, so the thing the
+        message is answering is the last thing read before typing it.
+    -->
+    <LinearLayout
+        android:id="@+id/chatReplyBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/chatReplyLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="@color/text_muted" />
+
+        <Button
+            android:id="@+id/chatReplyCancel"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:text="@string/chat_reply_cancel"
+            android:textSize="12sp"
+            android:textColor="@color/text_muted" />
+
+    </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

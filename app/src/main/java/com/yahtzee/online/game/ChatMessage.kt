@@ -19,7 +19,16 @@ data class ChatMessage(
     val senderId: String,
     val senderName: String,
     val text: String,
-    val at: Long
+    val at: Long,
+    /**
+     * The message this one answers, or empty.
+     *
+     * Just the id. The quoted line is looked up in the history rather than copied in beside it,
+     * so an edited or withdrawn message does not leave a stale copy of itself quoted underneath
+     * somebody else's reply. The cost is that a reply outliving what it answered has nothing to
+     * show, which the sheet says plainly instead of pretending.
+     */
+    val replyTo: String = ""
 )
 
 object Chat {

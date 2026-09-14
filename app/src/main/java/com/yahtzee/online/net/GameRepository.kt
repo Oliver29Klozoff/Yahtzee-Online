@@ -471,7 +471,7 @@ class GameRepository(private val context: android.content.Context) {
      * re-downloading all of it many times a turn. Pruning is done by whoever is sending, since
      * they are already writing.
      */
-    fun sendChat(code: String, text: String) {
+    fun sendChat(code: String, text: String, replyTo: String = "") {
         val message = Chat.clean(text) ?: return
         if (code.isEmpty()) return
 
@@ -482,7 +482,8 @@ class GameRepository(private val context: android.content.Context) {
                 "senderId" to localPlayerId,
                 "senderName" to PlayerProfile.getName(context).ifEmpty { "Player" },
                 "text" to message,
-                "at" to System.currentTimeMillis()
+                "at" to System.currentTimeMillis(),
+                "replyTo" to replyTo
             )
         ).addOnSuccessListener { pruneChat(code) }
     }
@@ -962,7 +963,8 @@ private fun DataSnapshot.toGameState(): GameState? {
             senderId = entry.child("senderId").getValue(String::class.java).orEmpty(),
             senderName = entry.child("senderName").getValue(String::class.java).orEmpty(),
             text = text,
-            at = entry.child("at").getValue(Long::class.java) ?: 0L
+            at = entry.child("at").getValue(Long::class.java) ?: 0L,
+            replyTo = entry.child("replyTo").getValue(String::class.java).orEmpty()
         )
     }.sortedBy { it.at }
 
