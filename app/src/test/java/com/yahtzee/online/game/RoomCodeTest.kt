@@ -70,17 +70,41 @@ class RoomCodeTest {
     }
 
     /**
-     * The generated alphabet leaves out the characters that get read back wrong.
+     * Nothing generated contains a digit, which is what disposes of the confusable pairs.
      *
-     * A code is spoken across a table as often as it is typed, and I against 1 and O against 0
-     * are the pairs that cost somebody three attempts to join.
+     * The old character generator left out I, O, 0 and 1 because they are misheard against each
+     * other when a code is spelled out. A name is said rather than spelled, and with no digits
+     * anywhere in the pool there is nothing for a letter to be mistaken for — so the exclusion is
+     * no longer needed and the letters are free to spell words.
      */
     @Test
-    fun `generated codes avoid the confusable characters`() {
+    fun `generated codes carry no digits`() {
         val random = Random(99)
         val seen = (1..2000).map { RoomCode.random(random) }.joinToString("").toSet()
-        listOf('I', 'O', '0', '1').forEach {
-            assertFalse("generated codes should never contain $it", it in seen)
+        assertTrue("a generated code should be letters only", seen.all { it in 'A'..'Z' })
+    }
+
+    /** Every name has to be a code, or the one that is not will fail on the day it is drawn. */
+    @Test
+    fun `every name is a usable code`() {
+        RoomCode.NAMES.forEach {
+            assertTrue("$it is not a valid room code", RoomCode.isValid(it))
         }
+    }
+
+    @Test
+    fun `no name is repeated`() {
+        assertEquals(RoomCode.NAMES.size, RoomCode.NAMES.toSet().size)
+    }
+
+    /**
+     * Enough of them that drawing again on a clash stays rare.
+     *
+     * The repositories retry a handful of times before giving up on making a room at all, so a
+     * thin pool would not merely repeat itself — it would start refusing to open rooms.
+     */
+    @Test
+    fun `the pool is big enough to draw from`() {
+        assertTrue("pool of ${RoomCode.NAMES.size} is too thin", RoomCode.NAMES.size >= 60)
     }
 }
