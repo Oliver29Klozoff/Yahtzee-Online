@@ -44,6 +44,14 @@ class TournamentActivity : ImmersiveActivity() {
         /** A code that should be joined on arrival, not merely watched. */
         const val EXTRA_JOIN = "tourney_join"
 
+        /**
+         * A fixture to open as soon as the draw has loaded.
+         *
+         * Set by a finished game of a series handing back: the next game is a new room, and
+         * making one is this screen's job rather than the board's.
+         */
+        const val EXTRA_PLAY_MATCH = "tourney_play_match"
+
         /** How long a reported game is waited on before a bot series gives up on the round. */
         private const val REPORT_TIMEOUT_SECONDS = 20L
     }
@@ -66,6 +74,14 @@ class TournamentActivity : ImmersiveActivity() {
 
     /** Fixture length for a tournament being created here. Fixed once the draw exists. */
     private var bestOf: Int = 1
+
+    /**
+     * A fixture asked for before the draw was available, opened on the first state that has it.
+     *
+     * Cleared as soon as it is used, so a later update of the same tournament does not open the
+     * game a second time.
+     */
+    private var pendingPlay: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,6 +116,8 @@ class TournamentActivity : ImmersiveActivity() {
 
         // Whatever this device is already in, unless the intent names something else. Backing out
         // of a bracket should be leaving the room, not leaving the tournament.
+        pendingPlay = intent.getStringExtra(EXTRA_PLAY_MATCH)?.takeIf { it.isNotEmpty() }
+
         val joining = intent.getStringExtra(EXTRA_JOIN)?.takeIf { it.isNotEmpty() }
         if (joining != null) {
             joinCode(joining)
@@ -108,6 +126,36 @@ class TournamentActivity : ImmersiveActivity() {
                 ?: TournamentStore.current(this).takeIf { it.isNotEmpty() }
             opening?.let { open(it) }
         }
+    }
+
+    /**
+     * Arrives when a finished game of a series hands the next one back.
+     *
+     * The draw is not necessarily loaded yet, so the request is held and acted on by the first
+     * state that carries the fixture — see [openPendingMatch].
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra(EXTRA_PLAY_MATCH)?.takeIf { it.isNotEmpty() }?.let {
+            pendingPlay = it
+        }
+        val code = intent.getStringExtra(EXTRA_CODE)?.takeIf { it.isNotEmpty() } ?: return
+        if (code != this.code) open(code) else state?.let { openPendingMatch(it) }
+    }
+
+    /**
+     * Opens the fixture somebody asked for on their way back from the last game of it.
+     *
+     * Only while it is genuinely still playable. A series that the reported result has just
+     * decided is finished, and opening a game for it would make a room the draw would never count
+     * -- so the request is dropped and the bracket simply stays up.
+     */
+    private fun openPendingMatch(state: TournamentState) {
+        val matchId = pendingPlay ?: return
+        val match = state.matches[matchId] ?: return
+        pendingPlay = null
+        if (match.ready && !match.decided) playMatch(state, match)
     }
 
     /** Steps out of this tournament so a different one can be made or joined. */
@@ -216,7 +264,10 @@ class TournamentActivity : ImmersiveActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 state = fresh
-                fresh?.let { render(it) }
+                fresh?.let {
+                    render(it)
+                    openPendingMatch(it)
+                }
             }
         }
     }

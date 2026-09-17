@@ -762,6 +762,11 @@ class SoloGameActivity : ImmersiveActivity() {
         }
 
         val winnerName = state.decidedWinner()?.name ?: getString(R.string.nobody)
+
+        // A fixture ends on the draw's terms, not with an offer of another game: see
+        // showFixtureOver, which waits for the result to be counted before saying what is next.
+        if (tourneyCode != null && matchId != null) return
+
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
             .setMessage(getString(R.string.winner_is, winnerName))
@@ -867,9 +872,51 @@ class SoloGameActivity : ImmersiveActivity() {
             .firstOrNull { it.id != engine.humanPlayerId }
             ?.grandTotalAllCards(state.cardCount) ?: 0
         val me = com.yahtzee.online.game.PlayerProfile.getId(this)
-        com.yahtzee.online.net.TournamentRepository(this).reportFrom(code, matchId, "") { aId, _ ->
+        val winnerName = state.decidedWinner()?.name ?: getString(R.string.nobody)
+        com.yahtzee.online.net.TournamentRepository(this).reportFrom(
+            code,
+            matchId,
+            "",
+            onSettled = { match ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    showFixtureOver(match, winnerName)
+                }
+            }
+        ) { aId, _ ->
             if (aId == me) score to botScore else botScore to score
         }
+    }
+
+    /**
+     * How a fixture against a bot ends.
+     *
+     * The next game of a series is another game on this device, so it simply deals one -- there
+     * is no room to make, which is the one way this is easier than the same ending online.
+     *
+     * Nothing is offered when the fixture is over, or when the draw could not be read: without
+     * knowing whether the series is done, dealing another game could play one the bracket has no
+     * intention of counting.
+     */
+    private fun showFixtureOver(match: com.yahtzee.online.game.Match?, winnerName: String) {
+        val seriesOpen = match != null && !match.decided
+        val builder = AlertDialog.Builder(this)
+            .setTitle(R.string.game_over)
+            .setMessage(
+                if (seriesOpen && match != null) {
+                    getString(R.string.tourney_series_stands, winnerName, match.seriesLine)
+                } else {
+                    getString(R.string.winner_is, winnerName)
+                }
+            )
+            .setNeutralButton(R.string.see_review) { _, _ -> openReview() }
+            .setNegativeButton(R.string.tourney_back_to_bracket) { _, _ -> finish() }
+            .setCancelable(false)
+
+        if (seriesOpen) {
+            builder.setPositiveButton(R.string.tourney_play_next) { _, _ -> restartSoloGame() }
+        }
+        builder.show()
     }
 
 }

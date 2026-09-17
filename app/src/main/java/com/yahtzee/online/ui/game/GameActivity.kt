@@ -54,6 +54,7 @@ import com.yahtzee.online.net.ProfileRepository
 import com.yahtzee.online.net.TournamentRepository
 import com.yahtzee.online.net.TurnNotifier
 import com.yahtzee.online.ui.ImmersiveActivity
+import com.yahtzee.online.ui.tournament.TournamentActivity
 
 class GameActivity : ImmersiveActivity() {
 
@@ -853,6 +854,12 @@ class GameActivity : ImmersiveActivity() {
         // The stats this game just changed, filed against the identity rather than the phone.
         ProfileRepository(this).push()
         val winnerName = state.decidedWinner()?.name ?: "?"
+
+        // A tournament fixture is a different ending: there is no rematch to offer, because the
+        // draw decides what happens next. The dialog waits for the result to be counted so it can
+        // say which of the two endings this is.
+        if (tourneyCode().isNotEmpty()) return
+
         AlertDialog.Builder(this)
             .setTitle(R.string.game_over)
             .setMessage(getString(R.string.winner_is, winnerName))
@@ -982,16 +989,92 @@ class GameActivity : ImmersiveActivity() {
      * Scores are read against the match's own seats rather than against who is sitting where in
      * this room, since the room has no idea which of its players was drawn on which side.
      */
+    private fun tourneyCode(): String = intent.getStringExtra(EXTRA_TOURNEY_CODE).orEmpty()
+
     private fun reportTournamentResult(state: GameState) {
-        val tourney = intent.getStringExtra(EXTRA_TOURNEY_CODE).orEmpty()
+        val tourney = tourneyCode()
         val matchId = intent.getStringExtra(EXTRA_MATCH_ID).orEmpty()
         if (tourney.isEmpty() || matchId.isEmpty()) return
 
-        TournamentRepository(this).reportFrom(tourney, matchId, roomCode) { aId, bId ->
+        val winnerName = state.decidedWinner()?.name ?: "?"
+        TournamentRepository(this).reportFrom(
+            tourney,
+            matchId,
+            roomCode,
+            onSettled = { match ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    showFixtureOver(tourney, matchId, match, winnerName)
+                }
+            }
+        ) { aId, bId ->
             val a = state.players[aId]?.grandTotalAllCards(state.cardCount) ?: 0
             val b = state.players[bId]?.grandTotalAllCards(state.cardCount) ?: 0
             a to b
         }
+    }
+
+    /**
+     * How a tournament fixture ends.
+     *
+     * Never "play again". A rematch resets this very room, and the draw has already counted its
+     * result — replaying it would report the same room a second time and be ignored as a
+     * duplicate, so the button would appear to do nothing at all.
+     *
+     * What it offers instead depends on the fixture. A series still open has a next game to play,
+     * which is a new room rather than this one, so it hands back to the bracket and asks it to
+     * open the fixture again. A fixture that is over has nowhere to go but the bracket.
+     *
+     * A match that could not be read leaves only the way back, which is the honest offer: without
+     * knowing whether the series is done, inviting somebody to play on could send them into a
+     * game that no longer counts.
+     */
+    private fun showFixtureOver(
+        tourney: String,
+        matchId: String,
+        match: com.yahtzee.online.game.Match?,
+        winnerName: String
+    ) {
+        val seriesOpen = match != null && !match.decided
+        val builder = AlertDialog.Builder(this)
+            .setTitle(R.string.game_over)
+            .setMessage(
+                if (seriesOpen && match != null) {
+                    getString(R.string.tourney_series_stands, winnerName, match.seriesLine)
+                } else {
+                    getString(R.string.winner_is, winnerName)
+                }
+            )
+            .setNeutralButton(R.string.see_review) { _, _ ->
+                startActivity(android.content.Intent(this, com.yahtzee.online.ui.ReviewActivity::class.java))
+                finish()
+            }
+            .setNegativeButton(R.string.tourney_back_to_bracket) { _, _ ->
+                ActiveGamesStore.untrack(this, roomCode)
+                TurnNotifier.clear(this, roomCode)
+                finish()
+            }
+            .setCancelable(false)
+
+        if (seriesOpen) {
+            builder.setPositiveButton(R.string.tourney_play_next) { _, _ ->
+                ActiveGamesStore.untrack(this, roomCode)
+                TurnNotifier.clear(this, roomCode)
+                // Back to the bracket, which owns making the next room. Reusing the instance
+                // already underneath this one rather than stacking a second copy of it.
+                startActivity(
+                    android.content.Intent(this, TournamentActivity::class.java)
+                        .addFlags(
+                            android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        )
+                        .putExtra(TournamentActivity.EXTRA_CODE, tourney)
+                        .putExtra(TournamentActivity.EXTRA_PLAY_MATCH, matchId)
+                )
+                finish()
+            }
+        }
+        builder.show()
     }
 
     override fun onStart() {

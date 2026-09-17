@@ -370,6 +370,9 @@
     <string name="tourney_code_hint">Tournament code</string>
     <string name="tourney_name_hint">What is it called?</string>
     <string name="tourney_new_code_hint">Code for people to enter with</string>
+    <string name="tourney_play_next">Play next game</string>
+    <string name="tourney_back_to_bracket">Back to bracket</string>
+    <string name="tourney_series_stands">%1$s takes it. Series stands at %2$s.</string>
     <string name="tourney_best_of">Each match is</string>
     <string name="tourney_single_game">One game</string>
     <string name="tourney_best_of_three">Best of 3</string>

@@ -299,15 +299,29 @@ class TournamentRepository(private val context: android.content.Context) {
         code: String,
         matchId: String,
         room: String,
+        onSettled: (Match?) -> Unit = {},
         scores: (String, String) -> Pair<Int, Int>
     ) {
         ref(code).child("matches").child(matchId).get().addOnSuccessListener { snapshot ->
             val aId = snapshot.child("aId").getValue(String::class.java).orEmpty()
             val bId = snapshot.child("bId").getValue(String::class.java).orEmpty()
-            if (aId.isEmpty() || bId.isEmpty()) return@addOnSuccessListener
+            if (aId.isEmpty() || bId.isEmpty()) {
+                onSettled(null)
+                return@addOnSuccessListener
+            }
             val (a, b) = scores(aId, bId)
-            report(code, matchId, room, a, b)
-        }
+            // Read back after the write rather than worked out here: whether a fixture is
+            // finished is the draw's answer, not this caller's, and a series is only decided
+            // once the result has actually been counted into it.
+            report(code, matchId, room, a, b) { readMatch(code, matchId, onSettled) }
+        }.addOnFailureListener { onSettled(null) }
+    }
+
+    /** One fixture as it now stands. */
+    fun readMatch(code: String, matchId: String, onResult: (Match?) -> Unit) {
+        ref(code).child("matches").child(matchId).get()
+            .addOnSuccessListener { onResult(it.toMatch()) }
+            .addOnFailureListener { onResult(null) }
     }
 
     /**
@@ -378,6 +392,21 @@ private fun Match.toMap(): Map<String, Any?> = mapOf(
     "lastRoom" to lastRoom
 )
 
+private fun DataSnapshot.toMatch(): Match = Match(
+    round = child("round").getValue(Int::class.java) ?: 0,
+    slot = child("slot").getValue(Int::class.java) ?: 0,
+    aId = child("aId").getValue(String::class.java).orEmpty(),
+    bId = child("bId").getValue(String::class.java).orEmpty(),
+    aScore = child("aScore").getValue(Int::class.java) ?: 0,
+    bScore = child("bScore").getValue(Int::class.java) ?: 0,
+    winnerId = child("winnerId").getValue(String::class.java).orEmpty(),
+    roomCode = child("roomCode").getValue(String::class.java).orEmpty(),
+    status = child("status").getValue(String::class.java) ?: Tournament.MATCH_PENDING,
+    aWins = child("aWins").getValue(Int::class.java) ?: 0,
+    bWins = child("bWins").getValue(Int::class.java) ?: 0,
+    lastRoom = child("lastRoom").getValue(String::class.java).orEmpty()
+)
+
 private fun DataSnapshot.toTournament(): TournamentState {
     val players = child("players").children.mapNotNull { entry ->
         val id = entry.key ?: return@mapNotNull null
@@ -391,20 +420,7 @@ private fun DataSnapshot.toTournament(): TournamentState {
 
     val matches = child("matches").children.mapNotNull { entry ->
         val id = entry.key ?: return@mapNotNull null
-        id to Match(
-            round = entry.child("round").getValue(Int::class.java) ?: 0,
-            slot = entry.child("slot").getValue(Int::class.java) ?: 0,
-            aId = entry.child("aId").getValue(String::class.java).orEmpty(),
-            bId = entry.child("bId").getValue(String::class.java).orEmpty(),
-            aScore = entry.child("aScore").getValue(Int::class.java) ?: 0,
-            bScore = entry.child("bScore").getValue(Int::class.java) ?: 0,
-            winnerId = entry.child("winnerId").getValue(String::class.java).orEmpty(),
-            roomCode = entry.child("roomCode").getValue(String::class.java).orEmpty(),
-            status = entry.child("status").getValue(String::class.java) ?: Tournament.MATCH_PENDING,
-            aWins = entry.child("aWins").getValue(Int::class.java) ?: 0,
-            bWins = entry.child("bWins").getValue(Int::class.java) ?: 0,
-            lastRoom = entry.child("lastRoom").getValue(String::class.java).orEmpty()
-        )
+        id to entry.toMatch()
     }.toMap()
 
     return TournamentState(
