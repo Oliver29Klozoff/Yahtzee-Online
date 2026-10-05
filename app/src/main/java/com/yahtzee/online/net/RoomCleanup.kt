@@ -39,17 +39,29 @@ object RoomCleanup {
     /** How often any one device bothers. The work is shared and idempotent. */
     private const val SWEEP_INTERVAL_MS = DAY
 
+    /**
+     * How long each kind of room is kept.
+     *
+     * Public because Settings tells players these numbers, and a screen that restated them would
+     * be free to drift from the sweep that enforces them -- which is the one thing a promise
+     * about losing somebody's game must not do.
+     */
+    const val LOBBY_TTL_HOURS = 6
+    const val FINISHED_TTL_DAYS = 2
+    const val PLAYING_TTL_DAYS = 14
+    const val DUEL_TTL_DAYS = 30
+
     /** Nobody ever started it. */
-    private const val LOBBY_TTL_MS = 6 * HOUR
+    private const val LOBBY_TTL_MS = LOBBY_TTL_HOURS * HOUR
 
     /** Everyone has seen the result. */
-    private const val FINISHED_TTL_MS = 2 * DAY
+    private const val FINISHED_TTL_MS = FINISHED_TTL_DAYS * DAY
 
     /** A game in progress, which may legitimately be played a turn a day. */
-    private const val PLAYING_TTL_MS = 14 * DAY
+    private const val PLAYING_TTL_MS = PLAYING_TTL_DAYS * DAY
 
     /** How long a duel is kept, counted from when it was opened rather than last touched. */
-    private const val DUEL_TTL_MS = 30 * DAY
+    private const val DUEL_TTL_MS = DUEL_TTL_DAYS * DAY
 
     /** Deleted per sweep, so one launch never turns into a long run of writes. */
     private const val BATCH = 25

@@ -646,6 +646,64 @@
         android:paddingBottom="8dp" />
 
     <!--
+        How long a game survives being left alone.
+
+        Collapsed like its neighbours, but here for a different reason than the credit below: this
+        is the answer to a question people actually ask, and the only place the app has ever
+        admitted that rooms are deleted at all.
+    -->
+    <LinearLayout
+        android:id="@+id/keptHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?attr/selectableItemBackground"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/kept_title"
+            android:textAllCaps="true"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.08"
+            android:textColor="@color/text_muted" />
+
+        <TextView
+            android:id="@+id/keptChevron"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/expand_chevron"
+            android:textSize="13sp"
+            android:tag="accentText"
+            android:textColor="?attr/colorPrimary" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/keptBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/keptText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:lineSpacingExtra="4dp"
+            android:paddingBottom="12dp"
+            android:textColor="@color/text_muted" />
+
+    </LinearLayout>
+
+    <!--
         Who made the parts of this that were not made here.
 
         Collapsed, like the recovery section above it, and for the same reason: nobody opens

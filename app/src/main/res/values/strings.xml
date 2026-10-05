@@ -130,6 +130,15 @@
 
     <!-- Accent and profile recovery -->
     <string name="app_accent">App accent</string>
+    <!-- How long a room survives being left alone; the numbers come from RoomCleanup. -->
+    <string name="kept_title">How long games are kept</string>
+    <string name="kept_body">A game you are still playing is kept for %1$d days after the last turn anybody takes, so a game played a turn a day stays put as long as somebody keeps playing it.
+
+A finished game is kept %2$d days, and a room nobody ever started is cleared after %3$d hours.
+
+Challenges are kept %4$d days from when they are opened.
+
+Your own record is not affected. Finished scorecards are saved on this device and stay in Past games whatever happens to the room.</string>
     <string name="profile_recovery">Profile recovery</string>
     <string name="profile_recovery_explainer">This code is your identity: your leaderboard place, your daily results and your seat in every unfinished game. Save it somewhere, and you can pick all of it up on another phone.</string>
     <string name="expand_chevron">Show</string>

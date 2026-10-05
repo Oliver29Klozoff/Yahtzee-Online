@@ -27,6 +27,7 @@ import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.PlayerProfile
 import com.yahtzee.online.game.ProfileRecovery
 import com.yahtzee.online.game.TableLogoStore
+import com.yahtzee.online.net.RoomCleanup
 import com.yahtzee.online.net.ProfileRepository
 import com.yahtzee.online.update.UpdateChecker
 
@@ -97,6 +98,7 @@ class SettingsActivity : ImmersiveActivity() {
             null
         }
         versionText.text = getString(R.string.version_label, versionName ?: "—")
+        setUpKept()
         setUpAbout()
 
         checkButton.setOnClickListener {
@@ -614,6 +616,31 @@ class SettingsActivity : ImmersiveActivity() {
      * and that licence asks for the creator, the licence and a route back to the original — which
      * a link on a website nobody visits does not really give.
      */
+    /**
+     * How long a game survives being left alone.
+     *
+     * The numbers are read from [RoomCleanup] rather than written into the text, because this is
+     * a promise about somebody losing a game and a screen free to disagree with the sweep that
+     * enforces it would eventually make the wrong one.
+     */
+    private fun setUpKept() {
+        findViewById<TextView>(R.id.keptText).text = getString(
+            R.string.kept_body,
+            RoomCleanup.PLAYING_TTL_DAYS,
+            RoomCleanup.FINISHED_TTL_DAYS,
+            RoomCleanup.LOBBY_TTL_HOURS,
+            RoomCleanup.DUEL_TTL_DAYS
+        )
+
+        val body = findViewById<LinearLayout>(R.id.keptBody)
+        val chevron = findViewById<TextView>(R.id.keptChevron)
+        findViewById<View>(R.id.keptHeader).setOnClickListener {
+            val opening = body.visibility != View.VISIBLE
+            body.visibility = if (opening) View.VISIBLE else View.GONE
+            chevron.setText(if (opening) R.string.collapse_chevron else R.string.expand_chevron)
+        }
+    }
+
     private fun setUpAbout() {
         val body = findViewById<LinearLayout>(R.id.aboutBody)
         val chevron = findViewById<TextView>(R.id.aboutChevron)
