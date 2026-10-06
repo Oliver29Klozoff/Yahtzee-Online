@@ -48,7 +48,15 @@ class LocalGameEngine(
      * you Hugo is the same bot wearing two names, and there is no way for a player to tell that
      * from a bug.
      */
-    private val botNames: List<String> = emptyList()
+    private val botNames: List<String> = emptyList(),
+    /**
+     * The far end of the player's dice, or 0 for a plain one.
+     *
+     * Last and named rather than beside [humanColor], because every argument before it is passed
+     * positionally by the one caller and slipping a parameter into the middle of that list would
+     * silently shift the rest.
+     */
+    humanColorB: Int = 0
 ) {
 
     companion object {
@@ -91,7 +99,8 @@ class LocalGameEngine(
             id = humanPlayerId,
             name = humanName,
             joinedAt = System.currentTimeMillis(),
-            diceColor = humanColor
+            diceColor = humanColor,
+            diceColorB = humanColorB
         )
         val botColors = botColoursAvoiding(humanColor, botCount)
         // Given names win; the shuffled pool is only a backstop for a caller that passed none.

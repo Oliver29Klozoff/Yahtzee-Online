@@ -3,9 +3,15 @@ package com.yahtzee.online.game
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.RippleDrawable
+import android.graphics.drawable.StateListDrawable
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
@@ -28,6 +34,10 @@ object AccentColor {
 
     private const val PREFS = "accent_color"
     private const val KEY_COLOR = "accent_value"
+    private const val KEY_GRADIENT = "accent_gradient"
+
+    /** How far round the hue wheel a gradient's dark end sits from the accent, in degrees. */
+    private const val HUE_SHIFT = 16f
 
     /** Layout tags marking what carries the accent, so recolouring never has to guess. */
     private const val TAG_TEXT = "accentText"
@@ -58,6 +68,40 @@ object AccentColor {
 
     fun setColor(context: Context, color: Int) {
         prefs(context).edit().putInt(KEY_COLOR, color).apply()
+    }
+
+    /**
+     * Whether buttons are filled with a sweep of the accent rather than a flat block of it.
+     *
+     * Off by default, and deliberately a setting rather than the new look: a gradient reads as
+     * livelier to some people and as noise to others, and the one thing it must not do is make
+     * the accent harder to recognise as the accent. The sweep therefore starts *at* the chosen
+     * colour and only deepens from there — see [gradientEnd] — so a cobalt app still looks
+     * cobalt rather than turning into some third colour nobody picked.
+     */
+    fun gradient(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_GRADIENT, false)
+
+    fun setGradient(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY_GRADIENT, on).apply()
+    }
+
+    /**
+     * The far end of a gradient button: the same colour taken deeper.
+     *
+     * Derived rather than paired, because the accent can be any colour at all and there is no
+     * list of partners that could have been written down. A small nudge round the hue wheel
+     * stops the fade reading as a plain shadow, and the vividness is lifted a touch to keep the
+     * dark end from going muddy; the brightness floor keeps it from reaching black, where a
+     * button's bottom edge would disappear into the page.
+     */
+    fun gradientEnd(accent: Int): Int {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(accent, hsv)
+        hsv[0] = (hsv[0] + HUE_SHIFT) % 360f
+        hsv[1] = (hsv[1] * 1.08f).coerceAtMost(1f)
+        hsv[2] = (hsv[2] * 0.58f).coerceAtLeast(0.2f)
+        return Color.HSVToColor(Color.alpha(accent), hsv)
     }
 
     /**
@@ -115,6 +159,9 @@ object AccentColor {
      */
     fun retint(root: View, themeColor: Int, accent: Int) {
         val tint = ColorStateList.valueOf(accent)
+        // Read once for the whole walk rather than per view: it is a single app-wide setting, and
+        // a preference lookup on every view of every screen is a cost with nothing to show for it.
+        val useGradient = gradient(root.context)
         walk(root) { view ->
             // Sliders and spinners are tinted by the theme itself, so they carry no value worth
             // comparing and are simply set.
@@ -133,7 +180,7 @@ object AccentColor {
             // A tag cannot miss.
             when (view.tag) {
                 TAG_TEXT -> (view as? TextView)?.setTextColor(accent)
-                TAG_BACKGROUND -> view.backgroundTintList = tint
+                TAG_BACKGROUND -> paintBackground(view, accent, useGradient)
             }
 
             // Anything untagged still gets the old treatment, so a view added later without a
@@ -147,6 +194,92 @@ object AccentColor {
             }
         }
     }
+
+    /**
+     * Fills one accented view, as a flat block of [accent] or as a sweep of it.
+     *
+     * Only buttons ever take the sweep. The same tag is carried by text boxes — the room-code
+     * field on the front screen is one — and a field whose fill shades from one end to the other
+     * is harder to read for no gain: the gradient is there to give a *pressable* thing some
+     * weight, and a box you type into is not that.
+     */
+    private fun paintBackground(view: View, accent: Int, gradient: Boolean) {
+        if (!gradient || view !is Button) {
+            // Covers switching the setting back off as well as the ordinary flat case: the
+            // button's own drawable goes back on before the tint does.
+            restoreOriginal(view)
+            view.backgroundTintList = ColorStateList.valueOf(accent)
+            return
+        }
+        // Stashed on the first pass only. A later retint — dragging the accent sliders — paints a
+        // fresh gradient over a gradient, and overwriting the stash with one would lose the only
+        // copy of the real background.
+        if (view.getTag(R.id.accent_original_bg) == null) {
+            view.setTag(R.id.accent_original_bg, view.background)
+        }
+        view.background = gradientFill(view, accent)
+        // The gradient carries its own colours. Left in place, the tint would multiply through
+        // both ends and flatten the sweep back into one colour.
+        view.backgroundTintList = null
+    }
+
+    private fun restoreOriginal(view: View) {
+        val original = view.getTag(R.id.accent_original_bg) as? Drawable ?: return
+        view.background = original
+        view.setTag(R.id.accent_original_bg, null)
+    }
+
+    /**
+     * A button fill that shades from [accent] into [gradientEnd], with the press and disabled
+     * states the platform drawable it replaces would have provided.
+     *
+     * The insets and the corner are the framework's own button metrics rather than a look of our
+     * own choosing. They are what gives a stack of buttons the gaps between them, so a fill
+     * without them would leave the gradient buttons visibly larger than every other button in
+     * the app and touching their neighbours — the setting is meant to change the colour of a
+     * button, not its size.
+     */
+    private fun gradientFill(view: View, accent: Int): Drawable {
+        val density = view.resources.displayMetrics.density
+        val radius = CORNER_DP * density
+        val sweep = {
+            GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(accent, gradientEnd(accent))
+            ).apply { cornerRadius = radius }
+        }
+
+        // A mask rather than an unbounded ripple, so the touch feedback stops at the rounded
+        // corner instead of spilling out past the button's edge.
+        val mask = GradientDrawable().apply {
+            setColor(Color.WHITE)
+            cornerRadius = radius
+        }
+        val pressable = RippleDrawable(
+            ColorStateList.valueOf(Color.argb(0x4D, 0xFF, 0xFF, 0xFF)),
+            sweep(),
+            mask
+        )
+        // Disabled buttons are common here — the update check disables its own button while it
+        // runs — and a gradient that ignored the state would leave them looking live.
+        val disabled = sweep().apply { alpha = DISABLED_ALPHA }
+
+        val states = StateListDrawable().apply {
+            addState(intArrayOf(-android.R.attr.state_enabled), disabled)
+            addState(IntArray(0), pressable)
+        }
+        val horizontal = (INSET_HORIZONTAL_DP * density).toInt()
+        val vertical = (INSET_VERTICAL_DP * density).toInt()
+        return InsetDrawable(states, horizontal, vertical, horizontal, vertical)
+    }
+
+    /** The framework's button metrics, matched so a gradient button is the same size as a flat one. */
+    private const val CORNER_DP = 4f
+    private const val INSET_HORIZONTAL_DP = 4f
+    private const val INSET_VERTICAL_DP = 6f
+
+    /** How much of a disabled button's fill still shows, roughly the platform's own dimming. */
+    private const val DISABLED_ALPHA = 0x4D
 
     /** What the current theme resolves the accent attribute to, before any retinting. */
     fun themeColorOf(context: Context): Int {

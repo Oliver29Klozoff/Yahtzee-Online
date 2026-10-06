@@ -11,8 +11,20 @@ data class Player(
      * whoever is rolling in their own colour. 0 means "not set" — players on older builds have
      * no value here — and callers fall back to the default cobalt.
      */
-    val diceColor: Int = 0
-)
+    val diceColor: Int = 0,
+    /**
+     * The far end of a two-tone die, or 0 for a plain one.
+     *
+     * Synced like [diceColor] rather than kept on the device, because the dice on the table are
+     * coloured from whoever is rolling them — a gradient held locally would never appear on the
+     * table at all, not even on its owner's screen.
+     */
+    val diceColorB: Int = 0
+) {
+    /** Both ends of this player's dice, the second falling back to the first. */
+    val diceColors: Pair<Int, Int>
+        get() = diceColor to (diceColorB.takeIf { it != 0 } ?: diceColor)
+}
 
 data class GameState(
     val roomCode: String = "",

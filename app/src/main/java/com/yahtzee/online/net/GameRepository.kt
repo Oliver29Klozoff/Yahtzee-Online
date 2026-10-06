@@ -11,6 +11,7 @@ import com.yahtzee.online.game.BotNames
 import com.yahtzee.online.game.Category
 import com.yahtzee.online.game.Chat
 import com.yahtzee.online.game.ChatMessage
+import com.yahtzee.online.game.DicePreferences
 import com.yahtzee.online.game.DiceRoller
 import com.yahtzee.online.game.MAX_ROLLS_PER_TURN
 import com.yahtzee.online.game.Nudge
@@ -131,7 +132,8 @@ class GameRepository(private val context: android.content.Context) {
             id = localPlayerId,
             name = hostName,
             joinedAt = System.currentTimeMillis(),
-            diceColor = diceColor
+            diceColor = diceColor,
+            diceColorB = DicePreferences.secondColor(context)
         )
         val state = GameState(
             roomCode = code,
@@ -290,13 +292,17 @@ class GameRepository(private val context: android.content.Context) {
             if (existing.exists()) {
                 ref.child("players").child(localPlayerId).child("name").setValue(playerName)
                 ref.child("players").child(localPlayerId).child("diceColor").setValue(diceColor)
+                // A colour changed between sittings reaches the table on the way back in.
+                ref.child("players").child(localPlayerId).child("diceColorB")
+                    .setValue(DicePreferences.secondColor(context))
             } else {
                 ref.child("players").child(localPlayerId).setValue(
                     Player(
                         id = localPlayerId,
                         name = playerName,
                         joinedAt = System.currentTimeMillis(),
-                        diceColor = diceColor
+                        diceColor = diceColor,
+                        diceColorB = DicePreferences.secondColor(context)
                     )
                 )
             }
@@ -908,7 +914,8 @@ private fun Player.toMap(): Map<String, Any?> = mapOf(
     "yahtzeeBonusCount" to yahtzeeBonusCount,
     // Was missing, which silently dropped the HOST's dice colour: joining writes the Player
     // object directly and so carried it, but room creation goes through this map.
-    "diceColor" to diceColor
+    "diceColor" to diceColor,
+    "diceColorB" to diceColorB
 )
 
 private fun DataSnapshot.toGameState(): GameState? {
@@ -928,7 +935,8 @@ private fun DataSnapshot.toGameState(): GameState? {
         }.toMap()
         val bonus = playerSnap.child("yahtzeeBonusCount").getValue(Int::class.java) ?: 0
         val diceColor = playerSnap.child("diceColor").getValue(Int::class.java) ?: 0
-        id to Player(id, name, joinedAt, scores, bonus, diceColor)
+        val diceColorB = playerSnap.child("diceColorB").getValue(Int::class.java) ?: 0
+        id to Player(id, name, joinedAt, scores, bonus, diceColor, diceColorB)
     }.toMap()
     val currentTurnIndex = child("currentTurnIndex").getValue(Int::class.java) ?: 0
     val rollsUsed = child("rollsUsed").getValue(Int::class.java) ?: 0

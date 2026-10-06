@@ -136,7 +136,19 @@ class Dice3DView @JvmOverloads constructor(
      * frame, so this is safe to call from the UI thread at any point.
      */
     fun setDiceColor(color: Int) {
+        setDiceColors(color, color)
+    }
+
+    /**
+     * A two-tone die: [color] at one corner, [second] at the opposite one.
+     *
+     * Kept alongside the single-colour setter rather than replacing it, because most callers are
+     * colouring somebody else's dice from the one colour the room carries and have no second to
+     * offer.
+     */
+    fun setDiceColors(color: Int, second: Int) {
         renderer.diceColor = color
+        renderer.diceSecondColor = second
     }
 
     /** Pip colouring; the atlas is regenerated on the GL thread next frame. */

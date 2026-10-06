@@ -187,7 +187,8 @@ class SoloGameActivity : ImmersiveActivity() {
             dailyId?.let { DailyChallenge.tapeFor(it) }
                 ?: duelCode?.let { Duel.tapeFor(it) }
 ,
-            botNamesFor(saved, botCount)
+            botNamesFor(saved, botCount),
+            humanColorB = DicePreferences.secondColor(this)
         )
 
         // From here on this screen can be rebuilt from the saved game.
@@ -455,10 +456,12 @@ class SoloGameActivity : ImmersiveActivity() {
         // Dice take the colour of whoever is rolling, so you can tell at a glance whether the
         // table belongs to you or to a bot. No-op unless the value actually changed. Frozen
         // through the hand-over so the table does not change hands before anything has happened.
-        val activeColor = state.players[shownPlayerId]?.diceColor
+        val player = state.players[shownPlayerId]
+        val activeColor = player?.diceColor
             ?.takeIf { it != 0 }
             ?: DieTextureAtlas.DEFAULT_COLOR
-        dice3DView.setDiceColor(activeColor)
+        // Both ends, so a two-tone die reads as one on the table rather than only in Settings.
+        dice3DView.setDiceColors(activeColor, player?.diceColors?.second ?: activeColor)
 
         renderDice(state)
         renderHoldRow(state, myTurn)

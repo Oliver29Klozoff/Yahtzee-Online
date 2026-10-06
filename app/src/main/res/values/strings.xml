@@ -79,6 +79,9 @@
     <string name="dice_color">Dice Colour</string>
     <string name="dice_match_accent">Match dice and app colours</string>
     <string name="custom_colour">Custom colour — hue, vividness, brightness</string>
+    <string name="dice_two_tone">Two-tone — blended corner to corner</string>
+    <string name="accent_gradient">Gradient buttons</string>
+    <string name="accent_gradient_hint">Fades buttons from the accent into a deeper shade</string>
     <string name="pip_style">Pips</string>
     <string name="pips_dark">Dark</string>
     <string name="pips_light">White</string>

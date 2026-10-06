@@ -37,6 +37,15 @@ class SettingsActivity : ImmersiveActivity() {
     private lateinit var dicePreview: Dice3DView
     private val sound by lazy { SoundEngine(this) }
     private var selectedColor: Int = DicePreferences.PALETTE.first().second
+
+    /**
+     * The far end of the dice, equal to [selectedColor] on a plain die.
+     *
+     * Tracked beside it rather than re-read from preferences on every repaint, for the same
+     * reason the first colour is: the sliders need to show what is being made mid-drag, before
+     * anything has been stored.
+     */
+    private var selectedSecond: Int = DicePreferences.PALETTE.first().second
     private var pipStyle: DicePreferences.PipStyle = DicePreferences.PipStyle.AUTO
 
     /** Guards the sliders while they are being set from a preset, so they do not feed back. */
@@ -111,10 +120,11 @@ class SettingsActivity : ImmersiveActivity() {
         }
 
         selectedColor = DicePreferences.getColor(this)
+        selectedSecond = DicePreferences.secondColor(this)
         pipStyle = DicePreferences.pipStyle(this)
 
         dicePreview = findViewById(R.id.dicePreview)
-        dicePreview.setDiceColor(selectedColor)
+        dicePreview.setDiceColors(selectedColor, selectedSecond)
         dicePreview.setPipStyle(pipStyle)
 
         dicePreview.setTableColor(AppSettings.tableColor(this))
@@ -134,6 +144,22 @@ class SettingsActivity : ImmersiveActivity() {
                 showDiceColour(AccentColor.getColor(this))
                 dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
             }
+        }
+        setUpToggle(
+            R.id.accentGradientButton,
+            AccentColor.gradient(this)
+        ) { on ->
+            AccentColor.setGradient(this, on)
+            // Repainted rather than rebuilt, so the page stays where it is and the toggle that
+            // was just pressed is one of the buttons that changes — which is the whole of what
+            // the setting does, shown immediately.
+            AccentColor.retint(
+                findViewById(android.R.id.content),
+                shownAccent,
+                AccentColor.getColor(this)
+            )
+            // That walk reaches every slider on the page, the dice ones included.
+            tintDiceSliders(selectedColor)
         }
         setUpToggle(
             R.id.keepScreenOnButton,
@@ -179,6 +205,7 @@ class SettingsActivity : ImmersiveActivity() {
 
         setUpProfileRecovery()
         renderSwatches()
+        renderGradients()
         renderTableColors()
         renderAccentColors()
         renderSavedDice()
@@ -355,13 +382,29 @@ class SettingsActivity : ImmersiveActivity() {
         }
     }
 
-    private fun applyColor(color: Int, reroll: Boolean, linkAccent: Boolean = true) {
+    private fun applyColor(color: Int, reroll: Boolean, linkAccent: Boolean = true) =
+        applyColors(color, color, reroll, linkAccent)
+
+    /**
+     * Puts the dice on [color] fading into [second], and stores it.
+     *
+     * A plain die is the case where the two agree, so there is one path through here rather than
+     * two: picking a flat colour and picking a two-tone pair differ only in what is passed.
+     */
+    private fun applyColors(
+        color: Int,
+        second: Int,
+        reroll: Boolean,
+        linkAccent: Boolean = true
+    ) {
         selectedColor = color
-        DicePreferences.setColor(this, color)
-        dicePreview.setDiceColor(color)
+        selectedSecond = second
+        DicePreferences.setColors(this, color, second)
+        dicePreview.setDiceColors(color, second)
         tintDiceSliders(color)
         if (reroll) dicePreview.rollTo(List(5) { (1..6).random() }, List(5) { false })
         renderSwatches()
+        renderGradients()
 
         // While the two are matched, setting one sets the other. [applyAccent] brings the dice
         // along the same way, and only ever through [showDiceColour], so neither can call back
@@ -377,11 +420,16 @@ class SettingsActivity : ImmersiveActivity() {
      */
     private fun showDiceColour(color: Int) {
         selectedColor = color
+        // Matching the accent means matching one colour, so a two-tone die goes plain when the
+        // accent brings the dice along. Keeping the far end would leave the pair visibly unmatched
+        // while the setting that matched them was switched on.
+        selectedSecond = color
         DicePreferences.setColor(this, color)
-        dicePreview.setDiceColor(color)
+        dicePreview.setDiceColors(color, color)
         tintDiceSliders(color)
         syncSlidersTo(color)
         renderSwatches()
+        renderGradients()
     }
 
     /**
@@ -788,13 +836,54 @@ class SettingsActivity : ImmersiveActivity() {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(color)
-                    if (color == selectedColor) {
+                    // A two-tone die is not "on" either of its ends, so nothing in this row is
+                    // ringed while a gradient is the choice — otherwise picking Dusk would leave
+                    // Cobalt looking selected as well as Dusk.
+                    if (color == selectedColor && selectedSecond == selectedColor) {
                         setStroke((3 * density).toInt(), Color.WHITE)
                     }
                 }
                 setOnClickListener {
                     applyColor(color, reroll = true)
                     syncSlidersTo(color)
+                }
+            }
+            swatch.layoutParams = LinearLayout.LayoutParams(size, size)
+                .also { it.marginEnd = (12 * density).toInt() }
+            row.addView(swatch)
+        }
+    }
+
+    /**
+     * The two-tone presets, each swatch showing both ends of the die it makes.
+     *
+     * Drawn as the die is drawn — corner to corner — rather than as two halves, so what is on the
+     * swatch is what lands on the dice. Pairs rather than two free colour pickers: see
+     * [DicePreferences.GRADIENTS] for why.
+     */
+    private fun renderGradients() {
+        val row = findViewById<LinearLayout>(R.id.diceGradientRow)
+        row.removeAllViews()
+        val density = resources.displayMetrics.density
+        val size = (52 * density).toInt()
+
+        DicePreferences.GRADIENTS.forEach { (name, first, second) ->
+            val chosen = first == selectedColor && second == selectedSecond
+            val swatch = TextView(this).apply {
+                contentDescription = name
+                gravity = Gravity.CENTER
+                background = GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    intArrayOf(first, second)
+                ).apply {
+                    shape = GradientDrawable.OVAL
+                    if (chosen) setStroke((3 * density).toInt(), Color.WHITE)
+                }
+                setOnClickListener {
+                    applyColors(first, second, reroll = true)
+                    // The sliders drive the near end, so they follow it rather than being left
+                    // pointing at whatever colour was chosen before.
+                    syncSlidersTo(first)
                 }
             }
             swatch.layoutParams = LinearLayout.LayoutParams(size, size)

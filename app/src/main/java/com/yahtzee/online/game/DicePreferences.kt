@@ -17,6 +17,7 @@ object DicePreferences {
     private const val KEY_COLOR = "dice_color"
     private const val KEY_PIP_STYLE = "pip_style"
     private const val KEY_SAVED = "saved_dice"
+    private const val KEY_COLOR_B = "dice_color_b"
     private const val KEY_MATCH_COLOURS = "match_colours"
     private const val MAX_SAVED = 12
 
@@ -98,11 +99,45 @@ object DicePreferences {
         prefs(context).edit().putString(KEY_SAVED, array.toString()).apply()
     }
 
+    /**
+     * Two-colour dice, blended corner to corner.
+     *
+     * Pairs rather than a free choice of both ends. Two arbitrary colours meet in a muddy band
+     * halfway across the face far more often than they flatter each other, and a die is small —
+     * the blend has to read at the size of a thumbnail on a scorecard tab, not just on a preview
+     * the size of a hand.
+     */
+    val GRADIENTS: List<Triple<String, Int, Int>> = listOf(
+        Triple("Dusk", 0xFF3D7FFF.toInt(), 0xFF9B5DE5.toInt()),
+        Triple("Ember", 0xFFF5A524.toInt(), 0xFFE23D4B.toInt()),
+        Triple("Lagoon", 0xFF12C2D8.toInt(), 0xFF16B972.toInt()),
+        Triple("Orchid", 0xFFF25FA6.toInt(), 0xFF9B5DE5.toInt()),
+        Triple("Sunrise", 0xFFF5A524.toInt(), 0xFFF25FA6.toInt()),
+        Triple("Steel", 0xFF7A8699.toInt(), 0xFF3D7FFF.toInt())
+    )
+
     fun getColor(context: Context): Int =
         prefs(context).getInt(KEY_COLOR, DieTextureAtlas.DEFAULT_COLOR)
 
-    fun setColor(context: Context, color: Int) {
-        prefs(context).edit().putInt(KEY_COLOR, color).apply()
+    /**
+     * The far end of the die, or the same colour again when it is a plain one.
+     *
+     * Never null, so a caller can hand both ends to the renderer without first asking whether
+     * there is a gradient at all — a plain die is simply one whose two ends agree.
+     */
+    fun secondColor(context: Context): Int =
+        prefs(context).getInt(KEY_COLOR_B, getColor(context))
+
+    fun isGradient(context: Context): Boolean = secondColor(context) != getColor(context)
+
+    /** Sets a plain colour, which is a gradient whose ends are the same. */
+    fun setColor(context: Context, color: Int) = setColors(context, color, color)
+
+    fun setColors(context: Context, color: Int, second: Int) {
+        prefs(context).edit()
+            .putInt(KEY_COLOR, color)
+            .putInt(KEY_COLOR_B, second)
+            .apply()
     }
 
     /**

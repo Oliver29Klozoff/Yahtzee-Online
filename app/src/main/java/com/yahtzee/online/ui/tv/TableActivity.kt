@@ -407,10 +407,12 @@ class TableActivity : ImmersiveActivity() {
         // the table does not change hands before anything has actually happened.
         val shownPlayerId = lastTurn?.takeIf { LastTurn.isHandover(state) }?.playerId
             ?: state.currentPlayerId
-        val activeColor = state.players[shownPlayerId]?.diceColor
+        val player = state.players[shownPlayerId]
+        val activeColor = player?.diceColor
             ?.takeIf { it != 0 }
             ?: DieTextureAtlas.DEFAULT_COLOR
-        dice.setDiceColor(activeColor)
+        // Both ends, so a two-tone die reads as one on the table rather than only in Settings.
+        dice.setDiceColors(activeColor, player?.diceColors?.second ?: activeColor)
 
         // Only a genuine roll is tumbled. The room's state changes for all sorts of reasons — a
         // score submitted, someone joining — and re-throwing on each would have the dice in

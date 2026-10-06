@@ -122,6 +122,7 @@ object SoloGameStore {
                     .put("scores", scores)
                     .put("yahtzeeBonusCount", player.yahtzeeBonusCount)
                     .put("diceColor", player.diceColor)
+                    .put("diceColorB", player.diceColorB)
             )
         }
         return JSONObject()
@@ -163,7 +164,9 @@ object SoloGameStore {
                 name = item.optString("name"),
                 scores = scores,
                 yahtzeeBonusCount = item.optInt("yahtzeeBonusCount"),
-                diceColor = item.optInt("diceColor")
+                diceColor = item.optInt("diceColor"),
+                // Absent from games saved before two-tone dice existed, and 0 reads as "plain".
+                diceColorB = item.optInt("diceColorB")
             )
         }.toMap()
 

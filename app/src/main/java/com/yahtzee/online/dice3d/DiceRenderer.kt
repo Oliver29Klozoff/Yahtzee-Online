@@ -50,6 +50,22 @@ class DiceRenderer(
         }
 
     /**
+     * The far end of a two-tone die, or the same as [diceColor] for a plain one.
+     *
+     * Only the face texture uses it. The glow and the felt reflection stay on [diceColor]: both
+     * are a single colour cast into the scene, and averaging the two ends would give a light
+     * matching neither half of the die it is coming from.
+     */
+    @Volatile
+    var diceSecondColor: Int = DieTextureAtlas.DEFAULT_COLOR
+        set(value) {
+            if (field != value) {
+                field = value
+                textureDirty = true
+            }
+        }
+
+    /**
      * How pips are coloured. Resolved against the current dice colour at upload time rather
      * than stored as a boolean, so Auto follows the colour as it changes from player to player
      * without the caller having to recompute it.
@@ -188,7 +204,11 @@ class DiceRenderer(
     }
 
     private fun uploadAtlas() {
-        val bitmap = DieTextureAtlas.build(diceColor, pipStyle.darkFor(diceColor))
+        val bitmap = DieTextureAtlas.build(
+            diceColor,
+            pipStyle.darkFor(diceColor),
+            secondColor = diceSecondColor
+        )
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         bitmap.recycle()

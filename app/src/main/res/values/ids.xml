@@ -7,4 +7,13 @@
         that key be an id resource rather than an arbitrary integer.
     -->
     <item name="emojiPopTag" type="id" />
+
+    <!--
+        Where AccentColor stashes a button's own background before painting a gradient over it.
+
+        Without it the gradient would be a one-way door: the original drawable carries the
+        button's shape, its press feedback and its disabled state, and once overwritten there is
+        nothing to put back when the setting is switched off again.
+    -->
+    <item name="accent_original_bg" type="id" />
 </resources>

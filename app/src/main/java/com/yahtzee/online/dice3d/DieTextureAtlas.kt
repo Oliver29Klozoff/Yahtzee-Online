@@ -53,7 +53,8 @@ object DieTextureAtlas {
     fun build(
         baseColor: Int = DEFAULT_COLOR,
         darkPips: Boolean = true,
-        cellSize: Int = CubeMesh.CELL_PX
+        cellSize: Int = CubeMesh.CELL_PX,
+        secondColor: Int = baseColor
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(
             cellSize * CubeMesh.ATLAS_COLS,
@@ -61,7 +62,7 @@ object DieTextureAtlas {
             Bitmap.Config.ARGB_8888
         )
         val canvas = Canvas(bitmap)
-        val palette = Palette.from(baseColor)
+        val palette = Palette.from(baseColor, secondColor)
 
         for (value in 1..6) {
             val cell = value - 1
@@ -77,9 +78,18 @@ object DieTextureAtlas {
      * for instance. Uses the same drawing as the atlas, so a die shown in a list matches the
      * ones on the table, in whatever colour that player chose.
      */
-    fun face(baseColor: Int, value: Int, darkPips: Boolean = true, cellSize: Int = 128): Bitmap {
+    fun face(
+        baseColor: Int,
+        value: Int,
+        darkPips: Boolean = true,
+        cellSize: Int = 128,
+        secondColor: Int = baseColor
+    ): Bitmap {
         val bitmap = Bitmap.createBitmap(cellSize, cellSize, Bitmap.Config.ARGB_8888)
-        drawFace(Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6), Palette.from(baseColor), darkPips)
+        drawFace(
+            Canvas(bitmap), 0, 0, cellSize, value.coerceIn(1, 6),
+            Palette.from(baseColor, secondColor), darkPips
+        )
         return bitmap
     }
 
@@ -90,9 +100,17 @@ object DieTextureAtlas {
      * rim is how glass reads — light escaping where the block is thinnest — and doing it to
      * moulded plastic simply bleaches the edges.
      */
-    private class Palette(val base: Int, val rim: Int, val edge: Int) {
+    private class Palette(
+        val base: Int,
+        val rim: Int,
+        val edge: Int,
+        /** The far corner of a two-tone die, or [base] again for a plain one. */
+        val second: Int = base
+    ) {
+        val twoTone: Boolean get() = second != base
+
         companion object {
-            fun from(baseColor: Int): Palette {
+            fun from(baseColor: Int, secondColor: Int = baseColor): Palette {
                 val hsv = FloatArray(3)
                 Color.colorToHSV(baseColor, hsv)
                 return Palette(
@@ -102,7 +120,8 @@ object DieTextureAtlas {
                     ),
                     edge = Color.HSVToColor(
                         floatArrayOf(hsv[0], hsv[1] * 0.90f, min(1f, hsv[2] + 0.08f))
-                    )
+                    ),
+                    second = secondColor
                 )
             }
         }
@@ -121,14 +140,27 @@ object DieTextureAtlas {
         val cx = left + size / 2f
         val cy = top + size / 2f
 
-        // 1. Body — one colour, lifting only at the very edge.
+        // 1. Body.
+        //
+        // One colour lifts only at the very edge, as it always has. Two run corner to corner
+        // instead, along the same diagonal the edge band already uses — so the blend and the lit
+        // edge agree about where the light is coming from rather than pulling against each other.
         val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                cx, cy, size * 0.74f,
-                intArrayOf(palette.base, palette.base, palette.rim),
-                floatArrayOf(0f, 0.78f, 1f),
-                Shader.TileMode.CLAMP
-            )
+            shader = if (palette.twoTone) {
+                LinearGradient(
+                    left.toFloat(), top.toFloat(), left + size.toFloat(), top + size.toFloat(),
+                    intArrayOf(palette.base, palette.second),
+                    floatArrayOf(0f, 1f),
+                    Shader.TileMode.CLAMP
+                )
+            } else {
+                RadialGradient(
+                    cx, cy, size * 0.74f,
+                    intArrayOf(palette.base, palette.base, palette.rim),
+                    floatArrayOf(0f, 0.78f, 1f),
+                    Shader.TileMode.CLAMP
+                )
+            }
         }
         canvas.drawRect(rect, bodyPaint)
 
